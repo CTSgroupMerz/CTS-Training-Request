@@ -1,0 +1,16 @@
+{
+  "name": "CTS Training Request",
+  "short_name": "CTS Training",
+  "description": "ระบบขอคิวเทรนและดูตารางงานทีม CTS — Merz Aesthetics Thailand",
+  "lang": "th",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F4F1FA",
+  "theme_color": "#F4F1FA",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
