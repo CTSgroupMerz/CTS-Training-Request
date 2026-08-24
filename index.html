@@ -311,6 +311,8 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .evchip.two .etx{font-size:10.5px;font-weight:600;width:100%}
 .evchip .sl{flex:none}
 .half .etx2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.half .etx3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;opacity:.72;font-size:9.5px;font-weight:500}
+.okmk{font-weight:900;color:var(--ok);margin-right:3px}
 .half.job{cursor:pointer;text-align:left;font-family:inherit;align-items:flex-start;flex-direction:column;gap:1px}
 .half.job .slb{opacity:.85;font-size:9px}
 .evchip .etx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -325,6 +327,44 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
   padding:5px 8px;background:var(--a1);color:#26694E;min-height:28px}
 @media(min-width:940px){.slotblk{min-height:32px;padding:6px 10px}}
 .slotblk .lb{font-size:10.5px;font-weight:700;opacity:.85;white-space:nowrap}
+/* ===== มือถือ: ปฏิทินต้องได้พื้นที่จอมากที่สุด (PC/iPad ไม่แตะ) ===== */
+@media(max-width:700px){
+  h1.pt{font-size:19px;margin-bottom:4px}
+  .psub{display:none}                      /* คำอธิบายยาว 2–3 บรรทัด กินที่ — อ่านได้ที่ปุ่ม "กติกาการใช้งาน" */
+  /* บีบ สัปดาห์/เดือน + ช่วงวันที่ + ปุ่มเลื่อน ให้อยู่บรรทัดเดียว ไม่ตกบรรทัดกินที่ */
+  .calbar{gap:6px;margin-bottom:9px;flex-wrap:nowrap}
+  .period{font-size:13px;line-height:1.05;flex:1 1 auto;min-width:0;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .period span{font-size:8px;letter-spacing:.08em}
+  .navbtns{margin-left:auto;gap:3px;flex:0 0 auto}
+  .navbtns button{width:28px;height:28px;border-radius:9px;font-size:13px}
+  .navbtns button.wide{width:auto;padding:0 8px;font-size:11.5px}
+  .seg{padding:2px;border-radius:11px;flex:0 0 auto}
+  .seg button{padding:5px 9px;font-size:12px}
+  .wkndnote{display:none}                  /* หัวคอลัมน์บอก ส/อา อยู่แล้ว ไม่ต้องเขียนซ้ำในทุกช่อง */
+  .legend{font-size:10.5px;gap:5px 9px}
+  /* ปัดทีละวันตอนเลื่อนปฏิทินสัปดาห์ จะได้ไม่ค้างครึ่งช่อง */
+  .wscroll{scroll-snap-type:x proximity}
+  .wdate,.wcell,.scell{scroll-snap-align:start}
+  .wperson{padding:6px 5px;gap:4px}
+  .wperson .ava{width:20px;height:20px}
+  .wperson .nk{font-size:10.5px}
+  .wperson .nm{display:none}               /* ชื่อเต็มไม่ต้องโชว์บนมือถือ ชื่อเล่นพอ */
+  .slabel{padding:8px 4px}
+  .slabel b{font-size:11px}
+  .slabel small{font-size:8px;white-space:nowrap}   /* "09:00–12:00" ต้องไม่ตัดบรรทัด */
+  .wdate{padding:6px 2px}
+  .wdate .d{font-size:14px}
+  .wcell{padding:3px}
+  .half{padding:4px 5px;font-size:10px;min-height:22px}
+  .half .slb{font-size:8.5px}
+  .half .etx3{font-size:8.5px}
+  /* ช่องคิวว่างของ Sales: บีบให้เตี้ยลง จะได้เห็นทั้งเช้าและบ่ายพร้อมกันโดยไม่ต้องเลื่อนลง */
+  .scell{padding:6px 3px;gap:3px}
+  .scell .sbig{font-size:17px}
+  .scell .sbig small{font-size:8px}
+  .scell .btn.sm{padding:3px 8px;font-size:11px;min-height:0}
+}
 @media(max-width:700px){.slotblk{padding:4px 6px;min-height:24px}
   .slotblk .lb{font-size:9px;font-family:var(--mono);letter-spacing:.04em}
   .slotblk .nb{font-size:13px}.slotblk.ma .nb,.slotblk.full .nb{font-size:10px}}
@@ -683,6 +723,7 @@ const PRODHEX={'Ultherapy':'#FFD961','Belotero':'#FF9FC6','Xeomin':'#7C9CEC','Ra
 const PRODINK={'Ultherapy':'#6B5000','Belotero':'#8E2B57','Xeomin':'#1E3573','Radiesse':'#0B5570'};
 const pink=pr=>PRODINK[pr]||'var(--ink)';
 const EVTYPE=['Workshop','Symposium','MA Central Event'];
+const TOPIC_TAGS=['KUD','Med School','MSC'];   // หัวข้อที่เกี่ยวข้องของคิวงาน — เลือกได้หลายอัน
 const EXP=['Beginner — ยังไม่เคยฉีด / ไม่เคยใช้เครื่อง','Intermediate — เคยใช้บ้าง ต้องมีคนคุม','Advanced — ใช้ประจำ ต้องการ technique ใหม่'];
 const RAMP=['var(--a1)','var(--a2)','var(--a3)','var(--a4)','var(--a5)'];
 /* วันหยุดประจำเดือน — แก้/เพิ่มได้ที่นี่ (Admin เพิ่มในแอปได้ด้วย) */
@@ -740,11 +781,11 @@ function upcOnDate(k){
   upcReqs().forEach(r=>{(r.days||[]).forEach(d=>{if(d.date===k)out.push({r,day:d});});});
   return out;
 }
-const canSeeNames=()=>state.role==='cts'||state.role==='admin';
+const canSeeNames=()=>(state.role==='cts'||state.role==='admin')&&!salesView();
 const activeTeam=()=>state.role==='sales'?teamOfArea(state.area):state.role==='cts'?byId(state.me).team:state.teamView;
 /* Sales: เห็นคิวว่างเฉพาะ 6 CTS ของทีมที่ดูแลพื้นที่ตัวเอง
    CTS / Admin: เห็นได้ทุกคน (รวมหัวหน้างาน) แล้วค่อยกรองเอง */
-const teamPool=()=>state.role==='sales'?teamCTS(activeTeam()).filter(c=>isBookable(c.id)):CTS.slice();
+const teamPool=()=>(state.role==='sales'||salesView())?teamCTS(activeTeam()).filter(c=>isBookable(c.id)):CTS.slice();
 const visibleCTS=()=>{const p=teamPool();return state.filter.size?p.filter(c=>state.filter.has(c.id)):p;};
 const bookablePool=()=>teamCTS(activeTeam()).filter(c=>isBookable(c.id));
 const face=(id,size)=>`<img class="ava ${size}" src="${FACES[id]||''}" alt="${byId(id).nick}" style="--c:${pal(id).ci}">`;
@@ -767,22 +808,31 @@ const availOf=(k,cid,slot)=>(state.avail[k]&&state.avail[k][cid])?state.avail[k]
 /* undefined = ไม่มีคิวข้างเคียง ใช้เวลามาตรฐาน · null = เวลาไม่พอ · object = หน้าต่างเวลาที่คำนวณได้ */
 function autoWindow(k,cid,slot){
   const R=AUTO_RULE;
+  const es=entriesOf(k,cid).filter(e=>!e.job.allDay);
   if(slot==='pm'){
-    const j=jobOf(k,cid,'am');
-    if(!j)return undefined;
-    const amEnd=toMin(j.end||SLOT_DEF.am.end);
+    /* ดูคิวที่แตะช่วงเช้า แล้วเอาอันที่เลิกช้าที่สุด — คิวเช้าอาจมีหลายอัน */
+    const ends=es.filter(e=>toMin(e.start)<toMin(SLOT_DEF.am.end)).map(e=>toMin(e.end));
+    if(!ends.length)return undefined;
+    const amEnd=Math.max(...ends);
     if(amEnd<=toMin(SLOT_DEF.am.end))return undefined;            // คิวเช้าเลิกตามปกติ ใช้เวลาบ่ายมาตรฐาน
     const start=Math.max(toMin(SLOT_DEF.pm.start), amEnd+R.bufferMin);
     const end=Math.min(start+R.sessionMin, toMin(R.dayEnd));
     return (end-start)<R.minSessionMin?null:{start:toHM(start),end:toHM(end),auto:true};
   }
-  const j=jobOf(k,cid,'pm');
-  if(!j)return undefined;
-  const pmStart=toMin(j.start||SLOT_DEF.pm.start);
+  const starts=es.filter(e=>toMin(e.end)>toMin(SLOT_DEF.pm.start)).map(e=>toMin(e.start));
+  if(!starts.length)return undefined;
+  const pmStart=Math.min(...starts);
   if(pmStart>=toMin(SLOT_DEF.pm.start))return undefined;          // คิวบ่ายเริ่มตามปกติ ใช้เวลาเช้ามาตรฐาน
   const end=Math.min(toMin(SLOT_DEF.am.end), pmStart-R.bufferMin);
   const start=toMin(SLOT_DEF.am.start);
   return (end-start)<R.minSessionMin?null:{start:toHM(start),end:toHM(end),auto:true};
+}
+/* เวลาว่างที่โชว์ให้ Sales ในช่องนั้น = ช่วงที่คนซึ่งยังว่างจริงว่างอยู่ (คิดกติกาเผื่อพัก+เดินทางแล้ว)
+   เดิมพิมพ์ SLOT_DEF ตรงๆ ทำให้บ่ายขึ้น 13:00 เสมอ ทั้งที่คิวเช้าเลิกสาย */
+function slotWindow(k,slot){
+  const w=teamPool().filter(c=>slotStatus(k,c.id,slot)==='free').map(c=>slotTime(k,c.id,slot));
+  if(!w.length)return SLOT_DEF[slot];
+  return {start:toHM(Math.min(...w.map(x=>toMin(x.start)))),end:toHM(Math.max(...w.map(x=>toMin(x.end))))};
 }
 function setAvail(k,cid,slot,t){
   if(!state.avail[k])state.avail[k]={};
@@ -822,6 +872,12 @@ window.t24set=id=>{const h=$(id+'_h'),m=$(id+'_m'),t=$(id);if(h&&m&&t)t.value=h.
 const fmtT=t=>`${t.start}–${t.end}`;
 /* ป้ายเวลาที่แสดง — คิวทั้งวันไม่ต้องโชว์ช่วงเวลา */
 const timeLabel=(j,t)=>(j&&j.allDay)?'ทั้งวัน':fmtT(t);
+/* ✓ หน้าคิว = Admin ยืนยันแล้วว่าอีเมลอนุมัติออกไปแล้ว */
+const okMark=j=>(j&&j.emailOk)?'<span class="okmk" title="Email Approved แล้ว">✓</span>':'';
+/* Product ของคำขอ เลือกได้หลายตัว — เก็บเป็น array แต่ยังอ่านข้อมูลเก่าที่เป็นสตริงเดี่ยวได้ */
+const prodList=v=>!v?[]:(Array.isArray(v)?v:[v]);
+const prodMain=v=>prodList(v)[0]||null;
+const prodTags=v=>prodList(v).map(x=>`<span class="tag" style="background:${PRODHEX[x]||'#999'};color:${pink(x)}">${x}</span>`).join(' ');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
 const jobOf=(k,cid,slot)=>(state.sched[k]&&state.sched[k][cid])?state.sched[k][cid][slot]:undefined;
 function slotStatus(k,cid,slot){
@@ -953,7 +1009,10 @@ function logout(){
   loginRole:null,loginArea:null,loginCts:null,loginCode:null,filter:new Set()});renderLogin();}
 
 /* ========================= SHELL ========================= */
-const TABS=[{k:'cal',ic:'▦',t:'ปฏิทิน'},{k:'req',ic:'▤',t:'คำขอ'},{k:'app',ic:'✓',t:'อนุมัติ'},{k:'feed',ic:'✦',t:'แจ้งเตือน'}];
+const TABS=[{k:'cal',ic:'▦',t:'ปฏิทิน'},{k:'sale',ic:'◷',t:'ปฏิทิน Sale',cts:1},{k:'req',ic:'▤',t:'คำขอ'},{k:'app',ic:'✓',t:'อนุมัติ'},{k:'feed',ic:'✦',t:'แจ้งเตือน'}];
+const tabsFor=()=>TABS.filter(t=>!t.cts||state.role==='cts'||state.role==='admin');
+/* อยู่ในแท็บ "ปฏิทิน Sale" = ดูแบบเดียวกับที่ Sales เห็น (ซ่อนชื่อ นับคิวว่าง) แต่ยังแก้เวลาว่างได้ */
+const salesView=()=>state.tab==='sale'&&(state.role==='cts'||state.role==='admin');
 function pendingCount(){return state.requests.filter(r=>r.status==='pending'&&canApprove(r)).length;}
 function userChip(){
   if(state.role==='sales')return `<button class="uchip" id="uOut"><span class="uic">◍</span>
@@ -967,9 +1026,9 @@ function userChip(){
 function render(){
   if(!state.authed)return renderLogin();
   const pend=pendingCount(),showB=pend&&(isLead()||state.role==='admin');
-  const nav=TABS.map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
+  const nav=tabsFor().map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
     <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
-  const bnav=TABS.map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}">
+  const bnav=tabsFor().map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}">
     <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
   const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:'Admin · ทุกทีม';
 
@@ -993,8 +1052,8 @@ function render(){
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
   ['uOut','tOut'].forEach(i=>{const e=$(i);if(e)e.onclick=logout;});
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
-  const se=$('sideEv');if(se)se.onclick=openEventForm;
-  ({cal:renderCal,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
+  const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
+  ({cal:renderCal,sale:renderCal,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
 const view=()=>$('view');
@@ -1019,9 +1078,11 @@ function renderCal(){
           <span>WEEK OF ${ENMON[a.getMonth()]} ${a.getDate()}, ${a.getFullYear()}</span></div>`;})();
 
   view().innerHTML=`
-    <h1 class="pt">${isUPC()?'ตารางเทรน UPC':canSeeNames()?'ตารางงานทีม':'คิวว่างของทีม'}</h1>
+    <h1 class="pt">${isUPC()?'ตารางเทรน UPC':salesView()?'ปฏิทิน Sale':canSeeNames()?'ตารางงานทีม':'คิวว่างของทีม'}</h1>
     <p class="psub">${isUPC()
       ? 'เห็นเฉพาะคิวเทรนของ UPC · งานกลาง MA · วันหยุด — UPC เดินทางหลายวัน จึงไม่ต้องเลือกคิวว่างรายครึ่งวัน'
+      : salesView()
+      ? `หน้าจอเดียวกับที่ Sales เห็น — กดที่วันเพื่อแก้เวลาที่ว่างหรือปิดคิวของ ${TEAMS[activeTeam()].label}`
       : canSeeNames()
       ? 'เห็นคิวงานของทุกคน — กด "ทีมของฉัน" หรือชื่อรายคนเพื่อกรอง · กดวันเพื่อดูตารางตามเวลาจริง'
       : `เห็นเฉพาะจำนวนคิวว่างของ ${TEAMS[activeTeam()].label} ที่ดูแล ${state.area} — ชื่อ CTS จะแสดงหลังได้รับอนุมัติ`}</p>
@@ -1054,11 +1115,12 @@ function renderCal(){
   shell.querySelectorAll('[data-book]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     quickPick(b.dataset.book,b.dataset.slot,b.dataset.cts||null);});
   shell.querySelectorAll('[data-job]').forEach(b=>b.onclick=e=>{e.stopPropagation();
-    const [k,cid,sl]=b.dataset.job.split('|');openJob(k,cid,sl);});
+    const [k,ek]=b.dataset.job.split('|');openJob(k,ek);});
   shell.querySelectorAll('[data-d]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
 
-  const be=$('btnEv');if(be)be.onclick=openEventForm;
+  const be=$('btnEv');if(be)be.onclick=()=>openEventForm();
+  view().querySelectorAll('[data-editev]').forEach(b=>b.onclick=()=>openEventForm(b.dataset.editev));
   view().querySelectorAll('[data-delev]').forEach(b=>b.onclick=()=>{
     state.events=state.events.filter(e=>e.id!==b.dataset.delev);renderCal();toast('ลบงานกลางแล้ว');});
   view().querySelectorAll('[data-delhol]').forEach(b=>b.onclick=()=>{
@@ -1103,7 +1165,7 @@ function maCard(){
       ${evs.length?evs.map(e=>`<div class="evrow">
       <div class="d">${parse(e.date).getDate()}<br>${THMON[parse(e.date).getMonth()]}</div>
       <div class="grow"><b>${esc(e.title)}</b><br><span class="muted">${e.type} · ${e.slot==='all'?'ทั้งวัน':e.slot==='am'?'ช่วงเช้า':'ช่วงบ่าย'}${canSeeNames()?' · '+(e.cts==='all'?'CTS ทุกคน':e.cts.map(i=>byId(i).nick).join(', ')):''}</span></div>
-      ${state.role==='admin'?`<button data-delev="${e.id}">ลบ</button>`:''}</div>`).join('')
+      ${state.role==='admin'?`<button data-editev="${e.id}">แก้ไข</button><button data-delev="${e.id}">ลบ</button>`:''}</div>`).join('')
       :(hols.length?'':'<div class="muted">ไม่มีงานกลางหรือวันหยุดในช่วงนี้</div>')}</div></div>`;
 }
 
@@ -1123,28 +1185,24 @@ function monthHTML(){
     let inner='';
     if(!off){
       if(canSeeNames()){
-        const jobs=[];
-        vis.forEach(c=>['am','pm'].forEach(sl=>{
-          const st=slotStatus(k,c.id,sl);
-          if(st==='busy'||st==='pend'||st==='booked')jobs.push({c,sl,j:jobOf(k,c.id,sl)||{}});
-        }));
-        jobs.sort((a,b)=>(b.j.allDay?1:0)-(a.j.allDay?1:0));
+        /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
+        const jobs=dayEntries(k).filter(e=>e.job);
         const ma=dayEvents(k);
         if(NARROW()){
           /* phone: compact colour dots — tap the day for the full list */
           inner=`<div class="dots">
             ${ma.length?'<i class="ma"></i>':''}
-            ${jobs.map(o=>`<i style="background:${pal(o.c.id).c};box-shadow:inset 0 0 0 1px ${pal(o.c.id).ci}33"></i>`).join('')}
+            ${jobs.map(o=>`<i style="background:${pal(o.who[0]).c};box-shadow:inset 0 0 0 1px ${pal(o.who[0]).ci}33"></i>`).join('')}
           </div><span class="evmore"${jobs.length||ma.length?'':' style="color:var(--ok)"'}>${
             jobs.length?jobs.length+' คิว':ma.length?'งานกลาง MA':'ว่างทั้งวัน'}</span>`;
         }else{
           const chips=ma.map(e=>`<span class="evchip ma"><span class="etx">MA · ${esc(e.title)}</span></span>`)
-            .concat(jobs.map(o=>{const t=slotTime(k,o.c.id,o.sl);
-              return `<button class="evchip two" data-job="${k}|${o.c.id}|${o.sl}" title="${o.c.nick} · ${esc(o.j.title||'')}"
-                style="${jobStyle(o.j,o.c.id)}">
-                <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.j,t)}</span>
-                  <span class="who">${o.c.nick}</span></span>
-                <span class="etx">${o.j.product?o.j.product+' · ':''}${esc(o.j.title||'')}</span></button>`;}));
+            .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
+              return `<button class="evchip two" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
+                style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
+                <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
+                  <span class="who">${okMark(o.job)}${nicks}</span></span>
+                <span class="etx">${o.job.product?o.job.product+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
           const cap=3;
           inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap} รายการ</span>`:'');
         }
@@ -1160,7 +1218,7 @@ function monthHTML(){
         };
         inner=wknd
           ? `<div class="wkndnote">${(freeIds(k,'am').length+freeIds(k,'pm').length)
-              ?'เสาร์–อาทิตย์<br><b>จองได้ตามตกลง</b>':'ไม่มีคิวว่าง'}</div>`
+              ?'เสาร์–อาทิตย์':'ไม่มีคิวว่าง'}</div>`
           : `<div class="blks">${blk('am')}${blk('pm')}</div>`;
       }
     }
@@ -1176,7 +1234,8 @@ function monthHTML(){
 /* ---- week ---- */
 function weekHTML(){
   const days=[];for(let i=0;i<7;i++){const d=new Date(state.weekStart);d.setDate(d.getDate()+i);days.push(d);}
-  const gt=`160px repeat(${days.length},minmax(88px,1fr))`;
+  /* มือถือ: ย่อคอลัมน์ชื่อ/ช่วงเวลา จาก 160px เหลือ 72px — เดิมกินครึ่งจอ เห็นได้แค่ 2 วัน */
+  const gt=NARROW()?`68px repeat(${days.length},minmax(62px,1fr))`:`160px repeat(${days.length},minmax(88px,1fr))`;
   const head=`<div class="wrow whead" style="--gt:${gt}">
     <div class="wperson"><span class="qlbl">${canSeeNames()?'CTS':'ช่วงเวลา'}</span></div>
     ${days.map(d=>`<div class="wdate${key(d)===key(TODAY)?' td':''}${holidayOf(key(d))?' holh':''}">
@@ -1189,18 +1248,15 @@ function weekHTML(){
       ${days.map(d=>{const k=key(d),off=!isWorkday(d),hol=holidayOf(k);
         if(hol)return `<div class="wcell holc"><span class="holtag">${esc(hol.name)}</span></div>`;
         if(off)return '<div class="wcell off"></div>';
-        const cells=['am','pm'].map(sl=>{
-          const st=slotStatus(k,c.id,sl),j=jobOf(k,c.id,sl)||{};
-          const ev=eventFor(k,c.id,sl);
-          const picked=state.picks.some(p=>p.date===k&&p.slot===sl&&p.ctsId===c.id);
-          if(st==='event')return `<span class="half mah"><span class="slb">${sl.toUpperCase()}</span>${esc(ev.type)}</span>`;
-          if(st==='notime'||st==='free')return '';   // ปฏิทิน CTS แสดงเฉพาะงานที่มีจริง
-          const tj=slotTime(k,c.id,sl);
-          return `<button class="half job${j.allDay?' allday':''}" data-job="${k}|${c.id}|${sl}" style="${jobStyle(j,c.id)}">
-            <span class="slb">${timeLabel(j,tj)}</span><span class="etx2">${j.product?j.product+' · ':''}${esc(j.title||'ติดงาน')}${st==='pend'?' (รออนุมัติ)':''}</span></button>`;
-        });
-        const seen=new Set();
-        const html=cells.filter(Boolean).filter(x=>{const kk=x.slice(0,160);if(seen.has(kk))return false;seen.add(kk);return true;}).join('');
+        /* ปฏิทิน CTS แสดงเฉพาะงานที่มีจริง ตามเวลาจริง กี่คิวก็ได้ — ไม่ต้องแบ่งเช้า/บ่าย
+           คิวทั้งวันได้คลาส allday = เต็มช่อง */
+        const ev=eventFor(k,c.id,'am')||eventFor(k,c.id,'pm');
+        const html=(ev?`<span class="half mah"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
+          +entriesOf(k,c.id).map(e=>`<button class="half job${e.job.allDay?' allday':''}"
+            data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
+            <span class="slb">${okMark(e.job)}${timeLabel(e.job,e)}</span>
+            <span class="etx2">${e.job.product?e.job.product+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':''}</span>
+            ${e.job.detail?`<span class="etx3">${esc(e.job.detail)}</span>`:''}</button>`).join('');
         return `<div class="wcell">${html||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
     return `<div class="wscroll"><div class="wgrid">${head}${rows}</div></div>${legend()}`;
   }
@@ -1216,7 +1272,7 @@ function weekHTML(){
       const picked=state.picks.some(p=>p.date===k&&p.slot===sl);
       const wknd=isWeekend(d);
       return `<div class="scell${wknd?' wkndcell':''}">
-        ${wknd?'<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:var(--ink3);font-size:12px">เสาร์–อาทิตย์<small>จองได้ตามตกลง</small></span>'
+        ${wknd?'<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:var(--ink3);font-size:12px">เสาร์–อาทิตย์</span>'
           :`<span class="sdot" style="background:${bl?'var(--ma)':rampColor(f,total)}"></span>
             <span class="sbig" style="color:${f&&!bl?'var(--ok)':'var(--ink3)'}">${bl?'MA':f}<small>${bl?'งานกลาง':'ว่าง / '+total}</small></span>`}
         <button class="btn sm ${picked?'ok':''}" ${(!f||bl)?'disabled':''} data-book="${k}" data-slot="${sl}">
@@ -1305,7 +1361,7 @@ function upcMonthHTML(){
 }
 function upcWeekHTML(){
   const days=[];for(let i=0;i<7;i++){const d=new Date(state.weekStart);d.setDate(d.getDate()+i);days.push(d);}
-  const gt=`repeat(${days.length},minmax(120px,1fr))`;
+  const gt=`repeat(${days.length},minmax(${NARROW()?86:120}px,1fr))`;
   const head=`<div class="wrow whead" style="--gt:${gt}">
     ${days.map(d=>`<div class="wdate${key(d)===key(TODAY)?' td':''}${holidayOf(key(d))?' holh':''}">
       <div class="d">${d.getDate()}</div><div class="m">${THDOW[d.getDay()]} · ${ENMON[d.getMonth()]}</div></div>`).join('')}</div>`;
@@ -1384,7 +1440,7 @@ function clearSelf(id){
 function openSelfEntry(date,editId,keep){
   const ev=editId?state.selfEvents.find(e=>e.id===editId):null;
   const D=keep||(ev?JSON.parse(JSON.stringify(ev))
-    :{id:null,date:date||key(TODAY),dateEnd:'',multi:false,allDay:false,title:'',start:'09:00',end:'12:00',product:'',
+    :{id:null,date:date||key(TODAY),dateEnd:'',multi:false,allDay:false,title:'',detail:'',start:'09:00',end:'12:00',product:'',topics:[],
       attendees:[state.role==='cts'?state.me:'parichat'],owner:state.role==='cts'?state.me:'admin'});
   if(D.dateEnd&&D.dateEnd!==D.date)D.multi=true;
   openSheet(`<div class="eyebrow">${ev?'แก้ไขคิวงาน':'เพิ่มคิวงาน'}</div><h2>คิวงานของ CTS</h2>
@@ -1392,6 +1448,8 @@ function openSelfEntry(date,editId,keep){
   `<div class="card">
     <label class="f">หัวข้องาน</label>
     <input class="in" id="seTitle" value="${esc(D.title)}" placeholder="เช่น Ultherapy office (P'Sung)">
+    <label class="f">รายละเอียดคิวงาน <span>· ถ้ามี</span></label>
+    <textarea class="in" id="seDetail" rows="2" placeholder="เช่น ลงเครื่องใหม่ 2 ห้อง · แพทย์ 3 ท่าน · จอดรถหลังตึก">${esc(D.detail||'')}</textarea>
     <div class="row" style="margin:14px 0 4px">
       <label class="grow" style="font-size:12.5px;font-weight:700;color:var(--ink2)">งานนี้ต่อเนื่องหลายวัน</label>
       <input type="checkbox" id="seMulti" ${D.multi?'checked':''} style="width:21px;height:21px"></div>
@@ -1410,6 +1468,8 @@ function openSelfEntry(date,editId,keep){
     <label class="f">Product ที่เกี่ยวข้อง <span>· ถ้ามี</span></label>
     <div class="chips">${Object.keys(PRODHEX).map(pr=>`<button class="chip prodchip sm2" data-sep="${pr}"
       style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${D.product===pr}">${pr}</button>`).join('')}</div>
+    <label class="f">หัวข้อที่เกี่ยวข้อง <span>· เลือกได้หลายอัน</span></label>
+    <div class="chips">${TOPIC_TAGS.map(t=>`<button class="chip" data-stt="${t}" aria-pressed="${(D.topics||[]).includes(t)}">${t}</button>`).join('')}</div>
     <label class="f">ใครไปงานนี้บ้าง <span>· เลือกได้หลายคน สีจะรวมกันในปฏิทิน</span></label>
     <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-att="${c.id}" aria-pressed="${D.attendees.includes(c.id)}"
       style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${c.nick}</button>`).join('')}</div>
@@ -1420,11 +1480,13 @@ function openSelfEntry(date,editId,keep){
     <button class="btn ghost block" id="seCancel" style="margin-top:8px">ยกเลิก</button>
   </div>`);
   const B=$('sheetBody');
-  const grab=()=>{D.title=$('seTitle').value;D.date=$('seDate').value;
+  const grab=()=>{D.title=$('seTitle').value;D.detail=$('seDetail').value;D.date=$('seDate').value;
     const a=$('seStart'),b2=$('seEnd');if(a)D.start=a.value;if(b2)D.end=b2.value;
     const de=$('seDateEnd');D.dateEnd=D.multi&&de?de.value:'';};
   B.querySelectorAll('[data-sep]').forEach(b=>b.onclick=()=>{grab();
     D.product=D.product===b.dataset.sep?'':b.dataset.sep;openSelfEntry(D.date,editId,D);});
+  B.querySelectorAll('[data-stt]').forEach(b=>b.onclick=()=>{grab();const l=D.topics||(D.topics=[]),i=l.indexOf(b.dataset.stt);
+    i>=0?l.splice(i,1):l.push(b.dataset.stt);openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>{grab();const id=b.dataset.att;
     const ix=D.attendees.indexOf(id);ix>=0?D.attendees.splice(ix,1):D.attendees.push(id);
     openSelfEntry(D.date,editId,D);});
@@ -1463,16 +1525,18 @@ function jobStyle(j,fallbackId){
   ids.forEach((id,i)=>{stops.push(`${pal(id).c} ${i*step}px`,`${pal(id).c} ${(i+1)*step}px`);});
   return `background:repeating-linear-gradient(45deg,${stops.join(',')});color:${pal(ids[0]).ci};--ci:${pal(ids[0]).ci}`;
 }
-function openJob(k,cid,sl){
-  const j=jobOf(k,cid,sl);if(!j)return;
-  const c=byId(cid),t=slotTime(k,cid,sl);
+function openJob(k,ekey){
+  const e=dayEntries(k).find(x=>x.key===ekey);
+  if(!e||!e.job)return;
+  const j=e.job,cid=e.anchor.cid,t={start:e.start,end:e.end};
+  const c=byId(cid);
   const r=j.reqId?state.requests.find(x=>x.id===j.reqId):null;
   const st={busy:'ติดงาน',pend:'รออนุมัติ',booked:'ยืนยันแล้ว'}[j.kind]||'';
   const detail=r?`
     <div class="card"><h3>รายละเอียดจากคำขอ ${r.id}</h3>
       <dl class="kv">
         <dt>คลินิก</dt><dd>${r.clinic?esc(r.clinic):'<span class="gapv">— ยังไม่ได้กรอก</span>'}</dd>
-        <dt>Product</dt><dd>${r.product||'—'}${r.level?' · '+r.level:''}</dd>
+        <dt>Product</dt><dd>${prodList(r.product).join(', ')||'—'}${r.level?' · '+r.level:''}</dd>
         <dt>Module</dt><dd>${r.module} · ${r.sessions.length} session</dd>
         <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):'—'}</dd>
         <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':'—'}${r.exp?' · '+esc(r.exp.split('—')[0]):''}</dd>
@@ -1483,8 +1547,8 @@ function openJob(k,cid,sl){
       </dl>
       ${r.photos.length?`<div class="thumbs">${r.photos.map(ph=>`<img src="${ph.url}" alt="">`).join('')}</div>`:''}
       ${missBox(r)}
-      <div class="sess">${r.sessions.map((sn,i)=>`<div class="s" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">
-        <b>S${i+1}</b><span>${fmtDate(sn.date)} · ${fmtT(slotTime(sn.date,sn.ctsId,sn.slot))} · ${byId(sn.ctsId).nick}</span></div>`).join('')}</div>
+      <div class="sess">${r.sessions.filter(sn=>sn.ctsId).map((sn,i)=>`<div class="s" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">
+        <b>S${i+1}</b><span>${fmtDate(sn.date)} · ${sn.slot==='day'?'ทั้งวัน':(sn.start||SLOT_DEF[sn.slot].start)+'–'+(sn.end||SLOT_DEF[sn.slot].end)} · ${byId(sn.ctsId).nick}</span></div>`).join('')}</div>
       <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูล</button>
     </div>`
     :j.selfId?`<div class="card"><div class="muted">คิวงานที่ CTS ลงเอง — แก้ไขหัวข้อ เวลา และผู้ร่วมงานได้ที่ปุ่มด้านบน</div></div>`
@@ -1497,11 +1561,15 @@ function openJob(k,cid,sl){
       <div class="muted">${fmtDate(k)}</div></div>
       ${j.product?`<span class="tag" style="background:${PRODHEX[j.product]||'#999'};color:${pink(j.product)}">${j.product}</span>`:''}</div>
     <div class="note pl" style="display:flex;align-items:center;gap:10px">
-      <b style="font-size:16px">${timeLabel(j,t)}</b><span>${j.allDay?'ไม่ระบุเวลา':(sl==='am'?'ช่วงเช้า':'ช่วงบ่าย')}</span></div>
-    ${j.attendees&&j.attendees.length>1?`<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+      <b style="font-size:16px">${timeLabel(j,t)}</b><span>${j.allDay?'ไม่ระบุเวลา':'ตามเวลาจริง'}</span></div>
+    ${j.detail?`<div class="note" style="margin-top:9px;white-space:pre-wrap">${esc(j.detail)}</div>`:''}
+    ${(j.topics||[]).length?`<div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">${j.topics.map(t=>`<span class="pill n">${esc(t)}</span>`).join('')}</div>`:''}
+    ${e.who.length>1?`<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
       <span class="muted" style="font-size:12px">ไปด้วยกัน:</span>
-      ${j.attendees.map(i=>`<span class="nsess"><span class="s" style="background:${pal(i).c};color:${pal(i).ci}">
+      ${e.who.map(i=>`<span class="nsess"><span class="s" style="background:${pal(i).c};color:${pal(i).ci}">
         ${face(i,'xs')} ${byId(i).nick}</span></span>`).join('')}</div>`:''}
+    ${state.role==='admin'&&j.reqId?`<button class="btn block ${j.emailOk?'ok':''}" data-mail="${j.reqId}|${j.sIdx}"
+      style="margin-top:11px">${j.emailOk?'✓ Email Approved แล้ว — กดเพื่อยกเลิก':'ยืนยันว่า Email Approved แล้ว'}</button>`:''}
     ${canSeeNames()&&j.selfId?`<button class="btn block" data-self="${j.selfId}" style="margin-top:11px">✎ แก้ไขคิวงานนี้</button>`:''}
     ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">🕑 แก้เวลา / เวลาที่ว่าง</button>`:''}
   </div>${detail}
@@ -1509,6 +1577,11 @@ function openJob(k,cid,sl){
   bindCards($('sheetBody'));
   bindTime($('sheetBody'));
   $('sheetBody').querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>openSelfEntry(null,b.dataset.self));
+  $('sheetBody').querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
+    const [rid,ix]=b.dataset.mail.split('|');
+    const rq=state.requests.find(x=>x.id===rid),sn=rq&&rq.sessions[+ix];
+    if(!sn)return;
+    sn.emailOk=!sn.emailOk;closeSheet();render();toast(sn.emailOk?'ทำเครื่องหมาย Email Approved แล้ว':'ยกเลิกเครื่องหมายแล้ว');});
 }
 
 /* CTS และ Admin แก้เวลาว่าง / เวลาคิวของคนในทีมได้ */
@@ -1571,25 +1644,46 @@ function bindTime(scope){
 
 /* ================= มุมมองรายวันแบบไทม์ไลน์ (สำหรับ CTS / Admin) ================= */
 const DAY_VIEW={from:7*60,to:20*60,rowH:40};
-function dayEntries(k){
-  const map=new Map();
-  visibleCTS().forEach(c=>['am','pm'].forEach(sl=>{
-    const j=jobOf(k,c.id,sl);if(!j)return;
-    const t=slotTime(k,c.id,sl);
-    const id=(j.selfId||j.reqId||('t'+j.title))+'|'+t.start+'|'+t.end;
-    if(!map.has(id))map.set(id,{key:id,job:j,start:t.start,end:t.end,who:[],anchor:{k,cid:c.id,sl}});
-    const e=map.get(id);if(!e.who.includes(c.id))e.who.push(c.id);
-  }));
-  const out=[...map.values()];
-  (j=>j)(0);
+/* งานจริงของวันนั้นตามเวลาจริง — อ่านจากต้นทาง (คิวที่ CTS ลงเอง + คำขอที่จัด CTS แล้ว)
+   ไม่ได้อ่านจาก state.sched เพราะ sched มีแค่ช่องเช้า/บ่าย ทำให้คิวคร่อมเที่ยงถูกเขียนลง 2 ช่อง
+   แล้วโผล่ซ้ำในปฏิทิน และคิวที่ 3 ของวันจะหายไป
+   sched ยังทำหน้าที่เดิมทุกอย่าง คือเป็นตัวนับคิวว่างให้ฝั่ง Sales */
+function dayEntries(k,pool){
+  const vis=pool||visibleCTS().map(c=>c.id);   // pool ระบุเองได้ — การคำนวณคิวว่างต้องไม่ขึ้นกับตัวกรองหน้าจอ
+  const out=[];
+  const put=(key,job,who)=>{const w=who.filter(i=>vis.includes(i));
+    if(w.length)out.push({key,job,start:job.start,end:job.end,who:w,anchor:{k,cid:w[0]}});};
+  state.selfEvents.forEach(ev=>{
+    if(!dateRange(ev.date,ev.dateEnd||ev.date).includes(k))return;
+    put('se-'+ev.id,{kind:'busy',title:ev.title,detail:ev.detail||'',product:ev.product||null,topics:ev.topics||[],
+      selfId:ev.id,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,
+      start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
+  });
+  state.requests.forEach(r=>{
+    if(r.status==='rejected')return;
+    (r.sessions||[]).forEach((s,i)=>{
+      if(s.date!==k||!s.ctsId)return;
+      const day=(r.days||[]).find(x=>x.date===k);
+      const it=(day&&(day.items||[])[0])||{};
+      const full=s.slot==='day';
+      put(r.id+'-'+i,{kind:r.status==='approved'?'booked':'pend',
+        title:r.mode==='upc'?upcDayLabel(day||{items:[]}).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training'),
+        detail:s.sTopic||r.topic||'',product:s.sProduct||r.product||it.product||null,
+        reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,
+        start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
+        end:s.end||it.end||SLOT_DEF[full?'pm':s.slot].end},[s.ctsId]);
+    });
+  });
   state.events.filter(e=>e.date===k).forEach(e=>{
-    const vis=visibleCTS().map(c=>c.id);
     if(e.cts!=='all'&&!e.cts.some(i=>vis.includes(i)))return;
     out.push({key:'ma-'+e.id,ma:e,start:e.slot==='pm'?SLOT_DEF.pm.start:SLOT_DEF.am.start,
       end:e.slot==='am'?SLOT_DEF.am.end:SLOT_DEF.pm.end,who:[]});
   });
-  return out.sort((a,b)=>toMin(a.start)-toMin(b.start)||toMin(a.end)-toMin(b.end));
+  const ad=x=>x.job&&x.job.allDay?1:0;
+  return out.sort((a,b)=>ad(b)-ad(a)||toMin(a.start)-toMin(b.start)||toMin(a.end)-toMin(b.end));
 }
+/* คิวของ CTS คนเดียวในวันนั้น เรียงตามเวลาจริง — ใช้วาดปฏิทินรายสัปดาห์/รายเดือน และคำนวณคิวว่าง */
+const entriesOf=(k,cid)=>dayEntries(k,[cid]).filter(e=>e.job);
 function layoutEntries(list){
   const cols=[];const placed=[];
   list.forEach(e=>{
@@ -1617,7 +1711,7 @@ function timelineHTML(k){
       <b>${e.start}</b> MA · ${esc(e.ma.title)}</div>`;
     const j=e.job,ids=e.who.length?e.who:[e.anchor.cid];
     const style=jobStyle({...j,attendees:ids},ids[0]);
-    return `<button class="tblock" data-job="${e.anchor.k}|${e.anchor.cid}|${e.anchor.sl}"
+    return `<button class="tblock" data-job="${k}|${e.key}"
       style="top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px);${style}">
       <span class="tb-h"><b>${e.start}–${e.end}</b>
         <span class="tb-who">${ids.map(i=>`<i style="background:${pal(i).c};box-shadow:0 0 0 1px ${pal(i).ci}55"></i>`).join('')}</span></span>
@@ -1627,7 +1721,7 @@ function timelineHTML(k){
   const adBar=allDay.length?`<div class="tl-allday">
     <span class="adlbl">ทั้งวัน</span>
     <div class="adlist">${allDay.map(e=>{const ids=e.who.length?e.who:[e.anchor.cid];
-      return `<button class="adchip" data-job="${e.anchor.k}|${e.anchor.cid}|${e.anchor.sl}"
+      return `<button class="adchip" data-job="${k}|${e.key}"
         style="${jobStyle({...e.job,attendees:ids},ids[0])}">
         <b>${e.job.product?e.job.product+' · ':''}${esc(e.job.title||'งาน')}</b>
         <span>${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;}).join('')}</div></div>`:'';
@@ -1651,19 +1745,22 @@ function openDay(k){
     +(canSeeNames()
       ? `<div class="row" style="margin-bottom:10px"><span class="muted grow">${visibleCTS().length} คนในมุมมองนี้</span>
           <button class="btn sm" id="dnAdd">＋ เพิ่มคิวงาน</button></div>`+timelineHTML(k)
-      : evHtml+dayAnon(k))
+      : evHtml+dayAnon(k)
+        /* ในแท็บ "ปฏิทิน Sale" ของ CTS/Admin ต่อท้ายด้วยตารางรายคน เพื่อแก้เวลาว่าง/ปิดคิวได้ตรงนี้เลย */
+        +(salesView()?`<div class="note pl" style="margin-top:12px">ด้านล่างคือคิวรายคน — กด 🕑 เพื่อแก้เวลาที่ว่าง หรือปิดคิวช่วงนั้น</div>
+          <div style="margin-top:8px">${dayNamed(k)}</div>`:''))
     +`<button class="btn block" id="dnClose" style="margin-top:12px">ปิด</button>`);
   const B=$('sheetBody');
   const add=$('dnAdd');if(add)add.onclick=()=>openSelfEntry(k);
   B.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>{
-    const [kk,cid,sl]=b.dataset.job.split('|');openJob(kk,cid,sl);});
+    const [kk,ek]=b.dataset.job.split('|');openJob(kk,ek);});
   B.querySelectorAll('[data-anon]:not([disabled])').forEach(b=>b.onclick=()=>{
     if(togglePick(k,b.dataset.anon,null)){closeSheet();renderCal();
       if(!state.draft&&state.picks.length===1)toast('เลือกช่วงเวลาแล้ว — กด "สร้างคำขอ"');}});
   B.querySelectorAll('.slot.free:not([disabled])').forEach(b=>b.onclick=()=>{
     if(togglePick(b.dataset.k,b.dataset.s,b.dataset.c)){closeSheet();renderCal();}});
   B.querySelectorAll('.slot[data-job]').forEach(b=>b.onclick=()=>{
-    const [kk,cid,sl]=b.dataset.job.split('|');openJob(kk,cid,sl);});
+    const [kk,ek]=b.dataset.job.split('|');openJob(kk,ek);});
   bindTime(B);
   $('dnClose').onclick=closeSheet;
 }
@@ -1675,12 +1772,12 @@ function dayAnon(k){
     const wknd=isWeekend(parse(k));
     return `<div class="qcard" ${picked?'style="box-shadow:inset 0 0 0 3px var(--ok)"':''}>
       <div class="qtop"><div><span class="qlbl">${slot==='am'?'MORNING':'AFTERNOON'}</span>
-        <span class="qtime">${SLOT_DEF[slot].start} – ${SLOT_DEF[slot].end}</span>
+        <span class="qtime">${(w=>`${w.start} – ${w.end}`)(slotWindow(k,slot))}</span>
         ${(()=>{const w=teamPool().filter(c=>slotStatus(k,c.id,slot)==='free'&&isCustom(k,c.id,slot))
             .map(c=>fmtT(slotTime(k,c.id,slot)));
           return w.length?`<span class="muted" style="display:block;font-size:11.5px">บางคิวว่างเฉพาะ ${[...new Set(w)].join(', ')}</span>`:'';})()}</div>
         <div class="qcount ${free?'':'zero'}">${wknd
-          ?'<b style="font-size:13px">เสาร์–อาทิตย์</b><small>จองได้ตามตกลง</small>'
+          ?'<b style="font-size:13px">เสาร์–อาทิตย์</b>'
           :`<b>${blocked?'—':free}</b><small>${blocked?'MA EVENT':'คิวว่าง / '+total}</small>`}</div></div>
       ${wknd?'':`<div class="qbar"><i style="width:${blocked?0:Math.round(free/total*100)}%"></i></div>`}
       <button class="btn ${picked?'ok':'primary'} block" ${(!free||blocked)?'disabled':''} data-anon="${slot}">
@@ -1697,7 +1794,9 @@ function dayNamed(k){
       const sub=s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
         :(j.title?(j.product?j.product+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked';
-      const act=s==='free'?`data-c="${c.id}" data-s="${slot}" data-k="${k}"`:`data-job="${k}|${c.id}|${slot}"`;
+      /* คิวที่ทับช่วงนี้ (ตามเวลาจริง) — ใช้เปิดรายละเอียดคิว */
+      const en=entriesOf(k,c.id).find(x=>toMin(x.start)<toMin(SLOT_DEF[slot].end)&&toMin(x.end)>toMin(SLOT_DEF[slot].start));
+      const act=s==='free'?`data-c="${c.id}" data-s="${slot}" data-k="${k}"`:`data-job="${k}|${en?en.key:''}"`;
       return `<button class="slot ${slot} ${s}${picked?' picked':''}" ${clickable?'':'disabled'}
         style="--c:${s==='busy'||s==='booked'||s==='pend'?pal(c.id).c:''};--ci:${s==='busy'||s==='booked'?pal(c.id).ci:''}"
         ${act}>
@@ -1712,40 +1811,65 @@ function dayNamed(k){
 }
 
 /* ========================= ADMIN EVENT ========================= */
-function openEventForm(){
-  openSheet('<div class="eyebrow">Admin</div><h2>เพิ่มงานกลาง MA</h2>',
+/* งานกลาง MA — เพิ่ม / แก้ไข · เลือก CTS ที่ร่วมงานได้เป็นรายคน ไม่ใช่แค่ทั้งทีม */
+function openEventForm(editId,keep){
+  const ev=editId?state.events.find(e=>e.id===editId):null;
+  const E=keep||(ev?{...ev,cts:ev.cts==='all'?'all':ev.cts.slice()}
+                   :{title:'',type:EVTYPE[0],date:key(state.month),slot:'all',cts:'all'});
+  const on=id=>E.cts!=='all'&&E.cts.includes(id);
+  openSheet(`<div class="eyebrow">Admin</div><h2>${ev?'แก้ไขงานกลาง MA':'เพิ่มงานกลาง MA'}</h2>`,
   `<div class="card">
-    <label class="f">ชื่องาน</label><input class="in" id="evT" placeholder="เช่น Ultherapy PRIME Workshop">
-    <label class="f">ประเภท</label><select class="in" id="evTy">${EVTYPE.map(t=>`<option>${t}</option>`).join('')}<option>วันหยุด</option></select>
-    <label class="f">วันที่</label><input class="in" id="evD" type="date" lang="en-GB" value="${key(state.month)}">
-    <label class="f">ช่วงเวลา</label><select class="in" id="evS"><option value="all">ทั้งวัน</option><option value="am">เช้า</option><option value="pm">บ่าย</option></select>
-    <label class="f">CTS ที่ติดงาน</label><select class="in" id="evC"><option value="all">ทุกคน</option><option value="A">Team A ทั้งทีม</option><option value="B">Team B ทั้งทีม</option></select>
-    <div class="note ma">งานกลางจะขึ้นสีฟ้าในปฏิทินและจองช่วงนั้นไม่ได้ · เลือกประเภท "วันหยุด" เพื่อปิดทั้งวัน (ขึ้นสีแดงอ่อน)</div>
-    <button class="btn primary block" id="evSave" style="margin-top:14px">บันทึกลงปฏิทิน</button></div>`);
+    <label class="f">ชื่องาน</label><input class="in" id="evT" value="${esc(E.title)}" placeholder="เช่น Ultherapy PRIME Workshop">
+    <label class="f">ประเภท</label><select class="in" id="evTy">${EVTYPE.map(t=>`<option ${E.type===t?'selected':''}>${t}</option>`).join('')}${ev?'':'<option>วันหยุด</option>'}</select>
+    <label class="f">วันที่</label><input class="in" id="evD" type="date" lang="en-GB" value="${E.date}">
+    <label class="f">ช่วงเวลา</label><select class="in" id="evS">
+      ${[['all','ทั้งวัน'],['am','เช้า'],['pm','บ่าย']].map(([v,l])=>`<option value="${v}" ${E.slot===v?'selected':''}>${l}</option>`).join('')}</select>
+    <label class="f">CTS ที่ร่วมงาน <span>· กดเลือกรายคน หรือใช้ปุ่มลัด</span></label>
+    <div class="chips">
+      <button class="chip" data-evall="1" aria-pressed="${E.cts==='all'}">ทุกคน</button>
+      <button class="chip" data-evteam="A">Team A</button>
+      <button class="chip" data-evteam="B">Team B</button></div>
+    <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-evc="${c.id}" aria-pressed="${on(c.id)}"
+      style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${c.nick}</button>`).join('')}</div>
+    <div class="note ma">งานกลางจะขึ้นสีฟ้าในปฏิทินและจองช่วงนั้นไม่ได้${ev?'':' · เลือกประเภท "วันหยุด" เพื่อปิดทั้งวัน (ขึ้นสีแดงอ่อน)'}</div>
+    <button class="btn primary block" id="evSave" style="margin-top:14px">${ev?'บันทึกการแก้ไข':'บันทึกลงปฏิทิน'}</button>
+    ${ev?'<button class="btn bad block" id="evDel" style="margin-top:8px">ลบงานกลางนี้</button>':''}</div>`);
+  const B=$('sheetBody');
+  const grab=()=>{E.title=$('evT').value;E.date=$('evD').value;E.slot=$('evS').value;E.type=$('evTy').value;};
+  B.querySelectorAll('[data-evall]').forEach(b=>b.onclick=()=>{grab();E.cts='all';openEventForm(editId,E);});
+  B.querySelectorAll('[data-evteam]').forEach(b=>b.onclick=()=>{grab();E.cts=teamCTS(b.dataset.evteam).map(x=>x.id);openEventForm(editId,E);});
+  B.querySelectorAll('[data-evc]').forEach(b=>b.onclick=()=>{grab();
+    const id=b.dataset.evc;
+    if(E.cts==='all')E.cts=CTS.map(c=>c.id);
+    const i=E.cts.indexOf(id);i>=0?E.cts.splice(i,1):E.cts.push(id);
+    openEventForm(editId,E);});
+  const del=$('evDel');if(del)del.onclick=()=>{state.events=state.events.filter(x=>x.id!==editId);
+    closeSheet();render();toast('ลบงานกลางแล้ว');};
   $('evSave').onclick=()=>{
-    const t=$('evT').value.trim(),d=$('evD').value;
+    grab();
+    const t=E.title.trim(),d=E.date;
     if(!t||!d)return toast('ใส่ชื่องานและวันที่');
-    if($('evTy').value==='วันหยุด'){
+    if(E.cts!=='all'&&!E.cts.length)return toast('เลือก CTS อย่างน้อย 1 คน หรือกด "ทุกคน"');
+    if(!ev&&E.type==='วันหยุด'){
       if(!state.holidays.some(h=>h.date===d))state.holidays.push({date:d,name:t});
       state.month=new Date(parse(d).getFullYear(),parse(d).getMonth(),1);
       state.weekStart=mondayOf(parse(d));
       closeSheet();state.tab='cal';render();return toast('เพิ่มวันหยุดแล้ว');}
-    const c=$('evC').value;
-    state.events.push({id:'EV-'+(state.evSeq++),date:d,slot:$('evS').value,type:$('evTy').value,title:t,
-      cts:c==='all'?'all':teamCTS(c).map(x=>x.id)});
+    if(ev)Object.assign(ev,{date:d,slot:E.slot,type:E.type,title:t,cts:E.cts});
+    else state.events.push({id:'EV-'+(state.evSeq++),date:d,slot:E.slot,type:E.type,title:t,cts:E.cts});
     state.month=new Date(parse(d).getFullYear(),parse(d).getMonth(),1);
     state.weekStart=mondayOf(parse(d));
-    closeSheet();state.tab='cal';render();toast('เพิ่มงานกลางแล้ว');};
+    closeSheet();state.tab='cal';render();toast(ev?'บันทึกงานกลางแล้ว':'เพิ่มงานกลางแล้ว');};
 }
 
 /* ========================= REQUEST FORM ========================= */
-const newDraft=()=>({module:null,level:'',slots:1,sessions:null,product:null,topic:'',clinic:'',map:'',doctors:'',
+const newDraft=()=>({module:null,level:'',slots:1,sessions:null,product:[],topic:'',clinic:'',map:'',doctors:'',
   exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:''});
 
 function missingOf(r){
   if(r.mode==='upc')return upcMissing(r);
   const m=[];
-  if(!r.product)m.push('Product');
+  if(!prodList(r.product).length)m.push('Product');
   if(r.sessions&&r.sessions.length>1)r.sessions.forEach((sn,i)=>{if(!sn.sProduct&&!r.product)m.push(`S${i+1}: Product`);});
   if(!r.level)m.push('ระดับเนื้อหา (Standard / Advance)');
   if(!String(r.topic||'').trim())m.push('หัวข้อการเทรน');
@@ -1766,7 +1890,7 @@ function openForm(){
   if(!state.draft)state.draft=newDraft();
   const d=state.draft,rule=d.module?MODULES[d.module]:null;
   const modChips=Object.keys(MODULES).map(m=>`<button class="chip" data-m="${m}" aria-pressed="${d.module===m}">${m}</button>`).join('');
-  const prodChips=Object.keys(PRODHEX).map(p=>`<button class="chip prodchip" data-p="${p}" style="--cc:${PRODHEX[p]};--ct:${pink(p)}" aria-pressed="${d.product===p}">${p}</button>`).join('');
+  const prodChips=Object.keys(PRODHEX).map(p=>`<button class="chip prodchip" data-p="${p}" style="--cc:${PRODHEX[p]};--ct:${pink(p)}" aria-pressed="${prodList(d.product).includes(p)}">${p}</button>`).join('');
   const sessBox=rule?`<label class="f">จำนวน session <span>· ${rule.note}</span></label>
     <select class="in" id="fSess" ${rule.min===rule.max?'disabled':''}>
     ${Array.from({length:rule.max-rule.min+1},(_,i)=>rule.min+i).map(n=>`<option value="${n}" ${d.sessions===n?'selected':''}>${n} session</option>`).join('')}</select>`:'';
@@ -1843,7 +1967,8 @@ function openForm(){
   B.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{grab();d.module=b.dataset.m;const r=MODULES[d.module];
     d.sessions=r.def;d.slots=r.def;
     if(state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();});
-  B.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{grab();d.product=b.dataset.p;openForm();});
+  B.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{grab();const l=prodList(d.product),i=l.indexOf(b.dataset.p);
+    i>=0?l.splice(i,1):l.push(b.dataset.p);d.product=l;openForm();});
   const ss=$('fSess');if(ss)ss.onchange=e=>{grab();d.sessions=+e.target.value;d.slots=d.sessions;
     if(state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();};
   B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{grab();state.picks.splice(+b.dataset.rm,1);openForm();});
@@ -2105,12 +2230,12 @@ function missBox(r){
 function reqCard(r,act){
   if(r.mode==='upc')return upcCard(r,act);
   const showCts=canSeeNames()||r.status==='approved';
-  return `<div class="req"><div class="req-strip" style="--pc:${r.product?PRODHEX[r.product]:'#DDD'}"></div><div class="req-in">
+  return `<div class="req"><div class="req-strip" style="--pc:${prodMain(r.product)?PRODHEX[prodMain(r.product)]:'#DDD'}"></div><div class="req-in">
     <div class="req-top"><div><div class="req-id">${r.id} · ${r.area} · ${TEAMS[r.team].label}</div>
       <div class="req-clinic">${r.clinic?esc(r.clinic):'<span style="color:var(--ink3)">ยังไม่ระบุคลินิก</span>'}</div></div>
       <span class="status ${r.status}">${r.status}</span></div>
     <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
-      ${r.product?`<span class="tag" style="background:${PRODHEX[r.product]};color:${pink(r.product)}">${r.product}</span>`:'<span class="pill miss">ยังไม่ระบุ product</span>'}
+      ${prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
       <span class="pill n">${r.module} · ${r.sessions.length} session</span>
       ${r.level?`<span class="pill n">${r.level}</span>`:''}</div>
     <dl class="kv">
@@ -2131,6 +2256,7 @@ function reqCard(r,act){
     ${act?`<div class="row" style="margin-top:12px"><button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>
       <button class="btn primary grow" data-approve="${r.id}">อนุมัติ</button></div>
       <button class="btn bad block" data-reject="${r.id}" style="margin-top:8px">ไม่อนุมัติ</button>`:''}
+    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
   </div></div>`;
 }
 
@@ -2138,7 +2264,7 @@ function reqCard(r,act){
    (วันและ CTS แก้ผ่าน "จัด / เปลี่ยน CTS" ของ Senior Leader เท่านั้น) */
 function openEdit(id){
   const r=state.requests.find(x=>x.id===id);
-  const prodChips=Object.keys(PRODHEX).map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${r.product===pr}">${pr}</button>`).join('');
+  const prodChips=Object.keys(PRODHEX).map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${prodList(r.product).includes(pr)}">${pr}</button>`).join('');
   const miss=missingOf(r);
   openSheet(`<div class="eyebrow">${r.id} · ${r.status.toUpperCase()}</div><h2>แก้ไข / เพิ่มข้อมูล</h2>`,
   `${miss.length?`<div class="warn" style="margin-top:0"><b>ยังขาด ${miss.length} รายการ</b><br>${miss.map(x=>'• '+x).join('<br>')}</div>`:'<div class="note" style="margin-top:0">ข้อมูลครบแล้ว — แก้ไขเพิ่มเติมได้ตามต้องการ</div>'}
@@ -2197,7 +2323,8 @@ function openEdit(id){
       if(a&&a.value)sn.start=a.value; if(b2&&b2.value)sn.end=b2.value;
       if(tp)sn.sTopic=tp.value;
       if(dt&&dt.value&&dt.value!==sn.date)sn._newDate=dt.value;});};
-  $('sheetBody').querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>{g();r.product=b.dataset.ep;openEdit(id);});
+  $('sheetBody').querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>{g();const l=prodList(r.product),i=l.indexOf(b.dataset.ep);
+    i>=0?l.splice(i,1):l.push(b.dataset.ep);r.product=l;openEdit(id);});
   $('sheetBody').querySelectorAll('[data-esp]').forEach(b=>b.onclick=()=>{g();const [i,pr]=b.dataset.esp.split('|');
     const sn=r.sessions[+i];sn.sProduct=sn.sProduct===pr?null:pr;openEdit(id);});
   $('eHO').onchange=e=>{g();r.handsOn=e.target.checked;openEdit(id);};
@@ -2262,7 +2389,25 @@ function upcCard(r,act){
     ${act?`<div class="row" style="margin-top:9px"><button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>
       <button class="btn primary grow" data-approve="${r.id}">อนุมัติ</button></div>
       <button class="btn bad block" data-reject="${r.id}" style="margin-top:8px">ไม่อนุมัติ</button>`:''}
+    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
   </div></div>`;
+}
+/* ลบคำขอทิ้ง — เฉพาะ CTS · ถามยืนยันก่อนเพราะกู้คืนไม่ได้ */
+function delReq(id){
+  const r=state.requests.find(x=>x.id===id);
+  if(!r||state.role!=='cts')return;
+  openSheet(`<div class="eyebrow">${r.id}</div><h2>ลบคำขอนี้?</h2>`,
+  `<div class="card"><div class="warn" style="margin-top:0"><b>${esc(r.clinic||r.module||r.id)}</b><br>
+    ${r.sessions.length} session · สถานะ ${r.status}<br>ลบแล้วกู้คืนไม่ได้ และคิวในปฏิทินจะถูกปล่อยว่าง</div>
+    <button class="btn bad block" id="delYes" style="margin-top:13px">ลบคำขอ</button>
+    <button class="btn ghost block" id="delNo" style="margin-top:8px">ยกเลิก</button></div>`);
+  $('delNo').onclick=closeSheet;
+  $('delYes').onclick=()=>{
+    if(r.mode==='upc')clearUPC(r);
+    else r.sessions.forEach(s=>{if(s.ctsId)setJob(s.date,s.ctsId,s.slot,null);});
+    state.requests=state.requests.filter(x=>x.id!==id);
+    state.feed=state.feed.filter(f=>!f.r||f.r.id!==id);
+    closeSheet();render();toast('ลบคำขอแล้ว');};
 }
 function bindCards(scope){
   scope.querySelectorAll('[data-approve]').forEach(b=>b.onclick=()=>approve(b.dataset.approve));
@@ -2273,6 +2418,7 @@ function bindCards(scope){
     const r=state.requests.find(x=>x.id===b.dataset.edit);
     if(r&&r.mode==='upc'){state.upcDraft=null;openUPCForm(r.id);}else openEdit(b.dataset.edit);});
   scope.querySelectorAll('[data-uedit]').forEach(b=>b.onclick=()=>{state.upcDraft=null;openUPCForm(b.dataset.uedit);});
+  scope.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delReq(b.dataset.del));
 }
 function renderReqs(){
   const list=myRequests();
@@ -2319,7 +2465,7 @@ function assign(id){
           s.ctsId=nid;
         }else{
           if(s.ctsId)setJob(s.date,s.ctsId,s.slot,null);
-          if(nid)setJob(s.date,nid,s.slot,{kind:'pend',title:r.clinic||'คำขอ '+r.id,product:r.product,reqId:r.id,
+          if(nid)setJob(s.date,nid,s.slot,{kind:'pend',title:r.clinic||'คำขอ '+r.id,product:prodMain(r.product),reqId:r.id,
             start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
           s.ctsId=nid;}}});
     if(r.mode==='upc')bookUPC(r);
@@ -2371,7 +2517,7 @@ function emailText(r){
   L.push('TRAINING SCOPE');
   L.push(`  • Module         : ${r.module} — ${r.sessions.length} session(s)`);
   L.push(`  • Content level  : ${F(r.level)}`);
-  L.push(`  • Product        : ${F(r.product)}`);
+  L.push(`  • Product        : ${F(prodList(r.product).join(', '))}`);
   L.push(`  • Topic          : ${F(r.topic)}`);
   L.push(`  • Attendees      : ${+r.doctors>0?r.doctors+' doctor(s)':'(รอยืนยัน / to be confirmed)'}`);
   L.push(`  • Experience     : ${F(r.exp)}`);
@@ -2471,7 +2617,7 @@ function notiCard(it){
       <span class="nic">${K.ic}</span>
       <span class="grow"><b>${K.label}</b><small>${r.id} · ${r.area}${r.team==='BOTH'?' · ดูแลร่วม':''}</small></span>
       ${r.mode==='upc'?'<span class="pill n">UPC TRIP</span>'
-        :r.product?`<span class="tag" style="background:${PRODHEX[r.product]};color:${pink(r.product)}">${r.product}</span>`:''}
+        :prodList(r.product).length?prodTags(r.product):''}
     </div>`;
   const body=`<div class="nbody">
       <div class="nclinic">${r.mode==='upc'?`ทริป UPC ${r.days.length} วัน`:esc(r.clinic||'ยังไม่ระบุคลินิก')}</div>
