@@ -23,7 +23,7 @@ vm.createContext(ctx);
 src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWindow,syncSelf,CTS,SLOT_DEF,AUTO_RULE,'
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
-     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI};';
+     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -208,4 +208,38 @@ try{X.renderSkills();}catch(e){throw new Error('renderSkills (non-admin) พั�
 assert.strictEqual(X.upLabel({}),'','ไม่มีข้อมูลต้องไม่ขึ้นป้าย');
 assert.ok(/แก้ล่าสุดโดย POP/.test(X.upLabel({upBy:'POP',upAt:new Date().toISOString()})),'ป้ายต้องมีชื่อคนแก้');
 
-console.log('✓ ผ่านทั้ง 22 ข้อ');
+
+/* 23. Admin ต้องเห็นปุ่ม Email Approved ในคิวที่มาจากคำขอ */
+clean();
+X.state.role='admin';X.state.tab='cal';X.state.me=null;
+X.state.requests=[{id:'TR-M',team:'A',status:'approved',mode:'std',module:'MAX-Entry',
+  product:['Ultherapy'],topic:'x',clinic:'คลินิก',map:'',doctors:1,exp:'',handsOn:false,photos:[],
+  requester:'a',requesterId:'a',sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]}];
+const eK=X.entriesOf(K,B1)[0];
+assert.ok(eK,'ต้องมีคิวจากคำขอ');
+X.openJob(K,eK.key);
+const sheetHtml=sheet();
+assert.ok(/data-mail=/.test(sheetHtml),'Admin ต้องเห็นปุ่มยืนยัน Email Approved');
+assert.ok(/Email Approved/.test(sheetHtml),'ต้องมีข้อความ Email Approved');
+/* กดแล้วต้องติดธง และ ✓ ต้องขึ้นในปฏิทิน */
+X.state.requests[0].sessions[0].emailOk=true;
+assert.ok(/okmk/.test(X.weekHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายสัปดาห์');
+assert.ok(/okmk/.test(X.monthHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายเดือนด้วย');
+/* CTS ธรรมดาไม่ควรกดได้ */
+X.state.role='cts';X.state.me=B1;
+X.openJob(K,X.entriesOf(K,B1)[0].key);
+assert.ok(!/data-mail=/.test(sheet()),'CTS ไม่ควรกดยืนยัน Email Approved ได้');
+
+/* 24. ปิดรับคิวว่าง — CTS/Admin ปิดช่องได้ Sales จะไม่เห็นเป็นคิวว่าง */
+clean();
+X.state.role='sales';X.state.area='Champion';
+X.state.draft={product:['Ultherapy'],slots:1};
+X.setSkill(B1,'Ultherapy','self');
+assert.ok(X.freeIds(K,'am').includes(B1),'ก่อนปิดต้องว่าง');
+X.setAvail(K,B1,'am',{closed:true,start:'09:00',end:'12:00'});
+assert.strictEqual(X.slotStatus(K,B1,'am'),'closed','สถานะต้องเป็น closed');
+assert.ok(!X.freeIds(K,'am').includes(B1),'ปิดแล้วต้องไม่ถูกนับเป็นคิวว่าง');
+X.setAvail(K,B1,'am',null);
+assert.ok(X.freeIds(K,'am').includes(B1),'เปิดคืนแล้วต้องกลับมาว่าง');
+
+console.log('✓ ผ่านทั้ง 24 ข้อ');

@@ -314,8 +314,11 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .half .etx4{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;opacity:.55;font-size:8.5px;font-weight:500}
 .half .etx3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;opacity:.72;font-size:9.5px;font-weight:500}
 .okmk{font-weight:900;color:var(--ok);margin-right:3px}
+.okmk.off{color:currentColor;opacity:.32}
+.fabsm{display:none}
 .req-star{color:#D14343;font-weight:900;margin-left:2px}
 .slotblk.gate{background:#EDE7FA;color:#5B3E9E}
+.slot.closed{background:#F6E9EA;color:#A15B62;box-shadow:inset 0 0 0 1px #E8CDD0}
 .skchip{font-size:11.5px}
 .skchip.off{opacity:.65}
 .skchip.self{--cc:#C9E4DE;--ct:#22705F}
@@ -325,6 +328,11 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .evchip .etx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .evchip .cdot{width:7px;height:7px;border-radius:50%;background:var(--ci);opacity:.6;flex:none}
 .evchip.ma{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge)}
+.evchip.one{display:block;width:100%;max-width:100%;font-size:9px;line-height:1.3;padding:2px 4px;border-radius:5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;margin-bottom:2px;
+  background:var(--c);color:var(--ci);border:0;font-weight:700}
+.evchip.one .t{font-family:var(--mono);font-size:8px;opacity:.75}
+.evchip.ma.one{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge)}
 .evmore{font-size:9.5px;color:var(--ink3);font-weight:700;padding-left:3px}
 .dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;align-content:flex-end}
 .dots i{width:9px;height:9px;border-radius:50%;display:block}
@@ -348,7 +356,21 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
   .navbtns button.wide{width:auto;padding:0 8px;font-size:11.5px}
   .seg{padding:2px;border-radius:11px;flex:0 0 auto}
   .seg button{padding:5px 9px;font-size:12px}
-  .wkndnote{display:none}                  /* หัวคอลัมน์บอก ส/อา อยู่แล้ว ไม่ต้องเขียนซ้ำในทุกช่อง */
+  .wkndnote{display:none}
+  .page{padding:12px 8px 90px}
+  .mcell{min-height:94px;padding:3px 2px}
+  .mcell .dn{font-size:10.5px}
+  .dow span{font-size:9.5px}
+  .evchip.one{font-size:8.5px;padding:2px 3px;border-radius:4px;margin-bottom:1.5px}
+  /* ปุ่มเพิ่มคิวงานลอยมุมขวาล่างแทนแถบเต็มความกว้าง คืนพื้นที่ให้ปฏิทินอีก 1 แถว */
+  #btnSelf,#btnUpc{position:fixed;right:14px;bottom:76px;z-index:40;width:auto;margin:0!important;
+    border-radius:26px;padding:12px 17px;font-size:13.5px;box-shadow:0 6px 20px rgba(60,40,120,.32)}
+  .fabtx{display:none}
+  .fabsm{display:inline}
+  /* แถบกรองรายคน เลื่อนแนวนอนแถวเดียว ไม่ตกบรรทัด */
+  .filterbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:3px}
+  .filterbar .fchip{flex:0 0 auto}
+  .calshell{margin:0 -4px}                  /* หัวคอลัมน์บอก ส/อา อยู่แล้ว ไม่ต้องเขียนซ้ำในทุกช่อง */
   .legend{font-size:10.5px;gap:5px 9px}
   /* ปัดทีละวันตอนเลื่อนปฏิทินสัปดาห์ จะได้ไม่ค้างครึ่งช่อง */
   .wscroll{scroll-snap-type:x proximity}
@@ -448,6 +470,8 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
   padding:12px 14px;border-top:1px solid var(--line2);background:#FCFBFE}
 .legend .lr{display:inline-flex;align-items:center;gap:5px}
 .legend i{width:12px;height:12px;border-radius:4px;display:block}
+/* จอมือถือ: คำอธิบายสี 9 บรรทัดกินที่ — ดูได้ที่ปุ่มกติกาการใช้งาน (ต้องอยู่หลังกฎหลักถึงจะทับได้) */
+@media(max-width:700px){.legend{display:none}}
 .ramp{display:flex;border-radius:99px;overflow:hidden;box-shadow:var(--sh1)}
 .ramp i{width:22px;height:11px;border-radius:0}
 
@@ -884,6 +908,7 @@ function slotTime(k,cid,slot){
   const j=jobOf(k,cid,slot);
   if(j)return {start:j.start||SLOT_DEF[slot].start,end:j.end||SLOT_DEF[slot].end};
   const a=availOf(k,cid,slot);
+  if(a&&a.closed)return SLOT_DEF[slot];
   if(a)return {start:a.start,end:a.end};
   const w=autoWindow(k,cid,slot);
   if(w)return {start:w.start,end:w.end,auto:true};
@@ -926,15 +951,18 @@ const upLabel=j=>{
   const t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   return `แก้ล่าสุดโดย ${j.upBy} · ${d.getDate()} ${THMON[d.getMonth()]} ${t}`;
 };
-const okMark=j=>(j&&j.emailOk)?'<span class="okmk" title="Email Approved แล้ว">✓</span>':'';
+const okMark=j=>(j&&j.emailOk)?'<span class="okmk" title="Email Approved แล้ว">✓</span>'
+  :(j&&j.reqId&&state.role==='admin')?'<span class="okmk off" title="ยังไม่ได้ยืนยัน Email Approved — แตะที่คิวเพื่อยืนยัน">✓</span>':'';
 /* Product ของคำขอ เลือกได้หลายตัว — เก็บเป็น array แต่ยังอ่านข้อมูลเก่าที่เป็นสตริงเดี่ยวได้ */
 const prodList=v=>!v?[]:(Array.isArray(v)?v:[v]);
 const prodMain=v=>prodList(v)[0]||null;
 const prodTags=v=>prodList(v).map(x=>`<span class="tag" style="background:${PRODHEX[x]||'#999'};color:${pink(x)}">${x}</span>`).join(' ');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
 const jobOf=(k,cid,slot)=>(state.sched[k]&&state.sched[k][cid])?state.sched[k][cid][slot]:undefined;
+const isClosed=(k,cid,slot)=>{const a=availOf(k,cid,slot);return !!(a&&a.closed);};
 function slotStatus(k,cid,slot){
   if(eventFor(k,cid,slot))return 'event';
+  if(isClosed(k,cid,slot))return 'closed';   // CTS สั่งปิดรับคิวช่วงนี้เอง
   const j=jobOf(k,cid,slot);
   if(j)return j.kind;
   if(!availOf(k,cid,slot)&&autoWindow(k,cid,slot)===null)return 'notime';  // เวลาไม่พอต่อจากคิวก่อนหน้า
@@ -1174,8 +1202,8 @@ function renderCal(){
       ? 'เห็นคิวงานของทุกคน — กด "ทีมของฉัน" หรือชื่อรายคนเพื่อกรอง · กดวันเพื่อดูตารางตามเวลาจริง'
       : `เห็นเฉพาะจำนวนคิวว่างของ ${TEAMS[activeTeam()].label} ที่ดูแล ${state.area} — ชื่อ CTS จะแสดงหลังได้รับอนุมัติ`}</p>
     ${prodGateOn()?prodGate():''}
-    ${isUPC()?'<button class="btn primary block" id="btnUpc" style="margin-bottom:14px">＋ สร้างคำขอเทรน UPC (หลายวัน)</button>':''}
-    ${canSeeNames()?'<button class="btn primary block" id="btnSelf" style="margin-bottom:14px">＋ เพิ่มคิวงานของตัวเอง / ทีม</button>':''}
+    ${isUPC()?'<button class="btn primary block" id="btnUpc" style="margin-bottom:14px">＋<span class="fabtx"> สร้างคำขอเทรน UPC (หลายวัน)</span><span class="fabsm"> คำขอ UPC</span></button>':''}
+    ${canSeeNames()?'<button class="btn primary block" id="btnSelf" style="margin-bottom:14px">＋<span class="fabtx"> เพิ่มคิวงานของตัวเอง / ทีม</span><span class="fabsm"> เพิ่มคิว</span></button>':''}
     <div class="calbar">${seg}${period}
       <div class="navbtns"><button id="pv">‹</button><button class="wide" id="tdy">วันนี้</button><button id="nx">›</button></div></div>
     ${canSeeNames()?filterBar():''}
@@ -1286,24 +1314,22 @@ function monthHTML(){
         /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
         const jobs=dayEntries(k).filter(e=>e.job);
         const ma=dayEvents(k);
-        if(NARROW()){
-          /* phone: compact colour dots — tap the day for the full list */
-          inner=`<div class="dots">
-            ${ma.length?'<i class="ma"></i>':''}
-            ${jobs.map(o=>`<i style="background:${pal(o.who[0]).c};box-shadow:inset 0 0 0 1px ${pal(o.who[0]).ci}33"></i>`).join('')}
-          </div><span class="evmore"${jobs.length||ma.length?'':' style="color:var(--ok)"'}>${
-            jobs.length?jobs.length+' คิว':ma.length?'งานกลาง MA':'ว่างทั้งวัน'}</span>`;
-        }else{
-          const chips=ma.map(e=>`<span class="evchip ma"><span class="etx">MA · ${esc(e.title)}</span></span>`)
-            .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
-              return `<button class="evchip two" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
-                style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
-                <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
-                  <span class="who">${okMark(o.job)}${nicks}</span></span>
-                <span class="etx">${o.job.product?o.job.product+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
-          const cap=3;
-          inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap} รายการ</span>`:'');
-        }
+        /* มือถือ: แถบชื่องานบรรทัดเดียวเรียงกัน (แบบ Google Calendar) — เดิมเป็นจุดสีซึ่งดูไม่ออกว่างานอะไร
+           จอใหญ่: แถบ 2 บรรทัด มีเวลาและชื่อคนกำกับ */
+        const one=NARROW();
+        const chips=ma.map(e=>one
+            ? `<span class="evchip ma one">${esc(e.title)}</span>`
+            : `<span class="evchip ma"><span class="etx">MA · ${esc(e.title)}</span></span>`)
+          .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
+            if(one)return `<button class="evchip one" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
+              style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">${okMark(o.job)}${esc(o.job.title||'งาน')}</button>`;
+            return `<button class="evchip two" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
+              style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
+              <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
+                <span class="who">${okMark(o.job)}${nicks}</span></span>
+              <span class="etx">${o.job.product?o.job.product+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
+        const cap=one?4:3;
+        inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
       }else{
         const lab=sl=>NARROW()?(sl==='am'?'AM':'PM'):(sl==='am'?'เช้า':'บ่าย');
         const blk=sl=>{
@@ -1712,6 +1738,8 @@ function openAvail(k,cid){
         <div class="grow"><label class="f" style="margin-top:0">ถึง</label>
           ${t24(`t_${sl}_e`,val.end)}</div></div>
       <div class="muted" style="margin-top:8px">${hint}</div>
+      ${j?'':`<button class="btn ${st==='closed'?'ok':'bad'} block" data-close="${sl}" style="margin-top:10px">
+        ${st==='closed'?'↺ เปิดรับคิวช่วงนี้อีกครั้ง':'⛔ ปิดรับคิวช่วงนี้'}</button>`}
     </div>`;};
   openSheet(`<div class="eyebrow">${fmtDate(k)}</div><h2>แก้เวลาของ ${c.nick}</h2>
     <div class="muted" style="padding:6px 0 2px">ระบบคำนวณเวลาว่างให้อัตโนมัติอยู่แล้ว — แก้ตรงนี้เมื่อต้องการกำหนดเอง</div>`,
@@ -1723,12 +1751,17 @@ function openAvail(k,cid){
    <button class="btn primary block" id="avSave">บันทึกเวลา</button>
    <button class="btn block" id="avReset" style="margin-top:8px">คืนค่าอัตโนมัติทั้งวัน</button>
    <button class="btn ghost block" id="avCancel" style="margin-top:8px">ยกเลิก</button>`);
+  $('sheetBody').querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{
+    const sl=b.dataset.close;
+    setAvail(k,cid,sl,isClosed(k,cid,sl)?null:{closed:true,start:SLOT_DEF[sl].start,end:SLOT_DEF[sl].end});
+    closeSheet();render();toast(isClosed(k,cid,sl)?'ปิดรับคิวช่วงนี้แล้ว — Sales จะไม่เห็นเป็นคิวว่าง':'เปิดรับคิวอีกครั้งแล้ว');});
   $('avSave').onclick=()=>{
     ['am','pm'].forEach(sl=>{
       const st=$('t_'+sl+'_s').value,en=$('t_'+sl+'_e').value;
       if(!st||!en)return;
       if(en<=st)return toast('เวลาสิ้นสุดต้องหลังเวลาเริ่ม');
       const j=jobOf(k,cid,sl);
+      if(isClosed(k,cid,sl))return;         // ช่องที่ปิดรับคิวไว้ ไม่ต้องเขียนเวลาทับ
       if(j){j.start=st;j.end=en;}
       else if(st!==SLOT_DEF[sl].start||en!==SLOT_DEF[sl].end)setAvail(k,cid,sl,{start:st,end:en});
       else setAvail(k,cid,sl,null);
@@ -1895,8 +1928,8 @@ function dayNamed(k){
       const s=slotStatus(k,c.id,slot),ev=eventFor(k,c.id,slot),j=jobOf(k,c.id,slot)||{};
       const picked=state.picks.some(p=>p.date===k&&p.slot===slot&&p.ctsId===c.id);
       const t=slotTime(k,c.id,slot);
-      const txt={free:'ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
-      const sub=s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
+      const txt={free:'ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
+      const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด 🕑 เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
         :(j.title?(j.product?j.product+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked'||s==='tbc';
       /* คิวที่ทับช่วงนี้ (ตามเวลาจริง) — ใช้เปิดรายละเอียดคิว */
