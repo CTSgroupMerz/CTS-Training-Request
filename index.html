@@ -168,11 +168,9 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
 .lcredit{display:block;margin:9px auto 0;background:none;border:0;font-family:inherit;font-size:11.5px;
   font-weight:700;color:var(--brand-deep);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 8px}
 .lcredit:hover{opacity:.75}
-.devrow{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line);
+.devrow{display:flex;align-items:center;justify-content:center;padding:12px;border:1px solid var(--line);
   border-radius:13px;margin-bottom:8px;background:var(--brand-soft)}
 .devrow:last-child{margin-bottom:0}
-.devno{width:24px;height:24px;border-radius:50%;background:var(--brand-deep);color:#fff;flex:none;
-  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
 .devname{font-weight:700;font-size:15px;color:var(--ink)}
 
 /* ============ SHELL ============ */
@@ -1017,8 +1015,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
 const DEVS=['Nisalux Preedakorn','Potchara Preedakorn'];
 function openCredit(){
   openSheet('<div class="eyebrow">Credit</div><h2>ผู้พัฒนา</h2>',
-  `<div class="card"><div class="devlist">${DEVS.map((n,i)=>`<div class="devrow">
-      <span class="devno">${i+1}</span><span class="devname">${esc(n)}</span></div>`).join('')}</div>
+  `<div class="card"><div class="devlist">${DEVS.map(n=>`<div class="devrow">
+      <span class="devname">${esc(n)}</span></div>`).join('')}</div>
     <div class="note" style="margin-top:12px">CTS Training Request · Clinical Training · Merz Aesthetics</div>
     <button class="btn block" id="devClose" style="margin-top:12px">ปิด</button></div>`);
   $('devClose').onclick=closeSheet;
