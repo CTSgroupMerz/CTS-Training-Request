@@ -21,7 +21,9 @@ const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Nu
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWindow,syncSelf,CTS,SLOT_DEF,AUTO_RULE,'
-     + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard};';
+     + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
+     'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
+     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -115,4 +117,95 @@ assert.ok(/data-del=/.test(X.reqCard(X.state.requests[0],false)),'CTS ต้อ�
 /* 10. เครื่องหมาย ✓ Email Approved โผล่ในปฏิทิน */
 assert.ok(/okmk/.test(X.weekHTML()),'คิวที่ Email Approved แล้วต้องมีเครื่องหมาย ✓ ในปฏิทิน');
 
-console.log('✓ ผ่านทั้ง 10 ข้อ');
+
+/* ===== ของใหม่รอบนี้ ===== */
+const clean=()=>{reset();X.state.skills={};X.state.draft=null;X.state.picks=[];X.state.tbcMode=false;};
+/* ME (CTS[0]) เป็น Senior Leader ไม่อยู่ในกลุ่มที่ Sales จองได้ — เทสคิวว่างต้องใช้ 6 คนนี้ */
+const B1=X.BOOKABLE_CTS()[0].id;
+
+/* 11. Product 9 ตัว + ชื่อเก่ายังอ่านสีได้ */
+assert.strictEqual(X.PRODUCTS.length,9,'ต้องมี 9 product');
+assert.ok(X.PRODUCTS.includes('Belotero Revive')&&X.PRODUCTS.includes('Radiesse Plus'),'ชื่อ product ไม่ครบ');
+assert.ok(X.PRODHEX['Belotero'],'ชื่อเก่า Belotero ต้องยังมีสี ไม่งั้นคำขอเก่าพัง');
+assert.strictEqual(X.PRODHEX['Belotero Soft'],X.PRODHEX['Belotero Volume'],'Belotero ต้องสีเดียวกันทั้งตระกูล');
+
+/* 12. Skills ปิดหมดตอนเริ่ม -> Sales ไม่เห็นคิวว่างเลย */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.tab='cal';
+X.state.draft={product:['Ultherapy'],slots:1};
+assert.strictEqual(X.freeIds(K,'am').length,0,'ยังไม่เปิด Skills ต้องไม่มีคิวว่าง');
+
+/* 13. เปิด Skills แล้วเห็นเฉพาะคนที่เปิด */
+X.setSkill(B1,'Ultherapy','self');
+assert.strictEqual(X.freeIds(K,'am').join(','),B1,'ต้องเห็นเฉพาะคนที่เปิด Skills');
+assert.strictEqual(X.freeIds(K,'am').length,1,'คนที่ไม่ได้เปิดต้องไม่โผล่');
+
+/* 14. เลือก product ที่คนนั้นไม่ได้เปิด -> หายไป */
+X.state.draft.product=['Ultherapy','Xeomin'];
+assert.strictEqual(X.freeIds(K,'am').length,0,'ต้องเปิด Skills ครบทุก product ที่ขอ');
+X.setSkill(B1,'Xeomin','self');
+assert.strictEqual(X.freeIds(K,'am').length,1,'เปิดครบแล้วต้องกลับมา');
+
+/* 15. ยังไม่เลือก Product -> ปฏิทิน Sale ไม่โชว์คิวว่าง */
+X.state.draft.product=[];
+assert.strictEqual(X.freeIds(K,'am').length,0,'ยังไม่เลือก Product ต้องยังไม่โชว์คิวว่าง');
+
+/* 16. Train with Senior — ตัวอย่างที่เต้ยกมา: TwS ว่าง 4 คน หัวหน้าว่าง 2 -> นับได้ 2 */
+clean();
+X.state.role='sales';X.state.area='Champion';
+X.state.draft={product:['Ultherapy'],slots:1};
+const four=X.BOOKABLE_CTS().slice(0,4).map(c=>c.id);
+four.forEach(id=>X.setSkill(id,'Ultherapy','senior'));
+assert.strictEqual(X.freeIds(K,'am').length,2,
+  'TwS 4 คน + หัวหน้าว่าง 2 -> ต้องนับ 2 (ได้ '+X.freeIds(K,'am').length+')');
+/* หัวหน้าติดงานไป 1 คน -> เหลือ 1 */
+const busySr={id:'SE-SR',date:K,dateEnd:'',allDay:true,title:'ประชุม',detail:'',product:'',topics:[],
+  attendees:[X.LEAD_IDS[0]],owner:X.LEAD_IDS[0],start:'09:00',end:'16:30'};
+X.state.selfEvents.push(busySr);X.syncSelf(busySr);
+assert.strictEqual(X.freeIds(K,'am').length,1,'หัวหน้าว่าง 1 -> TwS รับได้ 1');
+/* คนที่เปิดแบบ self ไม่ถูกจำกัดด้วยหัวหน้า */
+X.setSkill(four[0],'Ultherapy','self');
+assert.strictEqual(X.freeIds(K,'am').length,2,'self 1 + TwS 1 = 2');
+
+/* 17. หัวข้อบังคับ 5 ข้อ */
+const blank={product:[],topic:'',clinic:'',doctors:'',requester:''};
+assert.strictEqual(X.missingRequired(blank).length,5,'ต้องบังคับ 5 หัวข้อ');
+assert.strictEqual(X.missingRequired({product:['Ultherapy'],topic:'ก',clinic:'ข',doctors:2,requester:'ค'}).length,0,
+  'กรอกครบแล้วต้องผ่าน');
+
+/* 18. เวลาในฟอร์ม จองเช้าเลือกบ่ายไม่ได้ */
+const amSel=X.t24('x','09:00','am'), pmSel=X.t24('y','13:00','pm');
+assert.ok(!/>14</.test(amSel),'ช่วงเช้าต้องเลือก 14:00 ไม่ได้');
+assert.ok(/>14</.test(pmSel),'ช่วงบ่ายต้องเลือก 14:00 ได้');
+assert.ok(!/>09</.test(pmSel),'ช่วงบ่ายต้องเลือก 09:00 ไม่ได้');
+
+/* 19. หัวหน้าทั้ง 2 คนอนุมัติได้ทุกคำขอ ไม่แบ่งทีม */
+const req={id:'TR-Z',team:'A',status:'pending',sessions:[]};
+X.state.role='cts';
+X.LEAD_IDS.forEach(id=>{X.state.me=id;assert.ok(X.canApprove(req),id+' ต้องอนุมัติได้');});
+X.state.me=B1;assert.ok(!X.canApprove(req),'CTS ธรรมดาต้องอนุมัติไม่ได้');
+
+/* 20. คิว TBC หมดอายุ 3 วันแล้วถูกปล่อยคืน */
+clean();
+const old3=new Date(Date.now()-4*864e5).toISOString();
+const fresh=new Date().toISOString();
+X.state.requests=[
+  {id:'TB-1',status:'tbc',tbcAt:old3,team:'A',sessions:[{date:K,slot:'am',ctsId:B1}]},
+  {id:'TB-2',status:'tbc',tbcAt:fresh,team:'A',sessions:[{date:K,slot:'pm',ctsId:B1}]}];
+X.state.requests.forEach(r=>r.sessions.forEach(sn=>X.state.sched[sn.date]=X.state.sched[sn.date]||{}));
+assert.strictEqual(X.sweepTBC(),1,'ต้องปล่อยเฉพาะใบที่เกิน 3 วัน');
+assert.strictEqual(X.state.requests[0].status,'expired','ใบเก่าต้องหมดอายุ');
+assert.strictEqual(X.state.requests[1].status,'tbc','ใบใหม่ต้องยังอยู่');
+assert.ok(X.tbcLeft(X.state.requests[1])>0,'ใบใหม่ต้องยังเหลือเวลา');
+
+/* 21. หน้า Admin Skills เรนเดอร์ได้ และคนอื่นเข้าไม่ได้ */
+X.state.role='admin';X.state.tab='skill';
+try{X.renderSkills();}catch(e){throw new Error('renderSkills พัง: '+e.message);}
+X.state.role='cts';X.state.me=B1;
+try{X.renderSkills();}catch(e){throw new Error('renderSkills (non-admin) พัง: '+e.message);}
+
+/* 22. ป้าย "แก้ล่าสุดโดย" */
+assert.strictEqual(X.upLabel({}),'','ไม่มีข้อมูลต้องไม่ขึ้นป้าย');
+assert.ok(/แก้ล่าสุดโดย POP/.test(X.upLabel({upBy:'POP',upAt:new Date().toISOString()})),'ป้ายต้องมีชื่อคนแก้');
+
+console.log('✓ ผ่านทั้ง 22 ข้อ');
