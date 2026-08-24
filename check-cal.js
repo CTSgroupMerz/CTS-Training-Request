@@ -23,7 +23,7 @@ vm.createContext(ctx);
 src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWindow,syncSelf,CTS,SLOT_DEF,AUTO_RULE,'
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
-     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail};';
+     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -242,4 +242,32 @@ assert.ok(!X.freeIds(K,'am').includes(B1),'ปิดแล้วต้องไ�
 X.setAvail(K,B1,'am',null);
 assert.ok(X.freeIds(K,'am').includes(B1),'เปิดคืนแล้วต้องกลับมาว่าง');
 
-console.log('✓ ผ่านทั้ง 24 ข้อ');
+
+/* 25. คนที่ถูกจัดให้อัตโนมัติตอนส่งคำขอ ต้องเป็น 1 ใน 6 คนที่รับคิวได้เท่านั้น
+      (เคยพลาดไปโดน PAM ซึ่งเป็น Senior Leader เพราะเลือกจาก teamCTS ตรงๆ) */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.authed=true;
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],
+  topic:'หัวข้อ',clinic:'คลินิก',map:'',doctors:2,exp:'',handsOn:false,hoProduct:'',hoCases:'',
+  photos:[],requester:'ผู้ขอ'};
+X.state.picks=[{date:K,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
+X.submit();
+const got=X.state.requests[0].sessions[0].ctsId;
+assert.ok(got,'ต้องจัดคนให้อัตโนมัติ');
+assert.ok(X.BOOKABLE_CTS().some(c=>c.id===got),
+  'ต้องเป็น 1 ใน 6 คนที่รับคิวได้ ไม่ใช่ Senior Leader — ได้ '+got);
+assert.ok(!X.LEAD_IDS.includes(got),'ห้ามจัดให้ PAM/MILK');
+/* คนที่ยังไม่เปิด Skills ก็ต้องไม่ถูกจัดให้ */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
+const only=X.BOOKABLE_CTS()[3].id;
+X.setSkill(only,'Xeomin','self');
+X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Xeomin'],
+  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
+X.state.picks=[{date:K,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
+X.submit();
+assert.strictEqual(X.state.requests[0].sessions[0].ctsId,only,
+  'ต้องจัดให้เฉพาะคนที่เปิด Skills ของ product นั้น');
+
+console.log('✓ ผ่านทั้ง 25 ข้อ');

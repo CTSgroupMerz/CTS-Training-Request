@@ -2441,7 +2441,9 @@ function submit(){
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
   // anonymous picks (Sales) get a tentative CTS so the slot is truly held; the Leader can change it
   req.sessions.forEach(s=>{
-    if(!s.ctsId){const f=teamCTS(team).find(c=>slotStatus(s.date,c.id,s.slot)==='free');if(f)s.ctsId=f.id;}
+    /* จัดคนชั่วคราวให้คิวถูกล็อกจริง — ต้องผ่าน freeIds() เพื่อไม่ให้ไปโดน Senior Leader
+       หรือคนที่ยังไม่เปิด Skills ของ product ที่ขอ (หัวหน้าเปลี่ยนตัวได้ทีหลัง) */
+    if(!s.ctsId){const f=freeIds(s.date,s.slot)[0];if(f)s.ctsId=f;}
     if(s.ctsId)setJob(s.date,s.ctsId,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
       start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
   });
