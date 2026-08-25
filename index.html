@@ -1642,6 +1642,63 @@ function syncSelf(ev){
     }));
   });
 }
+/* ทุกคนที่ไปงานของ session นี้ — ผู้เทรนที่หัวหน้าจัดให้ + คนที่ CTS เพิ่มเข้ามาเอง */
+const reqWho=s=>[s.ctsId].concat(s.extra||[]).filter(Boolean);
+/* เขียนคิวของ session ลง sched ให้ครบทุกคน คิวว่างฝั่ง Sales จะได้ถูกตัดตรง
+   prevWho = คนชุดเดิม ต้องล้างออกก่อน ไม่งั้นคนที่ถูกเอาออกจะยังติดคิวค้าง */
+function syncReqJob(r,s,prevWho){
+  (prevWho||[]).forEach(id=>{const j=jobOf(s.date,id,s.slot);if(j&&j.reqId===r.id)setJob(s.date,id,s.slot,null);});
+  reqWho(s).forEach(id=>setJob(s.date,id,s.slot,stampNow({
+    kind:r.status==='approved'?'booked':'pend',title:s.sTitle||s.sProduct||r.clinic||'Training',
+    product:s.sProduct||r.product,reqId:r.id,
+    start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end})));
+}
+/* CTS แก้คิวที่มาจากคำขอที่อนุมัติแล้ว — หัวข้อ เวลา และคนที่ไปด้วย เหมือนคิวที่ลงเอง
+   ผู้เทรนหลักที่หัวหน้าจัดให้แก้ที่นี่ไม่ได้ ต้องให้หัวหน้าเปลี่ยนที่ "จัด / เปลี่ยน CTS" */
+function openReqSession(reqId,sIdx,keep){
+  const r=state.requests.find(x=>x.id===reqId);if(!r)return;
+  const s=r.sessions[+sIdx];if(!s)return;
+  const auto=s.sProduct||r.clinic||'Training';
+  const D=keep||{title:s.sTitle||'',start:s.start||SLOT_DEF[s.slot].start,
+    end:s.end||SLOT_DEF[s.slot].end,extra:(s.extra||[]).slice()};
+  openSheet(`<div class="eyebrow">${r.id} · ${fmtDate(s.date)}</div><h2>แก้ไขคิวงานนี้</h2>
+    <div class="muted" style="padding:6px 0 2px">คิวจากคำขอที่อนุมัติแล้ว — แก้หัวข้อ เวลา และคนที่ไปด้วยได้</div>`,
+  `<div class="card">
+    <label class="f">หัวข้องาน <span>· เว้นว่าง = ใช้ "${esc(auto)}"</span></label>
+    <input class="in" id="rsTitle" value="${esc(D.title)}" placeholder="${esc(auto)}">
+    <div class="formgrid">
+      <div><label class="f">เริ่ม</label>${t24('rsStart',D.start,s.slot)}</div>
+      <div><label class="f">ถึง</label>${t24('rsEnd',D.end,s.slot)}</div></div>
+    <label class="f">ใครไปงานนี้บ้าง <span>· เลือกได้หลายคน สีจะรวมกันในปฏิทิน</span></label>
+    <div class="chips"><span class="chip attchip" aria-pressed="true" style="--cc:${pal(s.ctsId).c};--ct:${pal(s.ctsId).ci};opacity:.75">
+      <span class="adot" style="background:${pal(s.ctsId).c}"></span>${byId(s.ctsId).nick} · ผู้เทรนหลัก</span>
+      ${CTS.filter(c=>c.id!==s.ctsId).map(c=>`<button class="chip attchip" data-rsa="${c.id}" aria-pressed="${D.extra.includes(c.id)}"
+      style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${c.nick}</button>`).join('')}</div>
+    <div class="note pl">ผู้เทรนหลักเปลี่ยนได้เฉพาะหัวหน้า ที่ปุ่ม "จัด / เปลี่ยน CTS" ในหน้าคำขอ
+      · คนที่เพิ่มเข้ามาจะถูกตัดคิวว่างในช่วงนี้ด้วย</div>
+    <div class="err" id="rsErr" hidden></div>
+    <button class="btn primary block" id="rsSave" style="margin-top:13px">บันทึกการแก้ไข</button>
+    <button class="btn ghost block" id="rsCancel" style="margin-top:8px">ยกเลิก</button>
+  </div>`);
+  const B=$('sheetBody');
+  const grab=()=>{D.title=$('rsTitle').value;D.start=$('rsStart').value;D.end=$('rsEnd').value;};
+  B.querySelectorAll('[data-rsa]').forEach(b=>b.onclick=()=>{grab();
+    const i=D.extra.indexOf(b.dataset.rsa);i>=0?D.extra.splice(i,1):D.extra.push(b.dataset.rsa);
+    openReqSession(reqId,sIdx,D);});
+  $('rsCancel').onclick=closeSheet;
+  $('rsSave').onclick=()=>{
+    grab();
+    const e=$('rsErr');
+    if(toMin(D.end)<=toMin(D.start)){e.hidden=false;e.textContent='เวลาสิ้นสุดต้องหลังเวลาเริ่ม';return;}
+    const busy=D.extra.filter(id=>{const j=jobOf(s.date,id,s.slot);return j&&j.reqId!==r.id;});
+    if(busy.length){e.hidden=false;
+      e.textContent='ติดคิวอื่นอยู่แล้ว: '+busy.map(id=>byId(id).nick).join(', ');return;}
+    const prev=reqWho(s);
+    s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.slice();
+    stampNow(s);syncReqJob(r,s,prev);
+    closeSheet();render();toast('บันทึกคิวงานแล้ว');
+  };
+}
 function clearSelf(id){
   Object.keys(state.sched).forEach(k=>Object.keys(state.sched[k]).forEach(cid=>{
     ['am','pm'].forEach(sl=>{const j=state.sched[k][cid][sl];if(j&&j.selfId===id)state.sched[k][cid][sl]=null;});
@@ -1761,6 +1818,7 @@ function openJob(k,ekey){
       <div class="sess">${r.sessions.filter(sn=>sn.ctsId).map((sn,i)=>`<div class="s" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">
         <b>S${i+1}</b><span>${fmtDate(sn.date)} · ${sn.slot==='day'?'ทั้งวัน':(sn.start||SLOT_DEF[sn.slot].start)+'–'+(sn.end||SLOT_DEF[sn.slot].end)} · ${byId(sn.ctsId).nick}</span></div>`).join('')}</div>
       <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูล</button>
+      ${r.status==='approved'?'<div class="note" style="margin-top:9px">หัวข้อ เวลา และคนที่ไปด้วยของ<b>คิวในปฏิทิน</b> แก้ที่ปุ่มด้านบน · ตรงนี้แก้รายละเอียดของคำขอ เช่น product คลินิก แพทย์</div>':''}
     </div>`
     :j.selfId?`<div class="card"><div class="muted">คิวงานที่ CTS ลงเอง — แก้ไขหัวข้อ เวลา และผู้ร่วมงานได้ที่ปุ่มด้านบน</div></div>`
     :`<div class="card"><div class="muted">คิวนี้บันทึกไว้ในตารางโดยตรง ไม่ได้มาจากคำขอในระบบ</div></div>`;
@@ -1782,6 +1840,8 @@ function openJob(k,ekey){
     ${state.role==='admin'&&mailTag(j)?`<button class="btn block ${j.emailOk?'ok':''}" data-mailtag="${mailTag(j)}"
       style="margin-top:11px">${j.emailOk?'✓ Email Approved แล้ว — กดเพื่อยกเลิก':'✓ ยืนยันว่า Email Approved แล้ว'}</button>`:''}
     ${canSeeNames()&&j.selfId?`<button class="btn block" data-self="${j.selfId}" style="margin-top:11px">✎ แก้ไขคิวงานนี้</button>`:''}
+    ${canSeeNames()&&r&&r.status==='approved'&&r.mode!=='upc'&&j.sIdx!==undefined
+      ?`<button class="btn block" data-reqsess="${r.id}|${j.sIdx}" style="margin-top:11px">✎ แก้ไขคิวงานนี้ (หัวข้อ · เวลา · ผู้ร่วมงาน)</button>`:''}
     ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">🕑 แก้เวลา / เวลาที่ว่าง</button>`:''}
     ${upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc(upLabel(j))}</div>`:''}
   </div>${detail}
@@ -1790,6 +1850,8 @@ function openJob(k,ekey){
   bindTime($('sheetBody'));
   bindMail($('sheetBody'));
   $('sheetBody').querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>openSelfEntry(null,b.dataset.self));
+  $('sheetBody').querySelectorAll('[data-reqsess]').forEach(b=>b.onclick=()=>{
+    const [rid,ix]=b.dataset.reqsess.split('|');openReqSession(rid,ix);});
 }
 
 /* CTS และ Admin แก้เวลาว่าง / เวลาคิวของคนในทีมได้ */
@@ -1881,12 +1943,13 @@ function dayEntries(k,pool){
       const day=(r.days||[]).find(x=>x.date===k);
       const it=(day&&(day.items||[])[0])||{};
       const full=s.slot==='day';
+      /* sTitle / extra = ของที่ CTS แก้เองหลังคำขอถูกอนุมัติ (หัวข้อ และคนที่ไปด้วย) */
       put(r.id+'-'+i,{kind:r.status==='approved'?'booked':r.status==='tbc'?'tbc':'pend',
-        title:r.mode==='upc'?upcDayLabel(day||{items:[]}).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training'),
+        title:r.mode==='upc'?upcDayLabel(day||{items:[]}).replace(/&amp;/g,'&'):(s.sTitle||s.sProduct||r.clinic||'Training'),
         detail:s.sTopic||r.topic||'',product:s.sProduct||r.product||it.product||null,
         reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
-        end:s.end||it.end||SLOT_DEF[full?'pm':s.slot].end},[s.ctsId]);
+        end:s.end||it.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
   });
   state.events.filter(e=>e.date===k).forEach(e=>{
@@ -2667,13 +2730,10 @@ function openEdit(id){
       const nd=sn._newDate;delete sn._newDate;
       if(!sn.ctsId){sn.date=nd;return;}
       if(holidayOf(nd)||!isWorkday(parse(nd))||slotStatus(nd,sn.ctsId,sn.slot)!=='free'){moveErr++;return;}
-      setJob(sn.date,sn.ctsId,sn.slot,null);
+      reqWho(sn).forEach(id=>setJob(sn.date,id,sn.slot,null));   // ย้ายวัน ต้องล้างคิวเดิมของทุกคนที่ไปงานนี้
       sn.date=nd;
     });
-    r.sessions.forEach(sn=>{if(sn.ctsId){
-      const kind=r.status==='approved'?'booked':'pend';
-      setJob(sn.date,sn.ctsId,sn.slot,{kind,title:r.clinic||'คำขอ '+r.id,product:sn.sProduct||r.product,reqId:r.id,
-        start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end});}});
+    r.sessions.forEach(sn=>{if(sn.ctsId)syncReqJob(r,sn);});
     if(moveErr)toast(`ย้ายวันไม่ได้ ${moveErr} session — วันนั้นไม่ว่างหรือเป็นวันหยุด`);
     r.updatedAt=new Date();
     closeSheet();render();
@@ -2725,7 +2785,7 @@ function delReq(id){
   $('delNo').onclick=closeSheet;
   $('delYes').onclick=()=>{
     if(r.mode==='upc')clearUPC(r);
-    else r.sessions.forEach(s=>{if(s.ctsId)setJob(s.date,s.ctsId,s.slot,null);});
+    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
     state.requests=state.requests.filter(x=>x.id!==id);
     state.feed=state.feed.filter(f=>!f.r||f.r.id!==id);
     closeSheet();render();toast('ลบคำขอแล้ว');};
@@ -2880,7 +2940,7 @@ function confirmMissing(r,m){
 function reject(id){
   const r=state.requests.find(x=>x.id===id);r.status='rejected';
   if(r.mode==='upc')clearUPC(r);
-  else r.sessions.forEach(s=>{if(s.ctsId)setJob(s.date,s.ctsId,s.slot,null);});
+  else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
   notify(r,'rejected');render();toast('ไม่อนุมัติ — คืนคิวให้ CTS แล้ว');
 }
 

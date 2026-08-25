@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -428,4 +428,42 @@ assert.ok(!/data-mailtag=/.test(wkCts),'CTS ต้องกด ✓ ไม่ไ�
 selfEv.emailOk=false;
 assert.ok(!/class="okmk/.test(X.weekHTML()),'CTS ไม่ต้องเห็น ✓ จางของคิวที่ยังไม่ติ๊ก');
 
-console.log('✓ ผ่านทั้ง 34 ข้อ');
+/* 35. CTS แก้คิวที่มาจากคำขอที่อนุมัติแล้วได้ — หัวข้อ เวลา ผู้ร่วมงาน (เหมือนคิวที่ลงเอง) */
+clean();
+const B2=X.BOOKABLE_CTS()[1].id;
+X.state.role='cts';X.state.me=B1;X.state.tab='cal';X.state.view='week';
+X.state.requests=[{id:'TR-E',team:'A',status:'approved',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
+  topic:'x',clinic:'คลินิกเดิม',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'a',requesterId:'a',
+  sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]}];
+const rq=X.state.requests[0], se=rq.sessions[0];
+X.openJob(K,X.entriesOf(K,B1)[0].key);
+assert.ok(/data-reqsess="TR-E\|0"/.test(sheet()),'คิวจากคำขอที่อนุมัติแล้วต้องมีปุ่มแก้ไข');
+/* ยังไม่อนุมัติ ต้องยังไม่มีปุ่ม */
+rq.status='pending';
+X.openJob(K,X.entriesOf(K,B1)[0].key);
+assert.ok(!/data-reqsess=/.test(sheet()),'คำขอที่ยังไม่อนุมัติ CTS ต้องยังแก้ไม่ได้');
+rq.status='approved';
+/* แก้หัวข้อ เวลา และเพิ่มคนที่ไปด้วย */
+X.openReqSession('TR-E',0);
+assert.ok(/rsTitle/.test(sheet())&&/data-rsa="/.test(sheet()),'ฟอร์มต้องมีช่องหัวข้อและปุ่มเลือกคน');
+assert.ok(!new RegExp('data-rsa="'+B1+'"').test(sheet()),'ผู้เทรนหลักต้องกดเอาออกไม่ได้');
+X.openReqSession('TR-E',0,{title:'ลงเครื่องใหม่',start:'10:00',end:'13:00',extra:[B2]});
+G("rsTitle").value='ลงเครื่องใหม่';G("rsStart").value='10:00';G("rsEnd").value='13:00';
+G("rsSave").onclick();
+assert.strictEqual(se.sTitle,'ลงเครื่องใหม่','ต้องเก็บหัวข้อที่แก้');
+assert.strictEqual(se.start+'-'+se.end,'10:00-13:00','ต้องเก็บเวลาที่แก้');
+assert.deepStrictEqual(se.extra,[B2],'ต้องเก็บคนที่ไปด้วย');
+/* ปฏิทินต้องโชว์หัวข้อใหม่ และคิวต้องขึ้นในตารางของคนที่เพิ่มเข้ามาด้วย */
+const ent=X.entriesOf(K,B1)[0];
+assert.strictEqual(ent.job.title,'ลงเครื่องใหม่','ปฏิทินต้องใช้หัวข้อที่แก้');
+assert.strictEqual(ent.start+'-'+ent.end,'10:00-13:00','ปฏิทินต้องใช้เวลาที่แก้');
+assert.strictEqual(X.entriesOf(K,B2).length,1,'คนที่ถูกเพิ่มต้องเห็นคิวนี้ในตารางตัวเอง');
+assert.strictEqual(X.slotStatus(K,B2,'am'),'booked','คนที่ถูกเพิ่มต้องถูกตัดคิวว่างด้วย');
+/* เอาออกแล้วคิวว่างต้องคืนให้เขา */
+X.openReqSession('TR-E',0,{title:'ลงเครื่องใหม่',start:'10:00',end:'13:00',extra:[]});
+G("rsTitle").value='ลงเครื่องใหม่';G("rsStart").value='10:00';G("rsEnd").value='13:00';
+G("rsSave").onclick();
+assert.strictEqual(X.slotStatus(K,B2,'am'),'free','เอาคนออกแล้วคิวว่างต้องคืนให้เขา');
+assert.strictEqual(X.entriesOf(K,B1).length,1,'ผู้เทรนหลักต้องยังมีคิวอยู่');
+
+console.log('✓ ผ่านทั้ง 35 ข้อ');
