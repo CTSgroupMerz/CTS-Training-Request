@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -118,7 +118,7 @@ X.state.role='cts';
 assert.ok(/data-del=/.test(X.reqCard(X.state.requests[0],false)),'CTS ต้องเห็นปุ่มลบคำขอ');
 
 /* 10. เครื่องหมาย ✓ Email Approved โผล่ในปฏิทิน */
-assert.ok(/okmk/.test(X.weekHTML()),'คิวที่ Email Approved แล้วต้องมีเครื่องหมาย ✓ ในปฏิทิน');
+assert.ok(/class="okmk/.test(X.weekHTML()),'คิวที่ Email Approved แล้วต้องมีเครื่องหมาย ✓ ในปฏิทิน');
 
 
 /* ===== ของใหม่รอบนี้ ===== */
@@ -222,16 +222,16 @@ const eK=X.entriesOf(K,B1)[0];
 assert.ok(eK,'ต้องมีคิวจากคำขอ');
 X.openJob(K,eK.key);
 const sheetHtml=sheet();
-assert.ok(/data-mail=/.test(sheetHtml),'Admin ต้องเห็นปุ่มยืนยัน Email Approved');
+assert.ok(/data-mailtag=/.test(sheetHtml),'Admin ต้องเห็นปุ่มยืนยัน Email Approved');
 assert.ok(/Email Approved/.test(sheetHtml),'ต้องมีข้อความ Email Approved');
 /* กดแล้วต้องติดธง และ ✓ ต้องขึ้นในปฏิทิน */
 X.state.requests[0].sessions[0].emailOk=true;
-assert.ok(/okmk/.test(X.weekHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายสัปดาห์');
-assert.ok(/okmk/.test(X.monthHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายเดือนด้วย');
+assert.ok(/class="okmk/.test(X.weekHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายสัปดาห์');
+assert.ok(/class="okmk/.test(X.monthHTML()),'ติดธงแล้ว ✓ ต้องขึ้นในปฏิทินรายเดือนด้วย');
 /* CTS ธรรมดาไม่ควรกดได้ */
 X.state.role='cts';X.state.me=B1;
 X.openJob(K,X.entriesOf(K,B1)[0].key);
-assert.ok(!/data-mail=/.test(sheet()),'CTS ไม่ควรกดยืนยัน Email Approved ได้');
+assert.ok(!/data-mailtag=/.test(sheet()),'CTS ไม่ควรกดยืนยัน Email Approved ได้');
 
 /* 24. ปิดรับคิวว่าง — CTS/Admin ปิดช่องได้ Sales จะไม่เห็นเป็นคิวว่าง */
 clean();
@@ -403,4 +403,29 @@ X.state.role='cts';X.state.me=B1;X.state.tab='cal';X.render();
 assert.ok(/data-tab="feed"[\s\S]*data-tab="feed"/.test(cache.root.innerHTML),
   'CTS ต้องเห็นแท็บแจ้งเตือนในแถบล่างด้วย ไม่ใช่แค่เมนูข้าง');
 
-console.log('✓ ผ่านทั้ง 33 ข้อ');
+/* 34. ✓ Email Approved — Admin แตะได้จากปฏิทินตรงๆ และใช้กับคิวที่ CTS ลงเองได้ด้วย
+      (เดิมมีปุ่มเฉพาะในหน้ารายละเอียด และเฉพาะคิวที่มาจากคำขอเท่านั้น) */
+clean();
+X.state.role='admin';X.state.me=null;X.state.tab='cal';X.state.view='week';
+const selfEv={id:'SE-MK',date:K,dateEnd:'',allDay:false,title:'ประชุมทีม',detail:'',
+  product:[],topics:[],attendees:[B1],owner:B1,start:'09:00',end:'11:00'};
+X.state.selfEvents.push(selfEv);X.syncSelf(selfEv);
+const wk=X.weekHTML();
+assert.ok(/data-mailtag="S\|SE-MK\|"/.test(wk),'Admin ต้องแตะ ✓ ของคิวที่ CTS ลงเองได้จากปฏิทินเลย');
+assert.ok(/class="okmk off tap/.test(wk),'ยังไม่ติ๊ก ต้องเป็น ✓ จางๆ ที่กดได้');
+/* กดแล้วต้องติดธงและ ✓ เข้ม */
+const je=X.entriesOf(K,B1)[0].job;
+assert.strictEqual(X.mailTag(je),'S|SE-MK|','คิวที่ CTS ลงเองต้องมี tag แบบ S');
+selfEv.emailOk=true;
+assert.ok(/class="okmk tap/.test(X.weekHTML()),'ติ๊กแล้ว ✓ ต้องเข้มขึ้น');
+assert.ok(X.entriesOf(K,B1)[0].job.emailOk,'ธงต้องถูกอ่านกลับมาที่คิวในปฏิทิน');
+/* คนอื่นเห็น ✓ แต่กดไม่ได้ */
+X.state.role='cts';X.state.me=B1;
+const wkCts=X.weekHTML();
+assert.ok(/class="okmk/.test(wkCts),'CTS ต้องเห็น ✓ ของคิวที่ Email Approved แล้ว');
+assert.ok(!/data-mailtag=/.test(wkCts),'CTS ต้องกด ✓ ไม่ได้');
+/* คิวที่ยังไม่ติ๊กต้องไม่โผล่ ✓ จางให้คนที่ไม่ใช่ Admin */
+selfEv.emailOk=false;
+assert.ok(!/class="okmk/.test(X.weekHTML()),'CTS ไม่ต้องเห็น ✓ จางของคิวที่ยังไม่ติ๊ก');
+
+console.log('✓ ผ่านทั้ง 34 ข้อ');

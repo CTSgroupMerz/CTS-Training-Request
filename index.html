@@ -329,6 +329,10 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .half .etx3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;opacity:.72;font-size:9.5px;font-weight:500}
 .okmk{font-weight:900;color:var(--ok);margin-right:3px}
 .okmk.off{color:currentColor;opacity:.32}
+/* Admin แตะได้ — ขยายพื้นที่กดให้นิ้วโดนง่ายบนมือถือ */
+.okmk.tap{cursor:pointer;display:inline-block;padding:0 5px;margin:-2px 1px -2px -3px;
+  border-radius:6px;box-shadow:inset 0 0 0 1px currentColor}
+.okmk.tap.off{opacity:.45}
 .fabsm{display:none}
 .req-star{color:#D14343;font-weight:900;margin-left:2px}
 .slotblk.gate{background:#EDE7FA;color:#5B3E9E}
@@ -955,7 +959,6 @@ window.t24set=id=>{const h=$(id+'_h'),m=$(id+'_m'),t=$(id);if(h&&m&&t)t.value=h.
 const fmtT=t=>`${t.start}–${t.end}`;
 /* ป้ายเวลาที่แสดง — คิวทั้งวันไม่ต้องโชว์ช่วงเวลา */
 const timeLabel=(j,t)=>(j&&j.allDay)?'ทั้งวัน':fmtT(t);
-/* ✓ หน้าคิว = Admin ยืนยันแล้วว่าอีเมลอนุมัติออกไปแล้ว */
 /* ใครกำลังใช้งานอยู่ — ใช้บันทึกว่าคิวนี้ถูกแก้ล่าสุดโดยใคร */
 const whoAmI=()=>state.role==='cts'?byId(state.me).nick:state.role==='admin'?'Admin':(state.salesId||'Sales');
 const stampNow=o=>{o.upBy=whoAmI();o.upAt=new Date().toISOString();return o;};
@@ -965,8 +968,31 @@ const upLabel=j=>{
   const t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   return `แก้ล่าสุดโดย ${j.upBy} · ${d.getDate()} ${THMON[d.getMonth()]} ${t}`;
 };
-const okMark=j=>(j&&j.emailOk)?'<span class="okmk" title="Email Approved แล้ว">✓</span>'
-  :(j&&j.reqId&&state.role==='admin')?'<span class="okmk off" title="ยังไม่ได้ยืนยัน Email Approved — แตะที่คิวเพื่อยืนยัน">✓</span>':'';
+/* ✓ หน้าคิว = Admin ยืนยันแล้วว่าอีเมลอนุมัติออกไปแล้ว
+   ใช้ได้ทั้งคิวที่มาจากคำขอ (R) และคิวที่ CTS ลงเอง (S)
+   Admin แตะที่ ✓ ในปฏิทินได้เลย ไม่ต้องเปิดคิวขึ้นมาก่อน */
+const mailTag=j=>!j?'':j.reqId?`R|${j.reqId}|${j.sIdx}`:j.selfId?`S|${j.selfId}|`:'';
+function okMark(j){
+  const tag=state.role==='admin'?mailTag(j):'';
+  if(!j||(!j.emailOk&&!tag))return '';
+  const cls='okmk'+(j.emailOk?'':' off')+(tag?' tap':'');
+  if(!tag)return `<span class="${cls}" title="Email Approved แล้ว">✓</span>`;
+  return `<span class="${cls}" role="button" tabindex="0" data-mailtag="${tag}"
+    title="${j.emailOk?'Email Approved แล้ว — แตะเพื่อยกเลิก':'แตะเพื่อทำเครื่องหมายว่า Email Approved แล้ว'}">✓</span>`;
+}
+/* ผูกปุ่ม ✓ ทุกที่ที่โผล่ — ปฏิทิน สรุปรายวัน และหน้ารายละเอียดคิว */
+function bindMail(scope){
+  scope.querySelectorAll('[data-mailtag]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const [kind,id,ix]=b.dataset.mailtag.split('|');
+    const r=kind==='R'?state.requests.find(x=>x.id===id):null;
+    const t=kind==='R'?(r&&r.sessions[+ix]):state.selfEvents.find(x=>x.id===id);
+    if(!t)return;
+    t.emailOk=!t.emailOk;stampNow(t);
+    closeSheet();render();
+    toast(t.emailOk?'✓ ทำเครื่องหมาย Email Approved แล้ว':'ยกเลิกเครื่องหมาย Email Approved แล้ว');
+  });
+}
 /* Product ของคำขอ เลือกได้หลายตัว — เก็บเป็น array แต่ยังอ่านข้อมูลเก่าที่เป็นสตริงเดี่ยวได้ */
 const prodList=v=>!v?[]:(Array.isArray(v)?v:[v]);
 const prodMain=v=>prodList(v)[0]||null;
@@ -1292,6 +1318,7 @@ function renderCal(){
     quickPick(b.dataset.book,b.dataset.slot,b.dataset.cts||null);});
   shell.querySelectorAll('[data-job]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const [k,ek]=b.dataset.job.split('|');openJob(k,ek);});
+  bindMail(shell);   // Admin แตะ ✓ บนคิวในปฏิทินได้เลย
   shell.querySelectorAll('[data-d]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
 
@@ -1752,8 +1779,8 @@ function openJob(k,ekey){
       <span class="muted" style="font-size:12px">ไปด้วยกัน:</span>
       ${e.who.map(i=>`<span class="nsess"><span class="s" style="background:${pal(i).c};color:${pal(i).ci}">
         ${face(i,'xs')} ${byId(i).nick}</span></span>`).join('')}</div>`:''}
-    ${state.role==='admin'&&j.reqId?`<button class="btn block ${j.emailOk?'ok':''}" data-mail="${j.reqId}|${j.sIdx}"
-      style="margin-top:11px">${j.emailOk?'✓ Email Approved แล้ว — กดเพื่อยกเลิก':'ยืนยันว่า Email Approved แล้ว'}</button>`:''}
+    ${state.role==='admin'&&mailTag(j)?`<button class="btn block ${j.emailOk?'ok':''}" data-mailtag="${mailTag(j)}"
+      style="margin-top:11px">${j.emailOk?'✓ Email Approved แล้ว — กดเพื่อยกเลิก':'✓ ยืนยันว่า Email Approved แล้ว'}</button>`:''}
     ${canSeeNames()&&j.selfId?`<button class="btn block" data-self="${j.selfId}" style="margin-top:11px">✎ แก้ไขคิวงานนี้</button>`:''}
     ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">🕑 แก้เวลา / เวลาที่ว่าง</button>`:''}
     ${upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc(upLabel(j))}</div>`:''}
@@ -1761,12 +1788,8 @@ function openJob(k,ekey){
   <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
   bindCards($('sheetBody'));
   bindTime($('sheetBody'));
+  bindMail($('sheetBody'));
   $('sheetBody').querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>openSelfEntry(null,b.dataset.self));
-  $('sheetBody').querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
-    const [rid,ix]=b.dataset.mail.split('|');
-    const rq=state.requests.find(x=>x.id===rid),sn=rq&&rq.sessions[+ix];
-    if(!sn)return;
-    sn.emailOk=!sn.emailOk;closeSheet();render();toast(sn.emailOk?'ทำเครื่องหมาย Email Approved แล้ว':'ยกเลิกเครื่องหมายแล้ว');});
 }
 
 /* CTS และ Admin แก้เวลาว่าง / เวลาคิวของคนในทีมได้ */
@@ -1848,7 +1871,7 @@ function dayEntries(k,pool){
   state.selfEvents.forEach(ev=>{
     if(!dateRange(ev.date,ev.dateEnd||ev.date).includes(k))return;
     put('se-'+ev.id,{kind:'busy',title:ev.title,detail:ev.detail||'',product:ev.product||null,topics:ev.topics||[],
-      selfId:ev.id,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,upBy:ev.upBy,upAt:ev.upAt,
+      selfId:ev.id,emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,upBy:ev.upBy,upAt:ev.upAt,
       start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
   });
   state.requests.forEach(r=>{
@@ -1954,6 +1977,7 @@ function openDay(k){
   B.querySelectorAll('.slot[data-job]').forEach(b=>b.onclick=()=>{
     const [kk,ek]=b.dataset.job.split('|');openJob(kk,ek);});
   bindTime(B);
+  bindMail(B);
   $('dnClose').onclick=closeSheet;
 }
 function dayAnon(k){
