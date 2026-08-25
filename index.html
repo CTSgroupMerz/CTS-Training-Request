@@ -118,6 +118,9 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
+/* ตารางสัปดาห์เลื่อนแนวนอนในกรอบตัวเองอยู่แล้ว หน้าเว็บทั้งหน้าไม่ต้องเลื่อนซ้าย-ขวาตามไปด้วย
+   ถ้าไม่ล็อกไว้ ตอนปัดดูวันถัดไปทั้งหน้าจะไถลตามแล้วดีดกลับ */
+body{overflow-x:hidden}
 body{background:var(--paper);font-family:var(--sans);color:var(--ink);font-size:15px;line-height:1.5;
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;border:0;background:none}
@@ -379,9 +382,9 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
   .filterbar .fchip{flex:0 0 auto}
   .calshell{margin:0 -4px}                  /* หัวคอลัมน์บอก ส/อา อยู่แล้ว ไม่ต้องเขียนซ้ำในทุกช่อง */
   .legend{font-size:10.5px;gap:5px 9px}
-  /* ปัดทีละวันตอนเลื่อนปฏิทินสัปดาห์ จะได้ไม่ค้างครึ่งช่อง */
-  .wscroll{scroll-snap-type:x proximity}
-  .wdate,.wcell,.scell{scroll-snap-align:start}
+  /* เคยใส่ scroll-snap ให้ปัดทีละวัน แต่จุดสแนปอยู่ที่ทุกช่องในทุกแถว
+     พอเลื่อนขึ้นลง เบราว์เซอร์เลยดีดตารางไปมาแนวนอน — เอาออก เลื่อนอิสระดีกว่า */
+  .wscroll{overscroll-behavior-x:contain}
   .wperson{padding:6px 5px;gap:4px}
   .wperson .ava{width:20px;height:20px}
   .wperson .nk{font-size:10.5px}
