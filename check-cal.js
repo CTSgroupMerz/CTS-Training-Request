@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -386,4 +386,21 @@ assert.strictEqual(X.badgeCount(),0,'ออกจากระบบแล้ว�
 X.syncBadge();
 assert.strictEqual(badge.n,0,'ออกจากระบบแล้วต้องล้างป้ายบนไอคอน');
 
-console.log('✓ ผ่านทั้ง 32 ข้อ');
+/* 33. แถบเมนูล่างบนมือถือต้องมีช่องเท่าจำนวนแท็บของแต่ละ role
+      (เดิมล็อกไว้ 4 ช่อง แท็บ "แจ้งเตือน" ของ CTS/Admin เลยตกขอบจอ) */
+clean();
+X.state.authed=true;X.state.teamView='A';
+[['sales',{area:'Champion',salesId:'C01',me:null}],['cts',{me:B1}],['admin',{me:null}]].forEach(([role,extra])=>{
+  Object.assign(X.state,{role,tab:'cal'},extra);
+  X.render();
+  const html=cache.root.innerHTML, n=X.tabsFor().length;
+  assert.ok(new RegExp('class="botnav[^"]*" style="grid-template-columns:repeat\\('+n+',1fr\\)"').test(html),
+    role+': แถบล่างต้องแบ่ง '+n+' ช่อง');
+  assert.strictEqual((html.match(/data-tab=/g)||[]).length,n*2,
+    role+': ต้องมีแท็บครบ '+n+' อัน ทั้งเมนูข้างและแถบล่าง');
+});
+X.state.role='cts';X.state.me=B1;X.state.tab='cal';X.render();
+assert.ok(/data-tab="feed"[\s\S]*data-tab="feed"/.test(cache.root.innerHTML),
+  'CTS ต้องเห็นแท็บแจ้งเตือนในแถบล่างด้วย ไม่ใช่แค่เมนูข้าง');
+
+console.log('✓ ผ่านทั้ง 33 ข้อ');

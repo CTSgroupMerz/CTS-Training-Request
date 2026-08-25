@@ -227,6 +227,10 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
 .botnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   font-size:11px;color:var(--ink3);font-weight:500;position:relative}
 .botnav .ic{font-size:17px}
+.botnav .lb{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+/* 5-6 แท็บ (CTS / Admin) ช่องแคบลง ย่อตัวอักษรให้ชื่อแท็บไม่โดนตัด */
+.botnav.tight button{font-size:9.5px}
+.botnav.tight .ic{font-size:15px}
 .botnav button[aria-selected="true"]{color:var(--brand-deep);font-weight:700}
 .botnav .cnt{position:absolute;top:8px;left:50%;margin-left:6px;background:var(--bad);color:#fff;
   font-family:var(--mono);font-size:9.5px;border-radius:99px;padding:1px 5px;font-weight:700}
@@ -1167,10 +1171,13 @@ function userChip(){
 function render(){
   if(!state.authed){syncBadge();return renderLogin();}
   const pend=pendingCount(),showB=pend&&(isLead()||state.role==='admin');
-  const nav=tabsFor().map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
+  const tabs=tabsFor();
+  const nav=tabs.map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
     <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
-  const bnav=tabsFor().map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}">
-    <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
+  /* จำนวนแท็บไม่เท่ากันในแต่ละ role (Sales 4 · CTS 5 · Admin 6) — แถบล่างต้องแบ่งช่องตามจริง
+     ไม่งั้นแท็บท้ายๆ (แจ้งเตือน) ตกขอบจอ */
+  const bnav=tabs.map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}">
+    <span class="ic">${t.ic}</span><span class="lb">${t.t}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
   const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:'Admin · ทุกทีม';
 
   root.innerHTML=`<div class="shell">
@@ -1187,7 +1194,7 @@ function render(){
         <button class="iconbtn" id="tRules">?</button><button class="iconbtn" id="tOut">↪</button></div>
       <div class="page" id="view"></div>
     </div>
-    <nav class="botnav">${bnav}</nav>
+    <nav class="botnav${tabs.length>4?' tight':''}" style="grid-template-columns:repeat(${tabs.length},1fr)">${bnav}</nav>
   </div>`;
 
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
