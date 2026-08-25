@@ -964,6 +964,8 @@ const okMark=j=>(j&&j.emailOk)?'<span class="okmk" title="Email Approved แล�
 const prodList=v=>!v?[]:(Array.isArray(v)?v:[v]);
 const prodMain=v=>prodList(v)[0]||null;
 const prodTags=v=>prodList(v).map(x=>`<span class="tag" style="background:${PRODHEX[x]||'#999'};color:${pink(x)}">${x}</span>`).join(' ');
+/* ป้าย product แบบข้อความสั้นในปฏิทิน — รองรับหลาย product ต่อคิว */
+const prodText=v=>prodList(v).join(' · ');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
 const jobOf=(k,cid,slot)=>(state.sched[k]&&state.sched[k][cid])?state.sched[k][cid][slot]:undefined;
 const isClosed=(k,cid,slot)=>{const a=availOf(k,cid,slot);return !!(a&&a.closed);};
@@ -979,6 +981,8 @@ function setJob(k,cid,slot,job){if(!state.sched[k])state.sched[k]={};if(!state.s
   state.sched[k][cid][slot]=job;}
 const dayEvents=k=>{const vis=visibleCTS().map(c=>c.id);
   return state.events.filter(e=>e.date===k&&(e.cts==='all'||e.cts.some(i=>vis.includes(i))));};
+/* วันที่มีงานกลาง MA — ฝั่ง Sales ตัดคิวเทรนทั้งวัน ไม่ใช่แค่ครึ่งวันที่ระบุในงาน */
+const maDay=k=>dayEvents(k).length>0;
 /* คิวว่างที่นับให้ Sales — ผูกกับตารางจริงของ CTS อัตโนมัติ (คิวจาก request + คิวที่ CTS ลงเอง)
    แล้วกรองอีก 2 ชั้นตาม Product ที่ Sales เลือก:
      1) ต้องเปิด Skills ของ product ที่ขอครบทุกตัว ไม่งั้นไม่ขึ้นเป็นคิวว่าง
@@ -1131,6 +1135,48 @@ const tabsFor=()=>TABS.filter(t=>(!t.cts||state.role==='cts'||state.role==='admi
 /* อยู่ในแท็บ "ปฏิทิน Sale" = ดูแบบเดียวกับที่ Sales เห็น (ซ่อนชื่อ นับคิวว่าง) แต่ยังแก้เวลาว่างได้ */
 const salesView=()=>state.tab==='sale'&&(state.role==='cts'||state.role==='admin');
 function pendingCount(){return state.requests.filter(r=>(r.status==='pending'||r.status==='tbc')&&canApprove(r)).length;}
+/* ===== ป้ายตัวเลขแดงบนไอคอนแอป (Badging API) =====
+   ต้องติดตั้งเป็นแอปในหน้าจอโฮมก่อน · iOS ต้องกดอนุญาตแจ้งเตือนด้วย (ปุ่มในแท็บแจ้งเตือน)
+   ตัวเลขอัปเดตตอนเปิดแอป หรือสลับกลับมาที่แอป — ยังไม่มี push ตอนแอปปิดสนิท
+   "อ่านแล้ว" เก็บใน localStorage ของเครื่องนั้น ไม่ปนกับคนอื่นที่ใช้ระบบเดียวกัน */
+const feedSeen=()=>{try{return +localStorage.getItem('cts-feed-seen')||0;}catch(e){return 0;}};
+const markFeedSeen=()=>{try{localStorage.setItem('cts-feed-seen',Date.now());}catch(e){}};
+function badgeCount(){
+  if(!state.authed)return 0;
+  if(isLead()||state.role==='admin')return pendingCount();          // หัวหน้า/Admin = จำนวนที่ต้องอนุมัติ
+  const seen=feedSeen();
+  return state.feed.filter(i=>canSeeReq(i.r)&&new Date(i.at).getTime()>seen).length;
+}
+function syncBadge(){
+  const n=badgeCount();
+  try{ if(n)navigator.setAppBadge&&navigator.setAppBadge(n);
+       else navigator.clearAppBadge&&navigator.clearAppBadge(); }catch(e){}
+}
+/* ===== แบนเนอร์แจ้งเตือน =====
+   เด้งเฉพาะรายการที่เข้ามาหลังจาก render() ครั้งล่าสุด — งานที่ตัวเองเพิ่งกดไปจึงไม่เด้งใส่ตัวเอง
+   และเด้งจากรอบ poll ตอนย่อแอปไว้เท่านั้น เปิดแอปค้างอยู่ก็เห็นในแอปแล้ว
+   ครั้งแรกที่เรียก = จดเวลาปัจจุบันไว้ ของเก่าที่ค้างอยู่จะได้ไม่เด้งรัวตอนเพิ่งอนุญาต */
+function notiAt(){
+  try{const v=localStorage.getItem('cts-noti-at');if(v)return +v;}catch(e){}
+  return setNotiAt(Date.now());
+}
+function setNotiAt(t){try{localStorage.setItem('cts-noti-at',t);}catch(e){}return t;}
+const NOTI_TITLE={pending:'🕒 คำขอเทรนใหม่ — รออนุมัติ',approved:'✓ คำขอได้รับอนุมัติแล้ว',rejected:'✕ คำขอไม่ได้รับอนุมัติ'};
+function popBanner(){
+  if(!state.authed||typeof Notification==='undefined'||Notification.permission!=='granted')return;
+  if(!navigator.serviceWorker)return;                       // แบนเนอร์ต้องออกผ่าน service worker
+  const since=notiAt();
+  const fresh=state.feed.filter(i=>canSeeReq(i.r)&&new Date(i.at).getTime()>since);
+  if(!fresh.length)return;
+  setNotiAt(Date.now());
+  const it=fresh[0],r=it.r;
+  const body=`${r.id} · ${r.mode==='upc'?`ทริป UPC ${r.days.length} วัน`:(r.clinic||'ยังไม่ระบุคลินิก')}`
+    +(fresh.length>1?`\nและอีก ${fresh.length-1} รายการ`:'');
+  navigator.serviceWorker.ready
+    .then(reg=>reg.showNotification(NOTI_TITLE[it.kind]||'มีงานใหม่ในระบบ CTS',
+      {body,icon:'icon-192.png',badge:'icon-192.png',tag:'cts-feed',renotify:true}))
+    .catch(()=>{});
+}
 function userChip(){
   if(state.role==='sales')return `<button class="uchip" id="uOut"><span class="uic">◍</span>
     <span class="grow"><span class="nm">${state.salesId} · ${state.area}</span><span class="sb">Sales · ดูแลโดย ${TEAMS[activeTeam()].label}</span></span><span class="muted">↪</span></button>`;
@@ -1141,7 +1187,7 @@ function userChip(){
     <span class="grow"><span class="nm">Admin</span><span class="sb">ทุกทีม · ลงงานกลาง MA</span></span><span class="muted">↪</span></button>`;
 }
 function render(){
-  if(!state.authed)return renderLogin();
+  if(!state.authed){syncBadge();return renderLogin();}
   const pend=pendingCount(),showB=pend&&(isLead()||state.role==='admin');
   const nav=tabsFor().map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
     <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
@@ -1171,6 +1217,8 @@ function render(){
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
   const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
   ({cal:renderCal,sale:renderCal,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
+  syncBadge();     // เรียกหลังเรนเดอร์แท็บ — เปิดแท็บแจ้งเตือนแล้วป้ายบนไอคอนต้องหายไปเลย
+  setNotiAt(Date.now());   // เห็นหน้าจอล่าสุดแล้ว = ของถึงตรงนี้ไม่ต้องเด้งแบนเนอร์ซ้ำ
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
 const view=()=>$('view');
@@ -1196,6 +1244,8 @@ function prodGate(){
     ${!sel.length?'<div class="warn" style="margin-top:11px">ยังไม่ได้เลือก Product — ปฏิทินยังไม่แสดงคิวว่าง</div>'
       :!able.length?`<div class="warn" style="margin-top:11px"><b>ยังไม่มี CTS คนไหนเปิด Skills ครบตามที่เลือก</b><br>
          แจ้ง Admin ให้เข้าไปเปิดที่แท็บ "Skills CTS" หรือลองเลือก product ให้น้อยลง</div>`
+      /* จำนวน/ชื่อคนที่เทรนได้ เป็นข้อมูลภายใน — โชว์เฉพาะตอน CTS/Admin เปิดดูปฏิทิน Sale */
+      :state.role==='sales'?''
       :`<div class="note ma" style="margin-top:11px">เทรนได้ ${able.length} คน: ${able.map(c=>c.nick).join(' · ')}${
          able.some(c=>needsSenior(c.id,sel))?' — บางคนต้องมี PAM/MILK ไปด้วย คิวว่างจึงถูกจำกัดตามคิวของหัวหน้า':''}</div>`}
   </div>`;
@@ -1325,10 +1375,10 @@ function monthHTML(){
     const dt=new Date(y,mo,d),k=key(dt);
     const hol=holidayOf(k);
     const wknd=isWeekend(dt);
-    const off=!isWorkday(dt),past=dt<TODAY&&k!==key(TODAY),today=k===key(TODAY);
+    const past=dt<TODAY&&k!==key(TODAY),today=k===key(TODAY);
     const sel=state.picks.some(p=>p.date===k);
     let inner='';
-    if(!off){
+    {
       if(canSeeNames()){
         /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
         const jobs=dayEntries(k).filter(e=>e.job);
@@ -1345,14 +1395,14 @@ function monthHTML(){
             return `<button class="evchip two" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
               style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
               <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
-                <span class="who">${okMark(o.job)}${nicks}</span></span>
-              <span class="etx">${o.job.product?o.job.product+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
+                <span class="who">${nicks}</span></span>
+              <span class="etx">${okMark(o.job)}${prodText(o.job.product)?prodText(o.job.product)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
         const cap=one?4:3;
         inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
       }else{
         const lab=sl=>NARROW()?(sl==='am'?'AM':'PM'):(sl==='am'?'เช้า':'บ่าย');
         const blk=sl=>{
-          const blocked=vis.some(c=>eventFor(k,c.id,sl));
+          const blocked=maDay(k)||vis.some(c=>eventFor(k,c.id,sl));
           const f=freeIds(k,sl).length;
           if(blocked)return `<span class="slotblk ma"><span class="lb">${lab(sl)}</span><span class="nb">MA</span></span>`;
           if(gateBlocked())return `<span class="slotblk gate"><span class="lb">${lab(sl)}</span><span class="nb">${NARROW()?'?':'เลือก Product'}</span></span>`;
@@ -1360,16 +1410,17 @@ function monthHTML(){
           return `<span class="slotblk" style="background:${rampColor(f,total)};color:${f/total>.6?'#0C4F36':'#26694E'}">
             <span class="lb">${lab(sl)}</span><span class="nb">${f}</span></span>`;
         };
-        inner=wknd
-          ? `<div class="wkndnote">${(freeIds(k,'am').length+freeIds(k,'pm').length)
+        /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
+        inner=(wknd||hol)
+          ? `<div class="wkndnote">${hol?esc(hol.name):(freeIds(k,'am').length+freeIds(k,'pm').length)
               ?'เสาร์–อาทิตย์':'ไม่มีคิวว่าง'}</div>`
           : `<div class="blks">${blk('am')}${blk('pm')}</div>`;
       }
     }
-    cells+=`<div class="mcell${off?' off':''}${wknd?' wknd':''}${hol?' hol':''}${past?' past':''}${today?' today':''}${sel?' sel':''}"
-      ${off||past?'':'data-d="'+k+'" role="button" tabindex="0"'} aria-label="${fmtDate(k)}${hol?' '+hol.name:''}">
+    cells+=`<div class="mcell${wknd?' wknd':''}${hol?' hol':''}${past?' past':''}${today?' today':''}${sel?' sel':''}"
+      ${past?'':'data-d="'+k+'" role="button" tabindex="0"'} aria-label="${fmtDate(k)}${hol?' '+hol.name:''}">
       <span class="dn"><b>${d}</b>${dayEvents(k).length&&!canSeeNames()?'<span style="color:var(--ma)">●</span>':''}</span>
-      ${hol?`<span class="holname">${esc(hol.name)}</span>`:inner}</div>`;
+      ${inner}${hol&&canSeeNames()?`<span class="holname">${esc(hol.name)}</span>`:''}</div>`;
   }
   return `<div class="dow">${THDOW.map((x,i)=>`<span class="${i===0?'sun':''}">${x}</span>`).join('')}</div>
     <div class="mgrid">${cells}</div>${legend()}`;
@@ -1389,35 +1440,34 @@ function weekHTML(){
     const rows=visibleCTS().map(c=>`<div class="wrow" style="--gt:${gt}">
       <div class="wperson" style="border-left:5px solid ${pal(c.id).c}">${face(c.id,'s')}
         <span><span class="nk">${c.nick}</span><span class="nm">${c.name}</span></span></div>
-      ${days.map(d=>{const k=key(d),off=!isWorkday(d),hol=holidayOf(k);
-        if(hol)return `<div class="wcell holc"><span class="holtag">${esc(hol.name)}</span></div>`;
-        if(off)return '<div class="wcell off"></div>';
+      ${days.map(d=>{const k=key(d),hol=holidayOf(k);
+        /* วันหยุดก็ยังลงคิวงานได้ — โชว์ชื่อวันหยุดกำกับ แล้วต่อด้วยคิวจริงของวันนั้น */
         /* ปฏิทิน CTS แสดงเฉพาะงานที่มีจริง ตามเวลาจริง กี่คิวก็ได้ — ไม่ต้องแบ่งเช้า/บ่าย
            คิวทั้งวันได้คลาส allday = เต็มช่อง */
         const ev=eventFor(k,c.id,'am')||eventFor(k,c.id,'pm');
-        const html=(ev?`<span class="half mah"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
+        const html=(hol?`<span class="holtag" style="display:block;padding:2px 0 3px">${esc(hol.name)}</span>`:'')
+          +(ev?`<span class="half mah"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
           +entriesOf(k,c.id).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
-            <span class="slb">${okMark(e.job)}${timeLabel(e.job,e)}</span>
-            <span class="etx2">${e.job.product?e.job.product+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
+            <span class="slb">${timeLabel(e.job,e)}</span>
+            <span class="etx2">${okMark(e.job)}${prodText(e.job.product)?prodText(e.job.product)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
             ${e.job.detail?`<span class="etx3">${esc(e.job.detail)}</span>`:''}
             ${upLabel(e.job)?`<span class="etx4">${esc(upLabel(e.job))}</span>`:''}</button>`).join('');
-        return `<div class="wcell">${html||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
+        return `<div class="wcell${hol?' holc2':''}">${html||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
     return `<div class="wscroll"><div class="wgrid">${head}${rows}</div></div>${legend()}`;
   }
 
   const total=teamPool().length;
   const rows=['am','pm'].map(sl=>`<div class="srow" style="--gt:${gt}">
     <div class="slabel"><b>${sl==='am'?'ช่วงเช้า':'ช่วงบ่าย'}</b><small>${sl==='am'?'09:00–12:00':'13:00–16:30'}</small></div>
-    ${days.map(d=>{const k=key(d),off=!isWorkday(d),hol=holidayOf(k);
-      if(hol)return `<div class="scell wcell holc"><span class="holtag">${esc(hol.name)}</span></div>`;
-      if(off)return '<div class="scell wcell off"></div>';
-      const bl=teamPool().some(c=>eventFor(k,c.id,sl));
+    ${days.map(d=>{const k=key(d),hol=holidayOf(k);
+      const bl=maDay(k)||teamPool().some(c=>eventFor(k,c.id,sl));
       const f=freeIds(k,sl).length;
       const picked=state.picks.some(p=>p.date===k&&p.slot===sl);
-      const wknd=isWeekend(d);
-      return `<div class="scell${wknd?' wkndcell':''}">
-        ${wknd?'<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:var(--ink3);font-size:12px">เสาร์–อาทิตย์</span>'
+      /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
+      const quiet=isWeekend(d)||hol;
+      return `<div class="scell${isWeekend(d)?' wkndcell':''}${hol?' wcell holc2':''}">
+        ${quiet?`<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:${hol?'#B4535F':'var(--ink3)'};font-size:12px">${hol?esc(hol.name):'เสาร์–อาทิตย์'}</span>`
           :`<span class="sdot" style="background:${bl?'var(--ma)':rampColor(f,total)}"></span>
             <span class="sbig" style="color:${f&&!bl?'var(--ok)':'var(--ink3)'}">${bl?'MA':gateBlocked()?'?':f}<small>${bl?'งานกลาง':gateBlocked()?'เลือก Product':'ว่าง / '+total}</small></span>`}
         <button class="btn sm ${picked?'ok':''}" ${(!f||bl)?'disabled':''} data-book="${k}" data-slot="${sl}">
@@ -1589,9 +1639,10 @@ function clearSelf(id){
 function openSelfEntry(date,editId,keep){
   const ev=editId?state.selfEvents.find(e=>e.id===editId):null;
   const D=keep||(ev?JSON.parse(JSON.stringify(ev))
-    :{id:null,date:date||key(TODAY),dateEnd:'',multi:false,allDay:false,title:'',detail:'',start:'09:00',end:'12:00',product:'',topics:[],
+    :{id:null,date:date||key(TODAY),dateEnd:'',multi:false,allDay:false,title:'',detail:'',start:'09:00',end:'12:00',product:[],topics:[],
       attendees:[state.role==='cts'?state.me:'parichat'],owner:state.role==='cts'?state.me:'admin'});
   if(D.dateEnd&&D.dateEnd!==D.date)D.multi=true;
+  D.product=prodList(D.product);   // ข้อมูลเก่าเก็บ product เดี่ยวเป็นสตริง — แปลงเป็น array
   openSheet(`<div class="eyebrow">${ev?'แก้ไขคิวงาน':'เพิ่มคิวงาน'}</div><h2>คิวงานของ CTS</h2>
     <div class="muted" style="padding:6px 0 2px">งานที่ไม่ได้มาจากคำขอของ Sales เช่น ประชุม อบรม เดินทาง ลางาน</div>`,
   `<div class="card">
@@ -1614,9 +1665,9 @@ function openSelfEntry(date,editId,keep){
       <label class="grow" style="font-size:13px;font-weight:700;color:var(--brand-deep)">ทั้งวัน (All day) — ไม่ต้องระบุเวลา</label>
       <input type="checkbox" id="seAllDay" ${D.allDay?'checked':''} style="width:21px;height:21px"></div>
     ${D.multi&&D.dateEnd&&D.dateEnd>=D.date?`<div class="note">รวม ${dateRange(D.date,D.dateEnd).length} วัน — ใช้เวลาเดียวกันทุกวัน</div>`:''}
-    <label class="f">Product ที่เกี่ยวข้อง <span>· ถ้ามี</span></label>
+    <label class="f">Product ที่เกี่ยวข้อง <span>· เลือกได้หลายอัน ถ้ามี</span></label>
     <div class="chips">${PRODUCTS.map(pr=>`<button class="chip prodchip sm2" data-sep="${pr}"
-      style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${D.product===pr}">${pr}</button>`).join('')}</div>
+      style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${D.product.includes(pr)}">${pr}</button>`).join('')}</div>
     <label class="f">หัวข้อที่เกี่ยวข้อง <span>· เลือกได้หลายอัน</span></label>
     <div class="chips">${TOPIC_TAGS.map(t=>`<button class="chip" data-stt="${t}" aria-pressed="${(D.topics||[]).includes(t)}">${t}</button>`).join('')}</div>
     <label class="f">ใครไปงานนี้บ้าง <span>· เลือกได้หลายคน สีจะรวมกันในปฏิทิน</span></label>
@@ -1632,8 +1683,8 @@ function openSelfEntry(date,editId,keep){
   const grab=()=>{D.title=$('seTitle').value;D.detail=$('seDetail').value;D.date=$('seDate').value;
     const a=$('seStart'),b2=$('seEnd');if(a)D.start=a.value;if(b2)D.end=b2.value;
     const de=$('seDateEnd');D.dateEnd=D.multi&&de?de.value:'';};
-  B.querySelectorAll('[data-sep]').forEach(b=>b.onclick=()=>{grab();
-    D.product=D.product===b.dataset.sep?'':b.dataset.sep;openSelfEntry(D.date,editId,D);});
+  B.querySelectorAll('[data-sep]').forEach(b=>b.onclick=()=>{grab();const l=D.product,i=l.indexOf(b.dataset.sep);
+    i>=0?l.splice(i,1):l.push(b.dataset.sep);openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-stt]').forEach(b=>b.onclick=()=>{grab();const l=D.topics||(D.topics=[]),i=l.indexOf(b.dataset.stt);
     i>=0?l.splice(i,1):l.push(b.dataset.stt);openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>{grab();const id=b.dataset.att;
@@ -1708,7 +1759,7 @@ function openJob(k,ekey){
     <div class="row">${face(cid,'m')}<div class="grow">
       <div style="font-weight:700">${c.nick} — ${c.name}</div>
       <div class="muted">${fmtDate(k)}</div></div>
-      ${j.product?`<span class="tag" style="background:${PRODHEX[j.product]||'#999'};color:${pink(j.product)}">${j.product}</span>`:''}</div>
+      ${prodTags(j.product)}</div>
     <div class="note pl" style="display:flex;align-items:center;gap:10px">
       <b style="font-size:16px">${timeLabel(j,t)}</b><span>${j.allDay?'ไม่ระบุเวลา':'ตามเวลาจริง'}</span></div>
     ${j.detail?`<div class="note" style="margin-top:9px;white-space:pre-wrap">${esc(j.detail)}</div>`:''}
@@ -1872,7 +1923,7 @@ function timelineHTML(k){
       style="top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px);${style}">
       <span class="tb-h"><b>${e.start}–${e.end}</b>
         <span class="tb-who">${ids.map(i=>`<i style="background:${pal(i).c};box-shadow:0 0 0 1px ${pal(i).ci}55"></i>`).join('')}</span></span>
-      <span class="tb-t">${j.product?j.product+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (TBC — ล็อกไว้ก่อน)':''}</span>
+      <span class="tb-t">${okMark(j)}${prodText(j.product)?prodText(j.product)+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (TBC — ล็อกไว้ก่อน)':''}</span>
       <span class="tb-n">${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;
   }).join('');
   const adBar=allDay.length?`<div class="tl-allday">
@@ -1880,7 +1931,7 @@ function timelineHTML(k){
     <div class="adlist">${allDay.map(e=>{const ids=e.who.length?e.who:[e.anchor.cid];
       return `<button class="adchip" data-job="${k}|${e.key}"
         style="${jobStyle({...e.job,attendees:ids},ids[0])}">
-        <b>${e.job.product?e.job.product+' · ':''}${esc(e.job.title||'งาน')}</b>
+        <b>${okMark(e.job)}${prodText(e.job.product)?prodText(e.job.product)+' · ':''}${esc(e.job.title||'งาน')}</b>
         <span>${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;}).join('')}</div></div>`:'';
   return adBar+`<div class="tl" style="height:${H}px">
     <div class="tl-hours">${hours.map(h=>`<div class="tl-h" style="height:${rowH}px"><span>${String(h).padStart(2,'0')}:00</span></div>`).join('')}</div>
@@ -1923,10 +1974,12 @@ function openDay(k){
 }
 function dayAnon(k){
   const total=teamPool().length;
+  const hol=holidayOf(k);
   return ['am','pm'].map(slot=>{
-    const blocked=teamPool().some(c=>eventFor(k,c.id,slot));
+    const blocked=maDay(k)||teamPool().some(c=>eventFor(k,c.id,slot));
     const free=freeIds(k,slot).length,picked=state.picks.some(p=>p.date===k&&p.slot===slot);
-    const wknd=isWeekend(parse(k));
+    /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
+    const wknd=isWeekend(parse(k))||!!hol;
     return `<div class="qcard" ${picked?'style="box-shadow:inset 0 0 0 3px var(--ok)"':''}>
       <div class="qtop"><div><span class="qlbl">${slot==='am'?'MORNING':'AFTERNOON'}</span>
         <span class="qtime">${(w=>`${w.start} – ${w.end}`)(slotWindow(k,slot))}</span>
@@ -1934,7 +1987,7 @@ function dayAnon(k){
             .map(c=>fmtT(slotTime(k,c.id,slot)));
           return w.length?`<span class="muted" style="display:block;font-size:11.5px">บางคิวว่างเฉพาะ ${[...new Set(w)].join(', ')}</span>`:'';})()}</div>
         <div class="qcount ${free?'':'zero'}">${wknd
-          ?'<b style="font-size:13px">เสาร์–อาทิตย์</b>'
+          ?`<b style="font-size:13px">${hol?esc(hol.name):'เสาร์–อาทิตย์'}</b>`
           :`<b>${blocked?'—':free}</b><small>${blocked?'MA EVENT':'คิวว่าง / '+total}</small>`}</div></div>
       ${wknd?'':`<div class="qbar"><i style="width:${blocked?0:Math.round(free/total*100)}%"></i></div>`}
       <button class="btn ${picked?'ok':'primary'} block" ${(!free||blocked)?'disabled':''} data-anon="${slot}">
@@ -1949,7 +2002,7 @@ function dayNamed(k){
       const t=slotTime(k,c.id,slot);
       const txt={free:'ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
       const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด 🕑 เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
-        :(j.title?(j.product?j.product+' · ':'')+esc(j.title):'');
+        :(j.title?(prodText(j.product)?prodText(j.product)+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked'||s==='tbc';
       /* คิวที่ทับช่วงนี้ (ตามเวลาจริง) — ใช้เปิดรายละเอียดคิว */
       const en=entriesOf(k,c.id).find(x=>toMin(x.start)<toMin(SLOT_DEF[slot].end)&&toMin(x.end)>toMin(SLOT_DEF[slot].start));
@@ -2060,7 +2113,8 @@ function openForm(){
   const sessBox=rule?`<label class="f">จำนวน session <span>· ${rule.note}</span></label>
     <select class="in" id="fSess" ${rule.min===rule.max?'disabled':''}>
     ${Array.from({length:rule.max-rule.min+1},(_,i)=>rule.min+i).map(n=>`<option value="${n}" ${d.sessions===n?'selected':''}>${n} session</option>`).join('')}</select>`:'';
-  const need=rule?d.slots:1,short=need-state.picks.length;
+  /* โหมด TBC = ล็อกวันเผื่อไว้ จำนวน session ไม่คุมจำนวนวัน — เลือกกี่วันก็ได้ */
+  const need=rule?d.slots:1,short=state.tbcMode?0:need-state.picks.length;
   const picks=state.picks.map((p,i)=>`<div class="picked-row">
     <div class="picked-item"><span class="idx">S${i+1}</span>${p.ctsId?face(p.ctsId,'xs'):''}
       <span class="grow">${fmtDate(p.date)} · ${p.slot==='am'?'เช้า':'บ่าย'}${p.ctsId?' · '+byId(p.ctsId).nick:''}</span>
@@ -2084,7 +2138,7 @@ function openForm(){
     <label class="f">ระดับเนื้อหาการเทรน <span>· ไม่เกี่ยวกับจำนวน session</span></label>
     <select class="in" id="fLevel"><option value="">— เลือกระดับ —</option>
       ${LEVELS.map(l=>`<option ${d.level===l?'selected':''}>${l}</option>`).join('')}</select>
-    <label class="f">วัน / ช่วงเวลา <span>· ต้องครบ ${need} slot${need>1?' · แต่ละ session ระบุ product และหัวข้อแยกได้':''}</span></label>
+    <label class="f">วัน / ช่วงเวลา <span>· ${state.tbcMode?`คิว TBC เลือกได้หลายวัน ไม่ต้องเท่ากับ ${need} session`:`ต้องครบ ${need} slot`}${need>1?' · แต่ละ session ระบุ product และหัวข้อแยกได้':''}</span></label>
     <div class="picked-list">${picks||'<div class="muted">ยังไม่ได้เลือก</div>'}</div>
     ${short>0?`<div class="warn">ยังขาดอีก ${short} slot — กดปุ่มด้านล่างไปเลือก ข้อมูลที่กรอกไว้ไม่หาย</div>`:''}
     ${short<0?`<div class="warn">เลือกเกินมา ${-short} slot — ลบออกก่อน</div>`:''}
@@ -2134,11 +2188,11 @@ function openForm(){
   window.__grab=grab;
   B.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{grab();d.module=b.dataset.m;const r=MODULES[d.module];
     d.sessions=r.def;d.slots=r.def;
-    if(state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();});
+    if(!state.tbcMode&&state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();});
   B.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{grab();const l=prodList(d.product),i=l.indexOf(b.dataset.p);
     i>=0?l.splice(i,1):l.push(b.dataset.p);d.product=l;openForm();});
   const ss=$('fSess');if(ss)ss.onchange=e=>{grab();d.sessions=+e.target.value;d.slots=d.sessions;
-    if(state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();};
+    if(!state.tbcMode&&state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();};
   B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{grab();state.picks.splice(+b.dataset.rm,1);openForm();});
   B.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{grab();const [i,pr]=b.dataset.sp.split('|');
     const pk=state.picks[+i];pk.sProduct=pk.sProduct===pr?null:pr;openForm();});
@@ -2371,12 +2425,11 @@ function sweepTBC(){
     releaseTBC(r);r.status='expired';r.note='คิว TBC หมดอายุ '+TBC_DAYS+' วัน — ปล่อยวันคืนระบบแล้ว';n++;});
   return n;
 }
-/* หัวหน้ากดตรวจคิว TBC ว่าเวลาและหัวข้อถูกต้อง */
+/* หัวหน้ากดตรวจคิว TBC — เปลี่ยน CTS ได้ทีละวัน แล้วส่งกลับ (ใช้หน้าจอเดียวกับจัด CTS) */
 function confirmTBC(id){
   const r=state.requests.find(x=>x.id===id);
   if(!r||!canApprove(r))return;
-  r.tbcOk=true;r.tbcOkBy=whoAmI();r.note='หัวหน้าตรวจคิว TBC แล้ว — รอ Sales ยืนยันวันจริง';
-  render();toast('ตรวจคิว TBC แล้ว — แจ้ง Sales ให้มากด Confirm and Request');
+  assign(id);
 }
 /* Sales เลือกวันจริงจากวันที่ล็อกไว้ แล้วส่งเป็นคำขอปกติ วันที่เหลือถูกปล่อยคืน */
 function convertTBC(id){
@@ -2507,8 +2560,9 @@ function reqCard(r,act){
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
     ${r.status==='tbc'&&(state.role==='sales'||state.role==='admin')?
       `<button class="btn primary block" data-tbcgo="${r.id}" style="margin-top:10px">Confirm and Request</button>`:''}
-    ${r.status==='tbc'&&canApprove(r)&&!r.tbcOk?
-      `<button class="btn block" data-tbcok="${r.id}" style="margin-top:8px">✓ ตรวจคิว TBC นี้แล้ว</button>`:''}
+    ${r.status==='tbc'&&canApprove(r)?
+      `<button class="btn block" data-tbcok="${r.id}" style="margin-top:8px">${
+        r.tbcOk?'✎ แก้ CTS ของคิว TBC นี้':'✓ ตรวจคิว TBC · เปลี่ยน CTS รายวัน'}</button>`:''}
     <div class="row" style="margin-top:11px">
       <button class="btn grow" data-edit="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
       ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">📋 คัดลอกสำหรับอีเมล</button>`:''}</div>
@@ -2749,6 +2803,7 @@ function renderApprovals(){
 }
 function assign(id){
   const r=state.requests.find(x=>x.id===id);
+  const isTbc=r.status==='tbc';   // คิว TBC: หัวหน้าเปลี่ยน CTS รายวันได้ แล้วกดส่งกลับว่าตรวจแล้ว
   const pool=BOOKABLE_CTS();   // จัดได้ทั้ง 6 คน — เลือกได้เฉพาะคนที่ว่างจริง (เช็คด้านล่าง)
   const rows=r.sessions.map((s,i)=>{
     const full=s.slot==='day';
@@ -2767,9 +2822,10 @@ function assign(id){
       return `<option value="${c.id}" ${same?'selected':''} ${ok?'':'disabled'}>${c.nick} — ${c.name}${why}</option>`;})).join('');
     return `<label class="f">${full?'':'S'+(i+1)+' · '}${fmtDate(s.date)}${full?' · ทั้งวัน':' · '+(s.slot==='am'?'เช้า':'บ่าย')}</label>
       <select class="in" data-sess="${i}">${opts}</select>`;}).join('');
-  openSheet(`<div class="eyebrow">${r.id}</div><h2>จัด CTS ผู้เทรน</h2>`,
-    `<div class="card">${rows}<div class="note">เลือกได้เฉพาะคนที่ว่างจริง และเปิด Skills ของ product ที่ขอไว้แล้ว</div>
-    <button class="btn primary block" id="saveRe" style="margin-top:14px">บันทึก</button></div>`);
+  openSheet(`<div class="eyebrow">${r.id}${isTbc?' · TBC':''}</div><h2>${isTbc?'ตรวจคิว TBC · เปลี่ยน CTS รายวัน':'จัด CTS ผู้เทรน'}</h2>`,
+    `<div class="card">${rows}<div class="note">เลือกได้เฉพาะคนที่ว่างจริง และเปิด Skills ของ product ที่ขอไว้แล้ว${
+      isTbc?' · เปลี่ยนได้ทีละวัน แล้วกดส่งกลับให้ Sales':''}</div>
+    <button class="btn primary block" id="saveRe" style="margin-top:14px">${isTbc?'✓ ตรวจคิว TBC แล้ว — ส่งกลับ':'บันทึก'}</button></div>`);
   $('saveRe').onclick=()=>{
     $('sheetBody').querySelectorAll('[data-sess]').forEach(sel=>{
       const s=r.sessions[+sel.dataset.sess],nid=sel.value||null;
@@ -2779,11 +2835,14 @@ function assign(id){
           s.ctsId=nid;
         }else{
           if(s.ctsId)setJob(s.date,s.ctsId,s.slot,null);
-          if(nid)setJob(s.date,nid,s.slot,{kind:'pend',title:r.clinic||'คำขอ '+r.id,product:prodMain(r.product),reqId:r.id,
+          if(nid)setJob(s.date,nid,s.slot,{kind:isTbc?'tbc':'pend',
+            title:isTbc?'TBC · '+(r.clinic||r.id):(r.clinic||'คำขอ '+r.id),product:r.product,reqId:r.id,
             start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
           s.ctsId=nid;}}});
     r.sessions.forEach(stampNow);
     if(r.mode==='upc')bookUPC(r);
+    if(isTbc){r.tbcOk=true;r.tbcOkBy=whoAmI();r.note='หัวหน้าตรวจคิว TBC แล้ว — รอ Sales ยืนยันวันจริง';
+      closeSheet();render();toast('ตรวจคิว TBC แล้ว — แจ้ง Sales ให้มากด Confirm and Request');return;}
     r.note='Senior Leader จัดผู้เทรนแล้ว';closeSheet();render();toast('จัด CTS แล้ว');};
 }
 function approve(id){
@@ -2963,7 +3022,9 @@ function notiCard(it){
   return `<div class="ncard">${head}${body}</div>`;
 }
 function renderFeed(){
+  markFeedSeen();   // เปิดแท็บนี้ = อ่านแล้ว ป้ายบนไอคอนแอปจะถูกล้าง
   const all=state.feed.filter(i=>canSeeReq(i.r));
+  const noti=typeof Notification!=='undefined'&&Notification.permission!=='granted';
   const f=state.feedFilter||'all';
   const feed=f==='all'?all:all.filter(i=>i.kind===f);
   const n=k=>all.filter(i=>i.kind===k).length;
@@ -2971,6 +3032,8 @@ function renderFeed(){
     :state.role==='cts'?`${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
   view().innerHTML=`<h1 class="pt">แจ้งเตือน</h1>
     <p class="psub">1 คำขอ = 1 การ์ด อัปเดตสถานะล่าสุดเสมอ — ${scope}</p>
+    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดแจ้งเตือน — ป้ายตัวเลขบนไอคอน + แบนเนอร์เด้ง</button>
+      <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · แบนเนอร์จะเด้งตอนย่อแอปไว้และมีงานใหม่เข้ามา</div>`:''}
     <div class="filterbar">
       <button class="fchip all" data-nf="all" aria-pressed="${f==='all'}" style="--c:var(--brand-soft);--ci:var(--brand-deep)">ทั้งหมด (${all.length})</button>
       <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">🕒 รออนุมัติ (${n('pending')})</button>
@@ -2979,6 +3042,13 @@ function renderFeed(){
     </div>
     ${feed.length?`<div class="nfeed">${feed.map(notiCard).join('')}</div>`:
     '<div class="card"><div class="empty"><div class="big">✦</div>ไม่มีรายการในหมวดนี้</div></div>'}`;
+  const an=$('askNoti');if(an)an.onclick=async()=>{
+    try{
+      const p=await Notification.requestPermission();
+      toast(p==='granted'?'เปิดแล้ว — มีงานใหม่จะขึ้นตัวเลขที่ไอคอนและเด้งแบนเนอร์ให้'
+        :'ยังไม่ได้อนุญาต — เปิดได้ที่ตั้งค่าแจ้งเตือนของเครื่อง');
+    }catch(e){toast('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับการแจ้งเตือน');}
+    render();};
   view().querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{state.feedFilter=b.dataset.nf;renderFeed();});
   view().querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
     const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'✉ ข้อความสำหรับอีเมล':'✉ ซ่อนข้อความ';}});
@@ -3103,6 +3173,22 @@ async function save(){
     if(loaded&&JSON.stringify(snap())!==lastSaved)setTimeout(save,1500);   // มีการแก้ระหว่างกำลังบันทึก หรือบันทึกพลาด → ลองใหม่
   }
 }
+
+/* สลับกลับมาที่แอป -> ดึงข้อมูลล่าสุด ตัวเลขบนไอคอนจะได้ตรงกับงานจริง
+   (ไม่ดึงระหว่างกำลังบันทึก กันของที่แก้ค้างอยู่ถูกทับ) */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!state.authed||!loaded||saving)return;
+  load().then(ok=>{if(ok)render();});
+});
+
+/* เช็คงานใหม่ตอนย่อแอปไว้ เพื่อเด้งแบนเนอร์ + อัปเดตตัวเลขบนไอคอน
+   ไม่เช็คตอนเปิดแอปค้างอยู่ เพราะจะไปรีเฟรชหน้าจอที่กำลังใช้งาน
+   POLL_MS ยิ่งสั้นยิ่งเด้งไว แต่กิน quota ของ Apps Script มากขึ้นตามจำนวนคนใช้ */
+const POLL_MS=180000;   // 3 นาที
+setInterval(()=>{
+  if(document.visibilityState==='visible'||!state.authed||!loaded||saving)return;
+  load().then(ok=>{if(ok){popBanner();syncBadge();}});
+},POLL_MS);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});   // ไม่ทำงานตอนเปิดไฟล์ตรงๆ (file://) — ปกติ
 

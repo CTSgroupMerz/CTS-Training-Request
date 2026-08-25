@@ -7,23 +7,28 @@ const a=L.findIndex(l=>l.trim()==='<script>'), b=L.findIndex(l=>l.trim()==='</sc
 let src=L.slice(a+1,b).join('\n').replace(/^restoreLogin\(\);.*$/m,'');
 
 const el=()=>({innerHTML:'',classList:{add(){},remove(){}},style:{},querySelectorAll:()=>[],
-  addEventListener(){},appendChild(){},focus(){},scrollTop:0,dataset:{},textContent:'',value:''});
+  addEventListener(){},appendChild(){},focus(){},scrollIntoView(){},scrollTop:0,dataset:{},textContent:'',value:''});
 const store={};
+const banners=[], badge={n:0};   // จับ showNotification / setAppBadge ที่แอปยิงออกมา
 const cache={};const G=id=>cache[id]||(cache[id]=el());   // คืน element เดิมทุกครั้ง จะได้อ่าน innerHTML กลับมาตรวจได้
 const sheet=()=>G('sheetBody').innerHTML;
-const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
+const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval:()=>{},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
   localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v,removeItem:k=>delete store[k]},
   window:{innerWidth:1200,addEventListener(){}},
   document:{getElementById:G,querySelectorAll:()=>[],createElement:el,body:el(),addEventListener(){},execCommand(){}},
-  navigator:{clipboard:{writeText:()=>Promise.resolve()}},
+  navigator:{clipboard:{writeText:()=>Promise.resolve()},
+    serviceWorker:{register:()=>Promise.resolve(),ready:Promise.resolve({showNotification:(t,o)=>{banners.push({t,o});}})},
+    setAppBadge:n=>{badge.n=n;},clearAppBadge:()=>{badge.n=0;}},
+  Notification:{permission:'granted',requestPermission:()=>Promise.resolve('granted')},
   fetch:()=>Promise.resolve({json:()=>Promise.resolve({ok:true,version:1,data:{}})})};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
 src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWindow,syncSelf,CTS,SLOT_DEF,AUTO_RULE,'
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
-     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC};';
+     'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,popBanner};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -270,4 +275,147 @@ X.submit();
 assert.strictEqual(X.state.requests[0].sessions[0].ctsId,only,
   'ต้องจัดให้เฉพาะคนที่เปิด Skills ของ product นั้น');
 
-console.log('✓ ผ่านทั้ง 25 ข้อ');
+/* 26. คิวงานของ CTS เลือกได้หลาย product และปฏิทินต้องโชว์ครบ */
+clean();
+X.state.role='cts';X.state.me=B1;X.state.tab='cal';
+const multi={id:'SE-MP',date:K,dateEnd:'',allDay:false,title:'งานหลาย product',detail:'',
+  product:['Ultherapy','Xeomin'],topics:[],attendees:[B1],owner:B1,start:'09:00',end:'11:00'};
+X.state.selfEvents.push(multi);X.syncSelf(multi);
+assert.strictEqual(X.prodText(['Ultherapy','Xeomin']),'Ultherapy · Xeomin','ต้องรวมชื่อ product หลายตัว');
+assert.ok(/Ultherapy · Xeomin/.test(X.weekHTML()),'ปฏิทินรายสัปดาห์ต้องโชว์ product ครบทุกตัว');
+X.openSelfEntry(K,'SE-MP');
+assert.ok(/aria-pressed="true">Ultherapy/.test(sheet())&&/aria-pressed="true">Xeomin/.test(sheet()),
+  'ฟอร์มคิวงานต้องติ๊ก product ไว้ได้พร้อมกันมากกว่า 1 ตัว');
+
+/* 27. วันหยุด — CTS ยังลงคิวงานได้ และ Sales ยังกดขอ Request ได้ แต่ไม่โชว์จำนวนคิวว่าง */
+clean();
+X.state.holidays=[{date:K,name:'วันหยุดทดสอบ'}];
+X.state.role='cts';X.state.me=B1;
+const holJob={id:'SE-H',date:K,dateEnd:'',allDay:false,title:'งานวันหยุด',detail:'',
+  product:[],topics:[],attendees:[B1],owner:B1,start:'09:00',end:'11:00'};
+X.state.selfEvents.push(holJob);X.syncSelf(holJob);
+assert.ok(/งานวันหยุด/.test(X.weekHTML()),'ปฏิทิน CTS ต้องโชว์คิวงานในวันหยุด');
+assert.ok(/งานวันหยุด/.test(X.monthHTML()),'ปฏิทินเดือนของ CTS ต้องโชว์คิวงานในวันหยุด');
+X.state.role='sales';X.state.area='Champion';X.state.draft={product:['Ultherapy'],slots:1};
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+const holDay=X.dayAnon(K);
+assert.ok(/วันหยุดทดสอบ/.test(holDay),'ฝั่ง Sales ต้องบอกว่าเป็นวันหยุด');
+assert.ok(/data-anon="am"/.test(holDay)&&!/data-anon="am"[^>]*disabled/.test(holDay),
+  'วันหยุดยังกดขอคิวได้เหมือนเสาร์–อาทิตย์');
+X.state.holidays=[];
+
+/* 28. วัน MA — ฝั่ง Sales ตัดคิวทั้งวัน แม้งานกลางระบุแค่ครึ่งวัน */
+clean();
+X.state.events=[{id:'MA-T',date:K,title:'Workshop',type:'Workshop',slot:'am',cts:'all'}];
+X.state.role='sales';X.state.area='Champion';X.state.draft={product:['Ultherapy'],slots:1};
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+assert.ok(X.maDay(K),'ต้องรู้ว่าวันนี้มีงานกลาง MA');
+const maHtml=X.dayAnon(K);
+assert.strictEqual((maHtml.match(/ติดงานกลาง MA/g)||[]).length,2,'MA ต้องตัดทั้งเช้าและบ่าย');
+/* CTS ยังลงคิวงานในวัน MA ได้ */
+X.state.role='cts';X.state.me=B1;
+const maJob={id:'SE-MA',date:K,dateEnd:'',allDay:false,title:'งานวัน MA',detail:'',
+  product:[],topics:[],attendees:[B1],owner:B1,start:'13:00',end:'15:00'};
+X.state.selfEvents.push(maJob);X.syncSelf(maJob);
+assert.ok(/งานวัน MA/.test(X.weekHTML()),'ปฏิทิน CTS ต้องลงคิวในวันที่มีงานกลาง MA ได้');
+
+/* 29. คิว TBC — จำนวน session ไม่คุมจำนวนวันที่เลือก */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
+X.state.tbcMode=true;
+X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],
+  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+['2026-08-24','2026-08-25','2026-08-26'].forEach(d=>X.togglePick(d,'am',null));
+assert.strictEqual(X.state.picks.length,3,'โหมด TBC ต้องเลือกได้เกินจำนวน session');
+X.openForm();
+assert.ok(!/เลือกเกินมา/.test(sheet()),'ฟอร์ม TBC ต้องไม่เตือนว่าเลือกเกิน');
+assert.strictEqual(X.state.picks.length,3,'เปิดฟอร์มแล้ววันที่เลือกต้องไม่ถูกตัดทิ้ง');
+ctx.window.__grab=null;   // DOM จำลองอ่านค่ากลับไม่ได้ — ข้ามการดูดค่าจากฟอร์ม
+X.submitTBC();
+const tbc=X.state.requests[0];
+assert.strictEqual(tbc.status,'tbc','ต้องได้คำขอสถานะ tbc');
+assert.strictEqual(tbc.sessions.length,3,'คิว TBC ต้องล็อกครบ 3 วัน');
+
+/* 30. หัวหน้าเปลี่ยน CTS ของคิว TBC รายวันได้ แล้วส่งกลับว่าตรวจแล้ว */
+X.state.role='admin';X.state.me=null;X.state.tbcMode=false;
+X.confirmTBC(tbc.id);
+assert.ok(/data-sess="0"/.test(sheet())&&/data-sess="2"/.test(sheet()),
+  'ต้องเปลี่ยน CTS ได้ทุกวันที่ล็อกไว้');
+assert.ok(/ตรวจคิว TBC/.test(sheet()),'ปุ่มต้องเป็นการส่งกลับว่าตรวจคิว TBC แล้ว');
+/* จำลองการเลือกคนใหม่ในวันแรก แล้วกดบันทึก */
+const day0=tbc.sessions[0], newCts=X.BOOKABLE_CTS().find(c=>c.id!==day0.ctsId).id;
+const sels=[{dataset:{sess:'0'},value:newCts},{dataset:{sess:'1'},value:tbc.sessions[1].ctsId||''},
+            {dataset:{sess:'2'},value:tbc.sessions[2].ctsId||''}];
+cache.sheetBody.querySelectorAll=q=>q==='[data-sess]'?sels:[];
+cache.saveRe.onclick();
+assert.strictEqual(tbc.sessions[0].ctsId,newCts,'ต้องเปลี่ยน CTS ของวันแรกได้');
+assert.strictEqual(X.state.sched[tbc.sessions[0].date][newCts].am.kind,'tbc',
+  'คิวที่ย้ายมาต้องยังเป็น TBC ไม่กลายเป็นรออนุมัติ');
+assert.ok(tbc.tbcOk,'กดบันทึกแล้วต้องถือว่าตรวจคิว TBC แล้ว');
+assert.strictEqual(tbc.status,'tbc','ตรวจแล้วยังเป็นคิว TBC รอ Sales ยืนยัน');
+
+/* 31. Sales ต้องไม่เห็นกล่องบอกจำนวนคนที่เทรนได้ แต่ CTS ที่เปิดปฏิทิน Sale เห็น */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.tab='cal';
+X.state.draft={product:['Ultherapy'],slots:1};
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+assert.ok(!/เทรนได้ \d+ คน/.test(X.prodGate()),'Sales ต้องไม่เห็นจำนวนคนที่เทรนได้');
+X.state.role='cts';X.state.me=B1;X.state.tab='sale';
+assert.ok(/เทรนได้ \d+ คน/.test(X.prodGate()),'CTS ที่เปิดปฏิทิน Sale ต้องยังเห็น');
+
+/* 32. ป้ายตัวเลขบนไอคอนแอป — หัวหน้า/Admin นับงานที่ต้องอนุมัติ · คนอื่นนับแจ้งเตือนที่ยังไม่ได้เปิดดู */
+clean();
+X.state.feed=[];X.state.authed=true;
+X.state.role='admin';X.state.me=null;
+const pend={id:'TR-BG',team:'A',status:'pending',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
+  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'ค',requesterId:'C01',
+  sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
+X.state.requests=[pend];X.notify(pend,'pending');
+assert.strictEqual(X.badgeCount(),X.pendingCount(),'Admin ต้องเห็นตัวเลขเท่าจำนวนที่ต้องอนุมัติ');
+assert.ok(X.badgeCount()>0,'มีคำขอค้างต้องขึ้นตัวเลข');
+/* Sales เห็นเฉพาะแจ้งเตือนของตัวเองที่ยังไม่ได้เปิดดู */
+delete store['cts-feed-seen'];
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.tab='feed';
+assert.strictEqual(X.badgeCount(),1,'Sales ต้องเห็น 1 แจ้งเตือนที่ยังไม่ได้อ่าน');
+X.state.salesId='V01';
+assert.strictEqual(X.badgeCount(),0,'แจ้งเตือนของคนอื่นต้องไม่ถูกนับ');
+X.state.salesId='C01';
+X.renderFeed();   // เปิดแท็บแจ้งเตือน = อ่านแล้ว
+assert.strictEqual(X.badgeCount(),0,'เปิดแท็บแจ้งเตือนแล้วตัวเลขต้องหาย');
+X.state.authed=false;
+assert.strictEqual(X.badgeCount(),0,'ออกจากระบบแล้วต้องไม่มีตัวเลขค้าง');
+X.syncBadge();
+assert.strictEqual(badge.n,0,'ออกจากระบบแล้วต้องล้างป้ายบนไอคอน');
+
+/* 33. แบนเนอร์แจ้งเตือน — เด้งเฉพาะของใหม่ ของตัวเอง และไม่เด้งซ้ำ */
+const tick=()=>new Promise(r=>setTimeout(r,0));
+(async()=>{
+  clean();
+  X.state.authed=true;X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.feed=[];
+  store['cts-noti-at']=Date.now()-1000;
+  banners.length=0;
+  X.popBanner();await tick();
+  assert.strictEqual(banners.length,0,'ไม่มีของใหม่ต้องไม่เด้ง');
+
+  const nb={id:'TR-NB',team:'A',status:'pending',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
+    topic:'ก',clinic:'คลินิกใหม่',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'ค',requesterId:'C01',
+    sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
+  X.state.requests=[nb];X.notify(nb,'pending');
+  X.popBanner();await tick();
+  assert.strictEqual(banners.length,1,'มีคำขอใหม่ต้องเด้งแบนเนอร์');
+  assert.ok(/รออนุมัติ/.test(banners[0].t),'หัวข้อแบนเนอร์ต้องบอกสถานะ');
+  assert.ok(/คลินิกใหม่/.test(banners[0].o.body),'แบนเนอร์ต้องบอกว่าเป็นคำขอไหน');
+
+  X.popBanner();await tick();
+  assert.strictEqual(banners.length,1,'รายการเดิมต้องไม่เด้งซ้ำ');
+
+  /* คำขอของ Sales คนอื่นต้องไม่เด้งใส่เรา */
+  await new Promise(r=>setTimeout(r,5));
+  const other={...nb,id:'TR-NC',requesterId:'V01',clinic:'คลินิกคนอื่น'};
+  X.state.requests.push(other);X.notify(other,'pending');
+  X.popBanner();await tick();
+  assert.strictEqual(banners.length,1,'คำขอของ Sales คนอื่นต้องไม่เด้งใส่เรา');
+
+  console.log('✓ ผ่านทั้ง 33 ข้อ');
+})().catch(e=>{console.error(e.message);process.exit(1);});
