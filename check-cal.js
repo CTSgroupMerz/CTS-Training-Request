@@ -9,18 +9,16 @@ let src=L.slice(a+1,b).join('\n').replace(/^restoreLogin\(\);.*$/m,'');
 const el=()=>({innerHTML:'',classList:{add(){},remove(){}},style:{},querySelectorAll:()=>[],
   addEventListener(){},appendChild(){},focus(){},scrollIntoView(){},scrollTop:0,dataset:{},textContent:'',value:''});
 const store={};
-const banners=[], badge={n:0};   // จับ showNotification / setAppBadge ที่แอปยิงออกมา
+const badge={n:0};   // จับ setAppBadge ที่แอปยิงออกมา
 const cache={};const G=id=>cache[id]||(cache[id]=el());   // คืน element เดิมทุกครั้ง จะได้อ่าน innerHTML กลับมาตรวจได้
 const sheet=()=>G('sheetBody').innerHTML;
-const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval:()=>{},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
+const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
   localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v,removeItem:k=>delete store[k]},
   window:{innerWidth:1200,addEventListener(){}},
   document:{getElementById:G,querySelectorAll:()=>[],createElement:el,body:el(),addEventListener(){},execCommand(){}},
   navigator:{clipboard:{writeText:()=>Promise.resolve()},
-    serviceWorker:{register:()=>Promise.resolve(),ready:Promise.resolve({showNotification:(t,o)=>{banners.push({t,o});}})},
     setAppBadge:n=>{badge.n=n;},clearAppBadge:()=>{badge.n=0;}},
-  Notification:{permission:'granted',requestPermission:()=>Promise.resolve('granted')},
   fetch:()=>Promise.resolve({json:()=>Promise.resolve({ok:true,version:1,data:{}})})};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
@@ -28,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,popBanner};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -388,34 +386,4 @@ assert.strictEqual(X.badgeCount(),0,'ออกจากระบบแล้ว�
 X.syncBadge();
 assert.strictEqual(badge.n,0,'ออกจากระบบแล้วต้องล้างป้ายบนไอคอน');
 
-/* 33. แบนเนอร์แจ้งเตือน — เด้งเฉพาะของใหม่ ของตัวเอง และไม่เด้งซ้ำ */
-const tick=()=>new Promise(r=>setTimeout(r,0));
-(async()=>{
-  clean();
-  X.state.authed=true;X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.feed=[];
-  store['cts-noti-at']=Date.now()-1000;
-  banners.length=0;
-  X.popBanner();await tick();
-  assert.strictEqual(banners.length,0,'ไม่มีของใหม่ต้องไม่เด้ง');
-
-  const nb={id:'TR-NB',team:'A',status:'pending',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
-    topic:'ก',clinic:'คลินิกใหม่',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'ค',requesterId:'C01',
-    sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
-  X.state.requests=[nb];X.notify(nb,'pending');
-  X.popBanner();await tick();
-  assert.strictEqual(banners.length,1,'มีคำขอใหม่ต้องเด้งแบนเนอร์');
-  assert.ok(/รออนุมัติ/.test(banners[0].t),'หัวข้อแบนเนอร์ต้องบอกสถานะ');
-  assert.ok(/คลินิกใหม่/.test(banners[0].o.body),'แบนเนอร์ต้องบอกว่าเป็นคำขอไหน');
-
-  X.popBanner();await tick();
-  assert.strictEqual(banners.length,1,'รายการเดิมต้องไม่เด้งซ้ำ');
-
-  /* คำขอของ Sales คนอื่นต้องไม่เด้งใส่เรา */
-  await new Promise(r=>setTimeout(r,5));
-  const other={...nb,id:'TR-NC',requesterId:'V01',clinic:'คลินิกคนอื่น'};
-  X.state.requests.push(other);X.notify(other,'pending');
-  X.popBanner();await tick();
-  assert.strictEqual(banners.length,1,'คำขอของ Sales คนอื่นต้องไม่เด้งใส่เรา');
-
-  console.log('✓ ผ่านทั้ง 33 ข้อ');
-})().catch(e=>{console.error(e.message);process.exit(1);});
+console.log('✓ ผ่านทั้ง 32 ข้อ');

@@ -1152,31 +1152,6 @@ function syncBadge(){
   try{ if(n)navigator.setAppBadge&&navigator.setAppBadge(n);
        else navigator.clearAppBadge&&navigator.clearAppBadge(); }catch(e){}
 }
-/* ===== แบนเนอร์แจ้งเตือน =====
-   เด้งเฉพาะรายการที่เข้ามาหลังจาก render() ครั้งล่าสุด — งานที่ตัวเองเพิ่งกดไปจึงไม่เด้งใส่ตัวเอง
-   และเด้งจากรอบ poll ตอนย่อแอปไว้เท่านั้น เปิดแอปค้างอยู่ก็เห็นในแอปแล้ว
-   ครั้งแรกที่เรียก = จดเวลาปัจจุบันไว้ ของเก่าที่ค้างอยู่จะได้ไม่เด้งรัวตอนเพิ่งอนุญาต */
-function notiAt(){
-  try{const v=localStorage.getItem('cts-noti-at');if(v)return +v;}catch(e){}
-  return setNotiAt(Date.now());
-}
-function setNotiAt(t){try{localStorage.setItem('cts-noti-at',t);}catch(e){}return t;}
-const NOTI_TITLE={pending:'🕒 คำขอเทรนใหม่ — รออนุมัติ',approved:'✓ คำขอได้รับอนุมัติแล้ว',rejected:'✕ คำขอไม่ได้รับอนุมัติ'};
-function popBanner(){
-  if(!state.authed||typeof Notification==='undefined'||Notification.permission!=='granted')return;
-  if(!navigator.serviceWorker)return;                       // แบนเนอร์ต้องออกผ่าน service worker
-  const since=notiAt();
-  const fresh=state.feed.filter(i=>canSeeReq(i.r)&&new Date(i.at).getTime()>since);
-  if(!fresh.length)return;
-  setNotiAt(Date.now());
-  const it=fresh[0],r=it.r;
-  const body=`${r.id} · ${r.mode==='upc'?`ทริป UPC ${r.days.length} วัน`:(r.clinic||'ยังไม่ระบุคลินิก')}`
-    +(fresh.length>1?`\nและอีก ${fresh.length-1} รายการ`:'');
-  navigator.serviceWorker.ready
-    .then(reg=>reg.showNotification(NOTI_TITLE[it.kind]||'มีงานใหม่ในระบบ CTS',
-      {body,icon:'icon-192.png',badge:'icon-192.png',tag:'cts-feed',renotify:true}))
-    .catch(()=>{});
-}
 function userChip(){
   if(state.role==='sales')return `<button class="uchip" id="uOut"><span class="uic">◍</span>
     <span class="grow"><span class="nm">${state.salesId} · ${state.area}</span><span class="sb">Sales · ดูแลโดย ${TEAMS[activeTeam()].label}</span></span><span class="muted">↪</span></button>`;
@@ -1218,7 +1193,6 @@ function render(){
   const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
   ({cal:renderCal,sale:renderCal,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
   syncBadge();     // เรียกหลังเรนเดอร์แท็บ — เปิดแท็บแจ้งเตือนแล้วป้ายบนไอคอนต้องหายไปเลย
-  setNotiAt(Date.now());   // เห็นหน้าจอล่าสุดแล้ว = ของถึงตรงนี้ไม่ต้องเด้งแบนเนอร์ซ้ำ
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
 const view=()=>$('view');
@@ -3032,8 +3006,8 @@ function renderFeed(){
     :state.role==='cts'?`${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
   view().innerHTML=`<h1 class="pt">แจ้งเตือน</h1>
     <p class="psub">1 คำขอ = 1 การ์ด อัปเดตสถานะล่าสุดเสมอ — ${scope}</p>
-    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดแจ้งเตือน — ป้ายตัวเลขบนไอคอน + แบนเนอร์เด้ง</button>
-      <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · แบนเนอร์จะเด้งตอนย่อแอปไว้และมีงานใหม่เข้ามา</div>`:''}
+    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดป้ายตัวเลขบนไอคอนแอป</button>
+      <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · ตัวเลขจะขึ้นที่ไอคอนเหมือนแอปทั่วไป</div>`:''}
     <div class="filterbar">
       <button class="fchip all" data-nf="all" aria-pressed="${f==='all'}" style="--c:var(--brand-soft);--ci:var(--brand-deep)">ทั้งหมด (${all.length})</button>
       <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">🕒 รออนุมัติ (${n('pending')})</button>
@@ -3045,9 +3019,9 @@ function renderFeed(){
   const an=$('askNoti');if(an)an.onclick=async()=>{
     try{
       const p=await Notification.requestPermission();
-      toast(p==='granted'?'เปิดแล้ว — มีงานใหม่จะขึ้นตัวเลขที่ไอคอนและเด้งแบนเนอร์ให้'
+      toast(p==='granted'?'เปิดแล้ว — ตัวเลขจะขึ้นที่ไอคอนแอปตอนมีงานใหม่'
         :'ยังไม่ได้อนุญาต — เปิดได้ที่ตั้งค่าแจ้งเตือนของเครื่อง');
-    }catch(e){toast('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับการแจ้งเตือน');}
+    }catch(e){toast('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับป้ายบนไอคอนแอป');}
     render();};
   view().querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{state.feedFilter=b.dataset.nf;renderFeed();});
   view().querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
@@ -3180,15 +3154,6 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!state.authed||!loaded||saving)return;
   load().then(ok=>{if(ok)render();});
 });
-
-/* เช็คงานใหม่ตอนย่อแอปไว้ เพื่อเด้งแบนเนอร์ + อัปเดตตัวเลขบนไอคอน
-   ไม่เช็คตอนเปิดแอปค้างอยู่ เพราะจะไปรีเฟรชหน้าจอที่กำลังใช้งาน
-   POLL_MS ยิ่งสั้นยิ่งเด้งไว แต่กิน quota ของ Apps Script มากขึ้นตามจำนวนคนใช้ */
-const POLL_MS=180000;   // 3 นาที
-setInterval(()=>{
-  if(document.visibilityState==='visible'||!state.authed||!loaded||saving)return;
-  load().then(ok=>{if(ok){popBanner();syncBadge();}});
-},POLL_MS);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});   // ไม่ทำงานตอนเปิดไฟล์ตรงๆ (file://) — ปกติ
 

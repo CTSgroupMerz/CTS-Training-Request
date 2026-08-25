@@ -10,15 +10,6 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 
-/* แตะแบนเนอร์แจ้งเตือน -> สลับไปที่แอปที่เปิดค้างอยู่ ถ้าไม่มีก็เปิดใหม่ */
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    for (const c of list) if ('focus' in c) return c.focus();
-    return self.clients.openWindow('./');
-  }));
-});
-
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;                              // POST ไป Apps Script ต้องไม่แตะ cache
   if (new URL(e.request.url).origin !== location.origin) return;       // ข้อมูลจาก Apps Script ให้ผ่านตรงไปเสมอ
