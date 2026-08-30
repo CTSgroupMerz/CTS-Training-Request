@@ -522,12 +522,17 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .cts-name{font-weight:700;font-size:14.5px;line-height:1.2}
 .cts-name em{display:block;font-style:normal;font-size:11.5px;color:var(--ink3);font-weight:500}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.slot{border:1.5px solid var(--line);border-radius:12px;padding:9px 10px;text-align:left;background:#fff}
+/* มือถือ: ช่องเช้า/บ่ายเรียงลงมาเป็นแถว ไม่บีบกันจนล้นจอ */
+@media(max-width:700px){.slots{grid-template-columns:1fr}}
+/* min-width:0 กันช่องที่มีข้อความยาว (เช่น product หลายตัว) ดันคอลัมน์จนการ์ดล้นออกนอกจอ */
+.slot{border:1.5px solid var(--line);border-radius:12px;padding:9px 10px;text-align:left;background:#fff;min-width:0}
 .slot .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);display:block;font-weight:700}
 .slot .st{font-size:13px;font-weight:700;margin-top:3px;display:block}
 .slot .sd{font-size:10.5px;color:var(--ink3);font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.slot.free{background:var(--ok-soft);border-color:var(--ok-edge)}
-.slot.free .st{color:var(--ok)}
+/* ช่องว่าง — เขียวเข้มกว่าสีพาสเทลประจำตัว CTS จะได้เห็นทันทีว่าจองได้ */
+.slot.free{background:#BFEAD5;border-color:#3E9E7A;border-width:2px}
+.slot.free .lbl{color:#2C7458}
+.slot.free .st{color:#0E6144;font-size:14px}
 .slot.busy,.slot.booked{background:var(--c,#F2F1F7);border-color:transparent;color:var(--ci,var(--ink3));cursor:not-allowed}
 .slot.pend{background:var(--warn-soft);border-color:var(--warn-edge)}
 .slot.pend .st{color:#8A6C1B}
@@ -535,7 +540,7 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
   color:var(--ink3);cursor:not-allowed;border-color:transparent}
 .slot.event{background:var(--ma-soft);border-color:var(--ma-edge)}
 .slot.event .st{color:var(--ma-ink)}
-.slot.picked{box-shadow:inset 0 0 0 3px var(--ok);background:#DDF3E8}
+.slot.picked{box-shadow:inset 0 0 0 3px var(--ok);background:#94DDBD}
 
 /* form */
 label.f{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);margin:14px 0 6px}
