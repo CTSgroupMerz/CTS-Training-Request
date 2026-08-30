@@ -270,6 +270,10 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
 .dtab td.tot,.dtab th.tot{font-family:var(--mono);font-weight:700;color:var(--brand-deep);
   background:var(--brand-soft);border-left:1px solid var(--line)}
 .dtab tfoot .sum th,.dtab tfoot .sum td{background:#F7F5FC;font-weight:700;color:var(--ink2);border-bottom:0}
+/* มือถือ: บีบคอลัมน์ให้เห็นครบทั้ง 4 Product ได้มากที่สุด (ที่เหลือเลื่อนแนวนอนได้) */
+@media(max-width:700px){.dtab th,.dtab td{padding:7px 5px}
+  .dtab th.who{min-width:92px}.dtab th.who img{width:24px;height:24px}
+  .dtab thead th span{padding:2px 6px;font-size:9.5px}}
 
 /* ============ COMMON ============ */
 .page{max-width:1180px;margin:0 auto}
@@ -3002,8 +3006,10 @@ function renderSkills(){
     PRODUCTS.forEach(pr=>setSkill(b.dataset.sknone,pr,null));render();});
 }
 /* ========================= DASHBOARD ========================= */
-/* สรุปคิวเทรนที่ Senior Leader อนุมัติแล้ว — ใครเทรน product อะไรไปกี่คิว ในช่วงเวลาที่เลือก
-   นับ 1 คิว = 1 session · ไปด้วยกันหลายคนนับให้ทุกคน · คิวที่ระบุหลาย product นับให้ทุกตัว */
+/* สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ product ไหนไปกี่คิว ในช่วงเวลาที่เลือก
+   นับจากคิวที่ขึ้นในปฏิทินทั้งหมด (คิวจากคำขอ + คิวที่ CTS ลงเอง) · 1 คิวในปฏิทิน = 1 คิว
+   คิวที่ไปด้วยกันหลายคนนับให้ทุกคน · SKU ย่อยรวมเป็นตระกูลเดียว เช่น Belotero Revive -> Belotero */
+const DASH_PRODUCTS=['Ultherapy','Belotero','Xeomin','Radiesse'];
 function dashRange(){
   if(!state.dash){const m=state.month;
     state.dash={from:key(new Date(m.getFullYear(),m.getMonth(),1)),
@@ -3012,15 +3018,12 @@ function dashRange(){
 }
 function trainRows(){
   const R=dashRange(),out=[];
-  state.requests.filter(r=>r.status==='approved').forEach(r=>{
-    (r.sessions||[]).forEach(s=>{
-      if(!s.date||s.date<R.from||s.date>R.to)return;
-      const who=reqWho(s);if(!who.length)return;
-      /* UPC เก็บ product ไว้ในรายการของแต่ละวัน ไม่ได้อยู่ที่ตัวคำขอ */
-      const prods=r.mode==='upc'
-        ? [...new Set((((r.days||[]).find(x=>x.date===s.date)||{}).items||[]).map(i=>i.product).filter(Boolean))]
-        : prodList(s.sProduct||r.product);
-      who.forEach(cid=>(prods.length?prods:[null]).forEach(p=>out.push({cid,p,date:s.date,rid:r.id})));
+  if(!R.from||!R.to||R.to<R.from)return out;
+  const pool=CTS.map(c=>c.id);   // อ่านทุกคน ไม่ขึ้นกับตัวกรองที่ตั้งไว้ในหน้าปฏิทิน
+  dateRange(R.from,R.to).forEach(k=>{
+    dayEntries(k,pool).filter(e=>e.job).forEach(e=>{
+      const fams=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
+      e.who.forEach(cid=>out.push({cid,uid:k+'|'+e.key,fams}));
     });
   });
   return out;
@@ -3033,31 +3036,25 @@ const DASH_PRESETS=[
 function renderDash(){
   const R=dashRange(),rows=trainRows();
   const cts=CTS.filter(c=>rows.some(x=>x.cid===c.id));
-  /* คอลัมน์ = product ที่มีคิวจริงในช่วงนี้ เรียงตามลำดับใน PRODUCTS · ที่ไม่ระบุไปไว้ท้ายสุด */
-  const seen=[...new Set(rows.map(x=>x.p))];
-  const cols=PRODUCTS.filter(p=>seen.includes(p)).concat(seen.filter(p=>p&&!PRODUCTS.includes(p)));
-  const hasNone=seen.includes(null);
+  const cols=DASH_PRODUCTS;    // 4 ตระกูลเท่านั้น — SKU ย่อยถูกรวมมาแล้วตอนนับ
   /* ponytail: นับด้วยการวนซ้ำตรงๆ — ข้อมูลระดับหลักร้อยแถว ไม่ต้องทำ index */
-  const n=(cid,p)=>rows.filter(x=>x.cid===cid&&x.p===p).length;
-  const qOf=cid=>new Set(rows.filter(x=>x.cid===cid).map(x=>x.rid+'|'+x.date)).size;
-  const totQ=new Set(rows.map(x=>x.rid+'|'+x.date)).size;
-  const top=cols.map(p=>[p,rows.filter(x=>x.p===p).length]).sort((a,b)=>b[1]-a[1])[0];
+  const n=(cid,p)=>rows.filter(x=>x.cid===cid&&x.fams.includes(p)).length;
+  const qOf=cid=>rows.filter(x=>x.cid===cid).length;
+  const totQ=new Set(rows.map(x=>x.uid)).size;
+  const top=cols.map(p=>[p,rows.filter(x=>x.fams.includes(p)).length]).sort((a,b)=>b[1]-a[1])[0];
 
-  const head=cols.map(p=>`<th style="--c:${PRODHEX[p]||'#EEE'}"><span>${esc(p)}</span></th>`).join('')
-    +(hasNone?'<th style="--c:#EEE"><span>ไม่ระบุ</span></th>':'');
+  const head=cols.map(p=>`<th style="--c:${PRODHEX[p]||'#EEE'}"><span>${esc(p)}</span></th>`).join('');
   const body=cts.map(c=>`<tr>
     <th class="who"><span class="w"><img src="${FACES[c.id]||''}" alt="" style="box-shadow:0 0 0 2px ${pal(c.id).c}">
       <span><b>${c.nick}</b><em>${TEAMS[c.team]?TEAMS[c.team].label:c.team}</em></span></span></th>
-    ${cols.map(p=>{const v=n(c.id,p);return `<td class="${v?'has':''}" style="--c:${PRODHEX[p]||'#EEE'};--ci:${p?pink(p):'var(--ink3)'}">${v||'·'}</td>`;}).join('')}
-    ${hasNone?`<td class="${n(c.id,null)?'has':''}" style="--c:#EEE;--ci:var(--ink3)">${n(c.id,null)||'·'}</td>`:''}
+    ${cols.map(p=>{const v=n(c.id,p);return `<td class="${v?'has':''}" style="--c:${PRODHEX[p]||'#EEE'};--ci:${pink(p)}">${v||'·'}</td>`;}).join('')}
     <td class="tot">${qOf(c.id)}</td></tr>`).join('');
   const foot=`<tr class="sum"><th class="who">รวมทุกคน</th>
-    ${cols.map(p=>`<td>${rows.filter(x=>x.p===p).length||'·'}</td>`).join('')}
-    ${hasNone?`<td>${rows.filter(x=>!x.p).length||'·'}</td>`:''}
+    ${cols.map(p=>`<td>${rows.filter(x=>x.fams.includes(p)).length||'·'}</td>`).join('')}
     <td class="tot">${totQ}</td></tr>`;
 
   view().innerHTML=`<h1 class="pt">Dashboard</h1>
-    <p class="psub">สรุปคิวเทรนที่อนุมัติแล้วในปฏิทิน — ใครเทรน Product อะไรไปกี่คิว</p>
+    <p class="psub">สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ Product ไหนไปกี่คิว</p>
     <div class="card">
       <div class="eyebrow">ช่วงเวลาที่ดู</div>
       <div class="chips" style="margin:9px 0 12px">
@@ -3069,16 +3066,18 @@ function renderDash(){
       <div class="muted" style="margin-top:10px">${fmtDate(R.from)} – ${fmtDate(R.to)}</div>
     </div>
     <div class="tiles">
-      <div class="tile"><span class="tn">${totQ}</span><span class="tl">คิวที่อนุมัติแล้ว</span></div>
+      <div class="tile"><span class="tn">${totQ}</span><span class="tl">คิวในปฏิทิน</span></div>
       <div class="tile"><span class="tn">${cts.length}</span><span class="tl">CTS ที่มีคิว</span></div>
-      <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่เทรนมากสุด</span></span></div>
+      <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่มีคิวมากสุด</span></span></div>
     </div>
     ${cts.length?`<div class="card" style="padding:0;overflow:hidden">
       <div class="dashwrap"><table class="dtab">
         <thead><tr><th class="who">CTS</th>${head}<th class="tot">รวมคิว</th></tr></thead>
         <tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div></div>
-      <div class="muted" style="margin:-4px 0 14px">ตัวเลข = จำนวนคิว (1 session = 1 คิว) · คิวที่ไปด้วยกันหลายคนนับให้ทุกคน · คิวที่ระบุหลาย Product นับให้ทุกตัว ทำให้ผลรวมรายแถวมากกว่า "รวมคิว" ได้</div>`
-    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวที่อนุมัติแล้วในช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
+      <div class="muted" style="margin:-4px 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · 1 คิวในปฏิทิน = 1 คิว · คิวที่ไปด้วยกันหลายคนนับให้ทุกคน ·
+        SKU ย่อยรวมเป็นตระกูลเดียว (เช่น Belotero Revive / Soft / Balance → Belotero) ·
+        คิวที่ระบุหลาย Product นับให้ทุกตัว และคิวที่ไม่ได้ระบุ Product จะนับเฉพาะใน "รวมคิว" ตัวเลขรายแถวจึงไม่เท่ากับรวมคิวได้</div>`
+    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
 
   const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
   view().querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>set(...DASH_PRESETS[+b.dataset.dp][1]()));
