@@ -206,7 +206,9 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
 .navitem .ic{font-size:16px;width:20px;text-align:center}
 .navitem .cnt{margin-left:auto;background:var(--bad);color:#fff;font-family:var(--mono);font-size:10px;
   border-radius:99px;padding:2px 7px;font-weight:700}
-.navitem[aria-selected="true"]{background:var(--brand-soft);color:var(--brand-deep)}
+.navitem .ic{transition:background .18s,color .18s}
+.navitem[aria-selected="true"]{background:var(--tc,var(--brand-soft));color:var(--tci,var(--brand-deep));font-weight:700}
+.navitem:not([aria-selected="true"]):hover{background:var(--line2)}
 .sidefoot{margin-top:auto;padding-top:16px;border-top:1px solid var(--line2)}
 .uchip{display:flex;align-items:center;gap:10px;background:var(--paper);border-radius:14px;padding:9px 10px;width:100%;text-align:left}
 .uchip img,.uchip .uic{width:34px;height:34px;border-radius:50%;flex:none;object-fit:cover}
@@ -224,19 +226,50 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .iconbtn{width:36px;height:36px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;
   place-items:center;font-size:15px;flex:none;box-shadow:var(--sh1)}
+/* แถบไอคอนล่าง — แต่ละแท็บมีสีประจำตัว (--tc พื้น · --tci ตัวอักษร) เห็นชัดว่าอยู่หน้าไหน */
 .botnav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--navh) + env(safe-area-inset-bottom));
-  padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);background:rgba(255,255,255,.94);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(70,50,130,.08);
   display:grid;grid-template-columns:repeat(4,1fr);z-index:45}
-.botnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  font-size:11px;color:var(--ink3);font-weight:500;position:relative}
-.botnav .ic{font-size:17px}
+.botnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:11px;color:var(--ink3);font-weight:600;position:relative;padding-top:2px}
+.botnav .ic{font-size:16px;line-height:1;width:38px;height:24px;display:grid;place-items:center;
+  border-radius:99px;transition:background .18s,color .18s,transform .18s}
 .botnav .lb{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
 /* 5-6 แท็บ (CTS / Admin) ช่องแคบลง ย่อตัวอักษรให้ชื่อแท็บไม่โดนตัด */
-.botnav.tight button{font-size:9.5px}
-.botnav.tight .ic{font-size:15px}
-.botnav button[aria-selected="true"]{color:var(--brand-deep);font-weight:700}
-.botnav .cnt{position:absolute;top:8px;left:50%;margin-left:6px;background:var(--bad);color:#fff;
+.botnav.tight button{font-size:10px}
+.botnav.tight .ic{font-size:15px;width:32px}
+.botnav.tight2 button{font-size:9px;gap:2px}
+.botnav.tight2 .ic{font-size:14px;width:28px;height:22px}
+.botnav button[aria-selected="true"]{color:var(--tci,var(--brand-deep));font-weight:800}
+.botnav button[aria-selected="true"] .ic{background:var(--tc,var(--brand-soft));color:var(--tci,var(--brand-deep));
+  transform:translateY(-1px);box-shadow:0 3px 8px color-mix(in srgb,var(--tci,#5F4FB0) 22%,transparent)}
+.botnav .cnt{position:absolute;top:4px;left:50%;margin-left:6px;background:var(--bad);color:#fff;
   font-family:var(--mono);font-size:9.5px;border-radius:99px;padding:1px 5px;font-weight:700}
+
+/* ============ DASHBOARD ============ */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px 14px;
+  box-shadow:var(--sh1);display:flex;flex-direction:column;gap:3px;min-width:0}
+.tile .tn{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--brand-deep);line-height:1}
+.tile .tl{font-size:11.5px;color:var(--ink2);font-weight:600;line-height:1.3;overflow:hidden}
+@media(max-width:700px){.tiles{grid-template-columns:1fr 1fr}.tile:last-child{grid-column:span 2}
+  .tile .tn{font-size:22px}}
+.dashwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.dtab{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+.dtab th,.dtab td{padding:8px 9px;text-align:center;border-bottom:1px solid var(--line2);white-space:nowrap}
+.dtab thead th{position:sticky;top:0;background:#FCFBFE;font-size:10.5px;font-weight:700;color:var(--ink2)}
+.dtab thead th span{display:inline-block;border-radius:99px;padding:2px 9px;background:var(--c,#EEE)}
+.dtab th.who{text-align:left;position:sticky;left:0;background:var(--surface);z-index:2;min-width:118px}
+.dtab thead th.who{background:#FCFBFE;z-index:3}
+.dtab th.who .w{display:flex;align-items:center;gap:8px;font-weight:700}
+.dtab th.who img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none}
+.dtab th.who em{display:block;font-style:normal;font-size:10px;color:var(--ink3);font-weight:500}
+.dtab td{color:var(--ink3);font-family:var(--mono)}
+.dtab td.has{background:var(--c);color:var(--ci);font-weight:700}
+.dtab td.tot,.dtab th.tot{font-family:var(--mono);font-weight:700;color:var(--brand-deep);
+  background:var(--brand-soft);border-left:1px solid var(--line)}
+.dtab tfoot .sum th,.dtab tfoot .sum td{background:#F7F5FC;font-weight:700;color:var(--ink2);border-bottom:0}
 
 /* ============ COMMON ============ */
 .page{max-width:1180px;margin:0 auto}
@@ -296,6 +329,11 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .fchip .dot{width:11px;height:11px;border-radius:50%;background:var(--c);margin-left:5px}
 .fchip[aria-pressed="true"]{background:var(--c,var(--brand-soft));border-color:var(--ci,var(--brand));color:var(--ci,var(--brand-deep))}
 .fchip.all{padding-left:12px}
+/* แถวกรองประเภทคิว — อยู่ใต้แถวกรองรายคน */
+.tfbar{margin-top:-4px;align-items:center}
+.fblbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink3);font-weight:700;flex:none;padding-right:2px}
+.tfbar .fchip{padding-left:12px}
 
 .calshell{background:#fff;border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;box-shadow:var(--sh2)}
 .dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line2);background:#FCFBFE}
@@ -844,6 +882,8 @@ const state={
   authed:false, role:null, me:null, area:null, salesId:null, teamView:'A',
   tab:'cal', view:'month', month:new Date(TODAY.getFullYear(),TODAY.getMonth(),1), weekStart:null,
   filter:new Set(),                        // empty = show all
+  tfilter:new Set(),                       // กรองปฏิทินตามประเภทคิว (MA / KUD / Med School / MSC) · ว่าง = ดูทั้งหมด
+  dash:null,                               // ช่วงเวลาที่เลือกดูใน Dashboard {from,to}
   sched:{}, avail:{}, skills:{}, selfEvents:[], seSeq:1, picks:[], draft:null, upcDraft:null, feedFilter:'all', requests:[], events:[], holidays:[], feed:[], seq:1041, evSeq:3,
   tbcMode:false,
   loginRole:null, loginArea:null, loginCts:null, loginCode:null
@@ -1023,6 +1063,15 @@ const prodText=v=>prodList(v).join(' · ');
 /* หัวข้อที่เกี่ยวข้อง (KUD / Med School / MSC) — โชว์นำหน้าชื่องานในปฏิทินแบบเดียวกับ product */
 const topicText=v=>(v||[]).join(' · ');
 const leadText=j=>[prodText(j.product),topicText(j.topics)].filter(Boolean).join(' · ');
+/* ===== กรองปฏิทินตามประเภทคิว =====
+   ว่าง = เห็นทุกอย่างเหมือนเดิม · เลือกแล้ว = เห็นเฉพาะประเภทที่เลือก (เลือกพร้อมกันได้หลายอัน)
+   กรองตอนวาดปฏิทินเท่านั้น ไม่แตะการนับคิวว่างและการคำนวณเวลา */
+const TYPE_HEX={'MA':['var(--ma-soft)','#FFFFFF'],'KUD':['#FBE0C8','#8A4A18'],
+  'Med School':['#CFE3F5','#1D5A8F'],'MSC':['#F6CFE4','#96336A']};
+const TYPE_FILTERS=['MA'].concat(TOPIC_TAGS);
+const tfOn=()=>state.tfilter.size>0;
+const jobTypeOk=j=>!tfOn()||(j.topics||[]).some(t=>state.tfilter.has(t));
+const maTypeOk=()=>!tfOn()||state.tfilter.has('MA');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
 const jobOf=(k,cid,slot)=>(state.sched[k]&&state.sched[k][cid])?state.sched[k][cid][slot]:undefined;
 const isClosed=(k,cid,slot)=>{const a=availOf(k,cid,slot);return !!(a&&a.closed);};
@@ -1171,7 +1220,7 @@ function enter(){
   state.role=state.loginRole;state.authed=true;
   if(state.role==='sales'){state.area=state.loginArea;state.salesId=state.loginCode||state.loginArea;state.view='month';}
   if(state.role==='cts'){state.me=state.loginCts;state.teamView=byId(state.me).team;state.view='week';}
-  state.tab='cal';state.filter=new Set();
+  state.tab='cal';state.filter=new Set();state.tfilter=new Set();state.dash=null;
   try{localStorage.setItem('cts-login',JSON.stringify({...auth,
     loginRole:state.loginRole,loginArea:state.loginArea,loginCts:state.loginCts,loginCode:state.loginCode}));}catch(e){}
   render();
@@ -1190,10 +1239,19 @@ function logout(){
   auth={role:null,pw:null};loaded=false;
   try{localStorage.removeItem('cts-login');}catch(e){}
   Object.assign(state,{authed:false,role:null,me:null,area:null,salesId:null,picks:[],draft:null,
-  loginRole:null,loginArea:null,loginCts:null,loginCode:null,filter:new Set()});renderLogin();}
+  loginRole:null,loginArea:null,loginCts:null,loginCode:null,filter:new Set(),tfilter:new Set(),dash:null});renderLogin();}
 
 /* ========================= SHELL ========================= */
-const TABS=[{k:'cal',ic:'▦',t:'ปฏิทิน'},{k:'sale',ic:'◷',t:'ปฏิทิน Sale',cts:1},{k:'skill',ic:'◆',t:'Skills CTS',admin:1},{k:'req',ic:'▤',t:'คำขอ'},{k:'app',ic:'✓',t:'อนุมัติ'},{k:'feed',ic:'✦',t:'แจ้งเตือน'}];
+/* s = ชื่อสั้นสำหรับแถบล่างบนมือถือ · c/ci = สีประจำแท็บ ใช้ตอนแท็บถูกเลือก */
+const TABS=[
+  {k:'cal',  ic:'▦',t:'ปฏิทิน',      s:'ปฏิทิน', c:'#EFEAFB',ci:'#5F4FB0'},
+  {k:'sale', ic:'◷',t:'ปฏิทิน Sale', s:'Sale',   c:'#DDF1E6',ci:'#1D7A57', cts:1},
+  {k:'dash', ic:'↗',t:'Dashboard',   s:'Dash',   c:'#D3EFEA',ci:'#0E6B62', cts:1},
+  {k:'skill',ic:'◆',t:'Skills CTS',  s:'Skills', c:'#FBEED2',ci:'#8A6A11', admin:1},
+  {k:'req',  ic:'▤',t:'คำขอ',        s:'คำขอ',   c:'#DAE8F8',ci:'#245F94'},
+  {k:'app',  ic:'✓',t:'อนุมัติ',      s:'อนุมัติ', c:'#DCF3E4',ci:'#2C7A3E'},
+  {k:'feed', ic:'✦',t:'แจ้งเตือน',    s:'เตือน',  c:'#FBE0EE',ci:'#9C3A6E'},
+];
 const tabsFor=()=>TABS.filter(t=>(!t.cts||state.role==='cts'||state.role==='admin')&&(!t.admin||state.role==='admin'));
 /* อยู่ในแท็บ "ปฏิทิน Sale" = ดูแบบเดียวกับที่ Sales เห็น (ซ่อนชื่อ นับคิวว่าง) แต่ยังแก้เวลาว่างได้ */
 const salesView=()=>state.tab==='sale'&&(state.role==='cts'||state.role==='admin');
@@ -1228,12 +1286,12 @@ function render(){
   if(!state.authed){syncBadge();return renderLogin();}
   const pend=pendingCount(),showB=pend&&(isLead()||state.role==='admin');
   const tabs=tabsFor();
-  const nav=tabs.map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}">
-    <span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
-  /* จำนวนแท็บไม่เท่ากันในแต่ละ role (Sales 4 · CTS 5 · Admin 6) — แถบล่างต้องแบ่งช่องตามจริง
-     ไม่งั้นแท็บท้ายๆ (แจ้งเตือน) ตกขอบจอ */
-  const bnav=tabs.map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}">
-    <span class="ic">${t.ic}</span><span class="lb">${t.t}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
+  const nav=tabs.map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}"
+    style="--tc:${t.c};--tci:${t.ci}"><span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
+  /* จำนวนแท็บไม่เท่ากันในแต่ละ role (Sales 4 · CTS 6 · Admin 7) — แถบล่างต้องแบ่งช่องตามจริง
+     ไม่งั้นแท็บท้ายๆ (แจ้งเตือน) ตกขอบจอ · แท็บเยอะใช้ชื่อสั้นและย่อขนาดลง */
+  const bnav=tabs.map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}" style="--tc:${t.c};--tci:${t.ci}">
+    <span class="ic">${t.ic}</span><span class="lb">${t.s||t.t}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
   const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:'Admin · ทุกทีม';
 
   root.innerHTML=`<div class="shell">
@@ -1250,14 +1308,14 @@ function render(){
         <button class="iconbtn" id="tRules">?</button><button class="iconbtn" id="tOut">↪</button></div>
       <div class="page" id="view"></div>
     </div>
-    <nav class="botnav${tabs.length>4?' tight':''}" style="grid-template-columns:repeat(${tabs.length},1fr)">${bnav}</nav>
+    <nav class="botnav${tabs.length>4?' tight':''}${tabs.length>6?' tight2':''}" style="grid-template-columns:repeat(${tabs.length},1fr)">${bnav}</nav>
   </div>`;
 
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
   ['uOut','tOut'].forEach(i=>{const e=$(i);if(e)e.onclick=logout;});
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
   const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
-  ({cal:renderCal,sale:renderCal,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
+  ({cal:renderCal,sale:renderCal,dash:renderDash,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
   syncBadge();     // เรียกหลังเรนเดอร์แท็บ — เปิดแท็บแจ้งเตือนแล้วป้ายบนไอคอนต้องหายไปเลย
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
@@ -1339,6 +1397,11 @@ function renderCal(){
       state.filter=on?new Set():new Set(mine);}
     else{state.filter.has(id)?state.filter.delete(id):state.filter.add(id);}
     renderCal();});
+  view().querySelectorAll('[data-tf]').forEach(b=>b.onclick=()=>{
+    const t=b.dataset.tf;
+    if(t==='all')state.tfilter=new Set();
+    else state.tfilter.has(t)?state.tfilter.delete(t):state.tfilter.add(t);
+    renderCal();});
 
   const shell=$('calshell');
   shell.innerHTML=isUPC()?(state.view==='month'?upcMonthHTML():upcWeekHTML())
@@ -1382,7 +1445,13 @@ function filterBar(){
       style="--c:${TEAMS[byId(state.me).team].color};--ci:var(--ink)">ทีมของฉัน (${mine.length})</button>`:''}
     ${pool.map(c=>`<button class="fchip" data-f="${c.id}" aria-pressed="${state.filter.has(c.id)}"
       style="--c:${pal(c.id).c};--ci:${pal(c.id).ci}">
-      <img src="${FACES[c.id]||''}" alt="">${c.nick}<span class="dot"></span></button>`).join('')}</div>`;
+      <img src="${FACES[c.id]||''}" alt="">${c.nick}<span class="dot"></span></button>`).join('')}</div>
+  <div class="filterbar tfbar">
+    <span class="fblbl">ประเภทคิว</span>
+    <button class="fchip all" data-tf="all" aria-pressed="${!tfOn()}"
+      style="--c:var(--brand-soft);--ci:var(--brand-deep)">ทั้งหมด</button>
+    ${TYPE_FILTERS.map(t=>`<button class="fchip" data-tf="${t}" aria-pressed="${state.tfilter.has(t)}"
+      style="--c:${TYPE_HEX[t][0]};--ci:${TYPE_HEX[t][1]}">${t==='MA'?'งานกลาง MA':t}<span class="dot"></span></button>`).join('')}</div>`;
 }
 function maCard(){
   const inRange=e=>{const d=parse(e.date);
@@ -1452,7 +1521,7 @@ function monthHTML(){
   for(let i=0;i<start;i++)grid.push(null);
   for(let d=1;d<=last;d++){const dt=new Date(y,mo,d),k=key(dt);
     /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
-    grid.push({d,dt,k,jobs:names?dayEntries(k).filter(e=>e.job):[]});}
+    grid.push({d,dt,k,jobs:names?dayEntries(k).filter(e=>e.job&&jobTypeOk(e.job)):[]});}
   while(grid.length%7)grid.push(null);
 
   let rows='';
@@ -1471,7 +1540,7 @@ function monthHTML(){
     {
       if(names){
         const jobs=g.jobs.filter(e=>!sp.skip.has(ci+'|'+e.key));
-        const ma=dayEvents(k);
+        const ma=maTypeOk()?dayEvents(k):[];
         /* มือถือ: แถบชื่องานบรรทัดเดียวเรียงกัน (แบบ Google Calendar) — เดิมเป็นจุดสีซึ่งดูไม่ออกว่างานอะไร
            จอใหญ่: แถบ 2 บรรทัด มีเวลาและชื่อคนกำกับ */
         const one=NARROW();
@@ -1535,10 +1604,10 @@ function weekHTML(){
         /* วันหยุดก็ยังลงคิวงานได้ — โชว์ชื่อวันหยุดกำกับ แล้วต่อด้วยคิวจริงของวันนั้น */
         /* ปฏิทิน CTS แสดงเฉพาะงานที่มีจริง ตามเวลาจริง กี่คิวก็ได้ — ไม่ต้องแบ่งเช้า/บ่าย
            คิวทั้งวันได้คลาส allday = เต็มช่อง */
-        const ev=eventFor(k,c.id,'am')||eventFor(k,c.id,'pm');
+        const ev=maTypeOk()?(eventFor(k,c.id,'am')||eventFor(k,c.id,'pm')):null;
         const html=(hol?`<span class="holtag" style="display:block;padding:2px 0 3px">${esc(hol.name)}</span>`:'')
           +(ev?`<span class="half mah"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
-          +entriesOf(k,c.id).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
+          +entriesOf(k,c.id).filter(e=>jobTypeOk(e.job)).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
             <span class="slb">${timeLabel(e.job,e)}</span>
             <span class="etx2">${okMark(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
@@ -2932,6 +3001,91 @@ function renderSkills(){
   view().querySelectorAll('[data-sknone]').forEach(b=>b.onclick=()=>{
     PRODUCTS.forEach(pr=>setSkill(b.dataset.sknone,pr,null));render();});
 }
+/* ========================= DASHBOARD ========================= */
+/* สรุปคิวเทรนที่ Senior Leader อนุมัติแล้ว — ใครเทรน product อะไรไปกี่คิว ในช่วงเวลาที่เลือก
+   นับ 1 คิว = 1 session · ไปด้วยกันหลายคนนับให้ทุกคน · คิวที่ระบุหลาย product นับให้ทุกตัว */
+function dashRange(){
+  if(!state.dash){const m=state.month;
+    state.dash={from:key(new Date(m.getFullYear(),m.getMonth(),1)),
+                to:key(new Date(m.getFullYear(),m.getMonth()+1,0))};}
+  return state.dash;
+}
+function trainRows(){
+  const R=dashRange(),out=[];
+  state.requests.filter(r=>r.status==='approved').forEach(r=>{
+    (r.sessions||[]).forEach(s=>{
+      if(!s.date||s.date<R.from||s.date>R.to)return;
+      const who=reqWho(s);if(!who.length)return;
+      /* UPC เก็บ product ไว้ในรายการของแต่ละวัน ไม่ได้อยู่ที่ตัวคำขอ */
+      const prods=r.mode==='upc'
+        ? [...new Set((((r.days||[]).find(x=>x.date===s.date)||{}).items||[]).map(i=>i.product).filter(Boolean))]
+        : prodList(s.sProduct||r.product);
+      who.forEach(cid=>(prods.length?prods:[null]).forEach(p=>out.push({cid,p,date:s.date,rid:r.id})));
+    });
+  });
+  return out;
+}
+const DASH_PRESETS=[
+  ['เดือนนี้',    ()=>{const d=new Date();return [new Date(d.getFullYear(),d.getMonth(),1),new Date(d.getFullYear(),d.getMonth()+1,0)];}],
+  ['3 เดือนล่าสุด',()=>{const d=new Date();return [new Date(d.getFullYear(),d.getMonth()-2,1),new Date(d.getFullYear(),d.getMonth()+1,0)];}],
+  ['ปีนี้',        ()=>{const d=new Date();return [new Date(d.getFullYear(),0,1),new Date(d.getFullYear(),11,31)];}],
+];
+function renderDash(){
+  const R=dashRange(),rows=trainRows();
+  const cts=CTS.filter(c=>rows.some(x=>x.cid===c.id));
+  /* คอลัมน์ = product ที่มีคิวจริงในช่วงนี้ เรียงตามลำดับใน PRODUCTS · ที่ไม่ระบุไปไว้ท้ายสุด */
+  const seen=[...new Set(rows.map(x=>x.p))];
+  const cols=PRODUCTS.filter(p=>seen.includes(p)).concat(seen.filter(p=>p&&!PRODUCTS.includes(p)));
+  const hasNone=seen.includes(null);
+  /* ponytail: นับด้วยการวนซ้ำตรงๆ — ข้อมูลระดับหลักร้อยแถว ไม่ต้องทำ index */
+  const n=(cid,p)=>rows.filter(x=>x.cid===cid&&x.p===p).length;
+  const qOf=cid=>new Set(rows.filter(x=>x.cid===cid).map(x=>x.rid+'|'+x.date)).size;
+  const totQ=new Set(rows.map(x=>x.rid+'|'+x.date)).size;
+  const top=cols.map(p=>[p,rows.filter(x=>x.p===p).length]).sort((a,b)=>b[1]-a[1])[0];
+
+  const head=cols.map(p=>`<th style="--c:${PRODHEX[p]||'#EEE'}"><span>${esc(p)}</span></th>`).join('')
+    +(hasNone?'<th style="--c:#EEE"><span>ไม่ระบุ</span></th>':'');
+  const body=cts.map(c=>`<tr>
+    <th class="who"><span class="w"><img src="${FACES[c.id]||''}" alt="" style="box-shadow:0 0 0 2px ${pal(c.id).c}">
+      <span><b>${c.nick}</b><em>${TEAMS[c.team]?TEAMS[c.team].label:c.team}</em></span></span></th>
+    ${cols.map(p=>{const v=n(c.id,p);return `<td class="${v?'has':''}" style="--c:${PRODHEX[p]||'#EEE'};--ci:${p?pink(p):'var(--ink3)'}">${v||'·'}</td>`;}).join('')}
+    ${hasNone?`<td class="${n(c.id,null)?'has':''}" style="--c:#EEE;--ci:var(--ink3)">${n(c.id,null)||'·'}</td>`:''}
+    <td class="tot">${qOf(c.id)}</td></tr>`).join('');
+  const foot=`<tr class="sum"><th class="who">รวมทุกคน</th>
+    ${cols.map(p=>`<td>${rows.filter(x=>x.p===p).length||'·'}</td>`).join('')}
+    ${hasNone?`<td>${rows.filter(x=>!x.p).length||'·'}</td>`:''}
+    <td class="tot">${totQ}</td></tr>`;
+
+  view().innerHTML=`<h1 class="pt">Dashboard</h1>
+    <p class="psub">สรุปคิวเทรนที่อนุมัติแล้วในปฏิทิน — ใครเทรน Product อะไรไปกี่คิว</p>
+    <div class="card">
+      <div class="eyebrow">ช่วงเวลาที่ดู</div>
+      <div class="chips" style="margin:9px 0 12px">
+        ${DASH_PRESETS.map((p,i)=>`<button class="chip" data-dp="${i}">${p[0]}</button>`).join('')}</div>
+      <div class="formgrid">
+        <div><label class="f" style="margin-top:0">ตั้งแต่วันที่</label><input class="in" id="dFrom" type="date" lang="en-GB" value="${R.from}"></div>
+        <div><label class="f" style="margin-top:0">ถึงวันที่</label><input class="in" id="dTo" type="date" lang="en-GB" value="${R.to}"></div>
+      </div>
+      <div class="muted" style="margin-top:10px">${fmtDate(R.from)} – ${fmtDate(R.to)}</div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="tn">${totQ}</span><span class="tl">คิวที่อนุมัติแล้ว</span></div>
+      <div class="tile"><span class="tn">${cts.length}</span><span class="tl">CTS ที่มีคิว</span></div>
+      <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่เทรนมากสุด</span></span></div>
+    </div>
+    ${cts.length?`<div class="card" style="padding:0;overflow:hidden">
+      <div class="dashwrap"><table class="dtab">
+        <thead><tr><th class="who">CTS</th>${head}<th class="tot">รวมคิว</th></tr></thead>
+        <tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div></div>
+      <div class="muted" style="margin:-4px 0 14px">ตัวเลข = จำนวนคิว (1 session = 1 คิว) · คิวที่ไปด้วยกันหลายคนนับให้ทุกคน · คิวที่ระบุหลาย Product นับให้ทุกตัว ทำให้ผลรวมรายแถวมากกว่า "รวมคิว" ได้</div>`
+    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวที่อนุมัติแล้วในช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
+
+  const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
+  view().querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>set(...DASH_PRESETS[+b.dataset.dp][1]()));
+  $('dFrom').onchange=e=>{state.dash={...R,from:e.target.value};renderDash();};
+  $('dTo').onchange=e=>{state.dash={...R,to:e.target.value};renderDash();};
+}
+
 function renderReqs(){
   const list=myRequests();
   const scope=state.role==='sales'?`คำขอของ ${state.salesId} เท่านั้น`
