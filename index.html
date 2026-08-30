@@ -255,25 +255,31 @@ input.lsel{background-image:none}   /* ลูกศร dropdown มีไว้�
 .tile .tl{font-size:11.5px;color:var(--ink2);font-weight:600;line-height:1.3;overflow:hidden}
 @media(max-width:700px){.tiles{grid-template-columns:1fr 1fr}.tile:last-child{grid-column:span 2}
   .tile .tn{font-size:22px}}
-.dashwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.dtab{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
-.dtab th,.dtab td{padding:8px 9px;text-align:center;border-bottom:1px solid var(--line2);white-space:nowrap}
-.dtab thead th{position:sticky;top:0;background:#FCFBFE;font-size:10.5px;font-weight:700;color:var(--ink2)}
-.dtab thead th span{display:inline-block;border-radius:99px;padding:2px 9px;background:var(--c,#EEE)}
-.dtab th.who{text-align:left;position:sticky;left:0;background:var(--surface);z-index:2;min-width:118px}
-.dtab thead th.who{background:#FCFBFE;z-index:3}
-.dtab th.who .w{display:flex;align-items:center;gap:8px;font-weight:700}
-.dtab th.who img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none}
-.dtab th.who em{display:block;font-style:normal;font-size:10px;color:var(--ink3);font-weight:500}
-.dtab td{color:var(--ink3);font-family:var(--mono)}
-.dtab td.has{background:var(--c);color:var(--ci);font-weight:700}
-.dtab td.tot,.dtab th.tot{font-family:var(--mono);font-weight:700;color:var(--brand-deep);
-  background:var(--brand-soft);border-left:1px solid var(--line)}
-.dtab tfoot .sum th,.dtab tfoot .sum td{background:#F7F5FC;font-weight:700;color:var(--ink2);border-bottom:0}
-/* มือถือ: บีบคอลัมน์ให้เห็นครบทั้ง 4 Product ได้มากที่สุด (ที่เหลือเลื่อนแนวนอนได้) */
-@media(max-width:700px){.dtab th,.dtab td{padding:7px 5px}
-  .dtab th.who{min-width:92px}.dtab th.who img{width:24px;height:24px}
-  .dtab thead th span{padding:2px 6px;font-size:9.5px}}
+/* การ์ดรายคน — รูป CTS + จำนวนคิวแยกตาม product */
+.dgrid{display:grid;gap:10px;margin-bottom:12px}
+@media(min-width:760px){.dgrid{grid-template-columns:1fr 1fr}}
+@media(min-width:1180px){.dgrid{grid-template-columns:repeat(3,1fr)}}
+.dcard{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--c,var(--line));
+  border-radius:16px;padding:12px 13px;box-shadow:var(--sh1)}
+.dcard.sum{border-left-color:var(--brand-deep);background:#FBFAFE}
+.dhead{display:flex;align-items:center;gap:10px}
+.dhead img,.dhead .dic{width:42px;height:42px;border-radius:50%;object-fit:cover;flex:none;
+  box-shadow:0 0 0 3px var(--c,var(--line))}
+.dhead .dic{display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-deep);
+  font-size:19px;font-weight:700;box-shadow:0 0 0 3px var(--brand-soft)}
+.dhead b{font-size:15px;font-weight:700;display:block;line-height:1.2}
+.dhead em{display:block;font-style:normal;font-size:11px;color:var(--ink3);font-weight:500}
+.dtot{text-align:right;flex:none}
+.dtot b{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--ci,var(--brand-deep));line-height:1}
+.dtot small{display:block;font-size:10px;color:var(--ink3);font-weight:600}
+.dprods{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:11px}
+.dp{background:var(--paper);border-radius:12px;padding:7px 4px;text-align:center;min-width:0;opacity:.55}
+.dp.on{background:var(--pc);opacity:1}
+.dp b{display:block;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink3);line-height:1.1}
+.dp.on b{color:var(--pi)}
+.dp small{display:block;font-size:9px;font-weight:700;color:var(--ink3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dp.on small{color:var(--pi);opacity:.85}
 
 /* ============ COMMON ============ */
 .page{max-width:1180px;margin:0 auto}
@@ -3008,7 +3014,8 @@ function renderSkills(){
 /* ========================= DASHBOARD ========================= */
 /* สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ product ไหนไปกี่คิว ในช่วงเวลาที่เลือก
    นับจากคิวที่ขึ้นในปฏิทินทั้งหมด (คิวจากคำขอ + คิวที่ CTS ลงเอง) · 1 คิวในปฏิทิน = 1 คิว
-   คิวที่ไปด้วยกันหลายคนนับให้ทุกคน · SKU ย่อยรวมเป็นตระกูลเดียว เช่น Belotero Revive -> Belotero */
+   คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว คนที่ไปด้วยไม่นับ
+   SKU ย่อยรวมเป็นตระกูลเดียว เช่น Belotero Revive -> Belotero */
 const DASH_PRODUCTS=['Ultherapy','Belotero','Xeomin','Radiesse'];
 function dashRange(){
   if(!state.dash){const m=state.month;
@@ -3016,14 +3023,17 @@ function dashRange(){
                 to:key(new Date(m.getFullYear(),m.getMonth()+1,0))};}
   return state.dash;
 }
+/* เจ้าของคิว = คนที่ลงคิวนั้น · คิวจากคำขอคือ CTS ที่หัวหน้าจัดให้ (who[0]) คนที่เพิ่มมาทีหลังไม่นับ
+   คิวที่ CTS ลงเองคือคนลง (owner) — ถ้า Admin เป็นคนลงให้ ก็นับให้คนแรกในรายชื่อผู้ร่วมงาน */
+const ownerOf=e=>(e.job.owner&&e.who.includes(e.job.owner))?e.job.owner:e.who[0];
 function trainRows(){
   const R=dashRange(),out=[];
   if(!R.from||!R.to||R.to<R.from)return out;
   const pool=CTS.map(c=>c.id);   // อ่านทุกคน ไม่ขึ้นกับตัวกรองที่ตั้งไว้ในหน้าปฏิทิน
   dateRange(R.from,R.to).forEach(k=>{
-    dayEntries(k,pool).filter(e=>e.job).forEach(e=>{
+    dayEntries(k,pool).filter(e=>e.job&&e.who.length).forEach(e=>{
       const fams=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
-      e.who.forEach(cid=>out.push({cid,uid:k+'|'+e.key,fams}));
+      out.push({cid:ownerOf(e),uid:k+'|'+e.key,fams,share:e.who.length>1});
     });
   });
   return out;
@@ -3043,15 +3053,20 @@ function renderDash(){
   const totQ=new Set(rows.map(x=>x.uid)).size;
   const top=cols.map(p=>[p,rows.filter(x=>x.fams.includes(p)).length]).sort((a,b)=>b[1]-a[1])[0];
 
-  const head=cols.map(p=>`<th style="--c:${PRODHEX[p]||'#EEE'}"><span>${esc(p)}</span></th>`).join('');
-  const body=cts.map(c=>`<tr>
-    <th class="who"><span class="w"><img src="${FACES[c.id]||''}" alt="" style="box-shadow:0 0 0 2px ${pal(c.id).c}">
-      <span><b>${c.nick}</b><em>${TEAMS[c.team]?TEAMS[c.team].label:c.team}</em></span></span></th>
-    ${cols.map(p=>{const v=n(c.id,p);return `<td class="${v?'has':''}" style="--c:${PRODHEX[p]||'#EEE'};--ci:${pink(p)}">${v||'·'}</td>`;}).join('')}
-    <td class="tot">${qOf(c.id)}</td></tr>`).join('');
-  const foot=`<tr class="sum"><th class="who">รวมทุกคน</th>
-    ${cols.map(p=>`<td>${rows.filter(x=>x.fams.includes(p)).length||'·'}</td>`).join('')}
-    <td class="tot">${totQ}</td></tr>`;
+  /* การ์ดรายคน — รูป CTS + จำนวนคิวของแต่ละ product */
+  const cards=cts.map(c=>`<div class="dcard" style="--c:${pal(c.id).c};--ci:${pal(c.id).ci}">
+    <div class="dhead"><img src="${FACES[c.id]||''}" alt="">
+      <span class="grow"><b>${c.nick}</b><em>${esc(c.name)} · ${TEAMS[c.team]?TEAMS[c.team].label:c.team}</em></span>
+      <span class="dtot"><b>${qOf(c.id)}</b><small>คิว</small></span></div>
+    <div class="dprods">${cols.map(p=>{const v=n(c.id,p);
+      return `<span class="dp${v?' on':''}" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
+        <b>${v}</b><small>${esc(p)}</small></span>`;}).join('')}</div></div>`).join('');
+  const totCard=`<div class="dcard sum">
+    <div class="dhead"><span class="dic">Σ</span>
+      <span class="grow"><b>รวมทุกคน</b><em>${cts.length} คน</em></span>
+      <span class="dtot"><b>${totQ}</b><small>คิว</small></span></div>
+    <div class="dprods">${cols.map(p=>`<span class="dp on" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
+      <b>${rows.filter(x=>x.fams.includes(p)).length}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
 
   view().innerHTML=`<h1 class="pt">Dashboard</h1>
     <p class="psub">สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ Product ไหนไปกี่คิว</p>
@@ -3070,13 +3085,11 @@ function renderDash(){
       <div class="tile"><span class="tn">${cts.length}</span><span class="tl">CTS ที่มีคิว</span></div>
       <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่มีคิวมากสุด</span></span></div>
     </div>
-    ${cts.length?`<div class="card" style="padding:0;overflow:hidden">
-      <div class="dashwrap"><table class="dtab">
-        <thead><tr><th class="who">CTS</th>${head}<th class="tot">รวมคิว</th></tr></thead>
-        <tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div></div>
-      <div class="muted" style="margin:-4px 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · 1 คิวในปฏิทิน = 1 คิว · คิวที่ไปด้วยกันหลายคนนับให้ทุกคน ·
+    ${cts.length?`<div class="dgrid">${cards}${totCard}</div>
+      <div class="muted" style="margin:0 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · 1 คิวในปฏิทิน = 1 คิว ·
+        คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว คนที่ไปด้วยไม่นับ ·
         SKU ย่อยรวมเป็นตระกูลเดียว (เช่น Belotero Revive / Soft / Balance → Belotero) ·
-        คิวที่ระบุหลาย Product นับให้ทุกตัว และคิวที่ไม่ได้ระบุ Product จะนับเฉพาะใน "รวมคิว" ตัวเลขรายแถวจึงไม่เท่ากับรวมคิวได้</div>`
+        คิวที่ระบุหลาย Product นับให้ทุกตัว และคิวที่ไม่ได้ระบุ Product จะนับเฉพาะใน "คิว" รวม ตัวเลขราย Product จึงไม่เท่ากับยอดรวมได้</div>`
     :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
 
   const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
