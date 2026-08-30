@@ -105,7 +105,10 @@
   --ok:#3E9E7A; --ok-soft:#E4F5EE; --ok-edge:#BFE6D5;
   --warn:#C79A2E; --warn-soft:#FDF5E3; --warn-edge:#F0E0B4;
   --bad:#C8697A; --bad-soft:#FCEDF0; --bad-edge:#F2CFD7;
-  --ma:#7FA8E8; --ma-soft:#E9F0FC; --ma-edge:#C8DBF7;
+  /* งานกลาง MA / Symposium / Workshop — น้ำเงินเข้มทึบ ให้แยกออกจากสีพาสเทลของคิว CTS */
+  --ma:#1E3A73; --ma-soft:#25417C; --ma-edge:#5878B8; --ma-ink:#FFFFFF;
+  /* วันหยุด — แดงเข้มขึ้น ให้เห็นชัดออกมาจากคิว CTS */
+  --hol-bg:#FAD8DC; --hol-ink:#93202E; --hol-edge:#E39BA4;
   /* availability ramp — pastel green, dark = more free */
   --a0:#ECEAF3; --a1:#E4F5EC; --a2:#C4EBD7; --a3:#9BDCBC; --a4:#6FC9A0; --a5:#44B487;
   --tA:#B9A6F0; --tB:#F5C9A0;
@@ -266,7 +269,7 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .pill.miss{background:var(--warn-soft);color:#8A6C1B;border-color:var(--warn-edge)}
 .tbadge{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.1em;border-radius:99px;padding:3px 9px;color:#4A3F6B}
 .note{background:var(--ok-soft);border:1px solid var(--ok-edge);border-radius:13px;padding:10px 12px;font-size:12.5px;color:#256B52;margin-top:10px}
-.note.ma{background:var(--ma-soft);border-color:var(--ma-edge);color:#2F5AA8}
+.note.ma{background:var(--ma-soft);border-color:var(--ma-edge);color:var(--ma-ink)}
 .note.pl{background:var(--brand-soft);border-color:#DED4F7;color:var(--brand-deep)}
 .note.err{background:var(--bad-soft);border-color:var(--bad-edge);color:var(--bad)}
 .warn{background:var(--warn-soft);border:1px solid var(--warn-edge);border-radius:13px;padding:10px 12px;font-size:12.5px;color:#7E6317;margin-top:10px}
@@ -299,6 +302,16 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .dow span{text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink3);font-weight:700;padding:10px 0;letter-spacing:.06em}
 .dow span.sun{color:#C99}
 .mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+/* ปฏิทิน CTS แบ่งเป็นแถวสัปดาห์ เพื่อวางแถบงานต่อเนื่องลากคร่อมวันได้ */
+.mgrid.wk{display:block}
+.mweek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));position:relative;--mtop:23px}
+@media(min-width:940px){.mweek{--mtop:25px}}
+.spanpad{flex:none}
+.spanbar{position:absolute;z-index:3;height:15px;display:flex;align-items:center;
+  top:calc(var(--mtop) + var(--ln,0)*17px);
+  border:0;border-radius:7px;padding:0 6px;font-family:inherit;font-size:10px;font-weight:700;line-height:1;
+  background:var(--c);color:var(--ci);text-align:left;cursor:pointer;overflow:hidden;white-space:nowrap}
+.spanbar .etx{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .mcell{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);min-height:78px;padding:6px 5px;
   display:flex;flex-direction:column;gap:3px;text-align:left;align-items:stretch;position:relative;background:#fff;
   min-width:0;overflow:hidden}
@@ -345,12 +358,12 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .half.job .slb{opacity:.85;font-size:9px}
 .evchip .etx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .evchip .cdot{width:7px;height:7px;border-radius:50%;background:var(--ci);opacity:.6;flex:none}
-.evchip.ma{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge)}
+.evchip.ma{background:var(--ma-soft);color:var(--ma-ink);border:1px dashed var(--ma-edge)}
 .evchip.one{display:block;width:100%;max-width:100%;font-size:9px;line-height:1.3;padding:2px 4px;border-radius:5px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;margin-bottom:2px;
   background:var(--c);color:var(--ci);border:0;font-weight:700}
 .evchip.one .t{font-family:var(--mono);font-size:8px;opacity:.75}
-.evchip.ma.one{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge)}
+.evchip.ma.one{background:var(--ma-soft);color:var(--ma-ink);border:1px dashed var(--ma-edge)}
 .evmore{font-size:9.5px;color:var(--ink3);font-weight:700;padding-left:3px}
 .dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;align-content:flex-end}
 .dots i{width:9px;height:9px;border-radius:50%;display:block}
@@ -420,21 +433,21 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 @media(min-width:940px){.slotblk .nb{font-size:17px}}
 .slotblk.full{background:var(--a0);color:var(--ink3)}
 .slotblk.full .nb{font-size:11.5px}
-.slotblk.ma{background:var(--ma-soft);color:#2F5AA8}
+.slotblk.ma{background:var(--ma-soft);color:var(--ma-ink)}
 .slotblk.ma .nb{font-size:12px}
 .mcell.wknd{background:#FBFAFD}
 .wkndnote{margin-top:auto;font-size:10.5px;color:var(--ink3);line-height:1.35;text-align:center;padding-bottom:2px}
 .wkndnote b{color:var(--ok)}
 .scell.wkndcell{background:#FBFAFD}
-.mcell.hol{background:#FDEEEF}
-.mcell.hol .dn b{color:#B4535F}
-.holname{font-size:10px;font-weight:700;color:#B4535F;line-height:1.25;margin-top:auto;
+.mcell.hol{background:var(--hol-bg)}
+.mcell.hol .dn b{color:var(--hol-ink)}
+.holname{font-size:10px;font-weight:700;color:var(--hol-ink);line-height:1.25;margin-top:auto;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.wcell.holc2{background:#FDEEEF}
-.wcell.holc{background:#FDEEEF;display:flex;align-items:center;justify-content:center;padding:6px}
-.holtag{font-size:10px;font-weight:700;color:#B4535F;text-align:center;line-height:1.25}
-.wdate.holh{background:#FDEEEF}
-.wdate.holh .d{color:#B4535F}
+.wcell.holc2{background:var(--hol-bg)}
+.wcell.holc{background:var(--hol-bg);display:flex;align-items:center;justify-content:center;padding:6px}
+.holtag{font-size:10px;font-weight:700;color:var(--hol-ink);text-align:center;line-height:1.25}
+.wdate.holh{background:var(--hol-bg)}
+.wdate.holh .d{color:var(--hol-ink)}
 .caps{display:flex;flex-direction:column;gap:3px;margin-top:auto}
 .cap{height:7px;border-radius:99px;background:var(--a0);position:relative;display:block;flex:1;min-width:0}
 .capw{display:flex;align-items:center;gap:5px}
@@ -466,7 +479,7 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .half .slb{font-family:var(--mono);font-size:8.5px;font-weight:700;opacity:.7}
 .half.job{background:var(--c);color:var(--ci)}
 .half.freeh{background:#F7FBF9;border:1px dashed var(--ok-edge);color:var(--ok)}
-.half.mah{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge)}
+.half.mah{background:var(--ma-soft);color:var(--ma-ink);border:1px dashed var(--ma-edge)}
 .half.notime{background:repeating-linear-gradient(45deg,#F5F4F8,#F5F4F8 5px,#EEEDF4 5px,#EEEDF4 10px);color:var(--ink3)}
 .half.autoh{border-style:solid;border-color:var(--brand);background:#F7F4FF;color:var(--brand-deep)}
 .half.pick{box-shadow:inset 0 0 0 2px var(--ok)}
@@ -521,7 +534,7 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .slot.notime{background:repeating-linear-gradient(45deg,#F5F4F8,#F5F4F8 5px,#EEEDF4 5px,#EEEDF4 10px);
   color:var(--ink3);cursor:not-allowed;border-color:transparent}
 .slot.event{background:var(--ma-soft);border-color:var(--ma-edge)}
-.slot.event .st{color:#2F5AA8}
+.slot.event .st{color:var(--ma-ink)}
 .slot.picked{box-shadow:inset 0 0 0 3px var(--ok);background:#DDF3E8}
 
 /* form */
@@ -583,7 +596,8 @@ textarea.in{min-height:76px;resize:vertical}
 .status.tbc{background:#EDE4FF;color:#5B3E9E;border:1px solid #C9B6F2}
 .status.expired{background:#F2F1F6;color:var(--ink3);border:1px solid var(--line)}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
-.tbcbar{background:#EDE4FF;border:1px solid #C9B6F2;color:#4A2F87;border-radius:12px;padding:9px 11px;font-size:12.5px;margin-top:10px}
+/* กล่องแจ้งเตือนคิว TBC — สีแดง ให้ Sales เห็นชัดว่าเหลืออีกกี่วันก่อนปล่อยวันคืนระบบ */
+.tbcbar{background:#FDE7E9;border:1.5px solid #E08A96;color:#9E2233;border-radius:12px;padding:10px 12px;font-size:12.5px;margin-top:10px;font-weight:600}
 .kv{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;margin-top:12px;font-size:13px}
 .kv dt{color:var(--ink3);font-size:12px}
 .kv dd{margin:0}
@@ -647,7 +661,7 @@ textarea.in{min-height:76px;resize:vertical}
 .tblock{position:absolute;border-radius:9px;padding:5px 8px;text-align:left;overflow:hidden;
   background:var(--c,#eee);color:var(--ci,var(--ink));font-family:inherit;box-shadow:0 1px 3px rgba(43,42,61,.14);
   display:flex;flex-direction:column;gap:1px}
-.tblock.ma{background:var(--ma-soft);color:#2F5AA8;border:1px dashed var(--ma-edge);font-size:11.5px}
+.tblock.ma{background:var(--ma-soft);color:var(--ma-ink);border:1px dashed var(--ma-edge);font-size:11.5px}
 .tb-h{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9.5px;font-weight:700;opacity:.9}
 .tb-who{display:flex;gap:2px;margin-left:auto}
 .tb-who i{width:8px;height:8px;border-radius:50%;display:block}
@@ -679,10 +693,12 @@ textarea.in{min-height:76px;resize:vertical}
 @media(min-width:940px){.toast{bottom:26px}}
 .toast.on{opacity:1}
 .evrow{display:flex;gap:10px;align-items:center;background:var(--ma-soft);border:1px solid var(--ma-edge);
-  border-radius:13px;padding:10px 12px;margin-bottom:8px;font-size:13px}
-.evrow.hol{background:#FDEEEF;border-color:#F3C9CE}
-.evrow.hol .d{color:#B4535F}
-.evrow .d{font-family:var(--mono);font-size:11px;font-weight:700;color:#2F5AA8;text-align:center;line-height:1.15}
+  border-radius:13px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--ma-ink)}
+.evrow .muted{color:#C7D6F2}
+.evrow.hol,.evrow.hol .muted{color:var(--hol-ink)}
+.evrow.hol{background:var(--hol-bg);border-color:var(--hol-edge)}
+.evrow.hol .d{color:var(--hol-ink)}
+.evrow .d{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ma-ink);text-align:center;line-height:1.15}
 .evrow button{color:var(--bad);font-weight:700;font-size:12px}
 .team-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 @media(min-width:760px){.team-grid{grid-template-columns:repeat(4,1fr)}}
@@ -999,6 +1015,9 @@ const prodMain=v=>prodList(v)[0]||null;
 const prodTags=v=>prodList(v).map(x=>`<span class="tag" style="background:${PRODHEX[x]||'#999'};color:${pink(x)}">${x}</span>`).join(' ');
 /* ป้าย product แบบข้อความสั้นในปฏิทิน — รองรับหลาย product ต่อคิว */
 const prodText=v=>prodList(v).join(' · ');
+/* หัวข้อที่เกี่ยวข้อง (KUD / Med School / MSC) — โชว์นำหน้าชื่องานในปฏิทินแบบเดียวกับ product */
+const topicText=v=>(v||[]).join(' · ');
+const leadText=j=>[prodText(j.product),topicText(j.topics)].filter(Boolean).join(' · ');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
 const jobOf=(k,cid,slot)=>(state.sched[k]&&state.sched[k][cid])?state.sched[k][cid][slot]:undefined;
 const isClosed=(k,cid,slot)=>{const a=availOf(k,cid,slot);return !!(a&&a.closed);};
@@ -1091,6 +1110,12 @@ function renderLogin(){
         <div class="codegrid">${codes.map(cd=>`<button class="codebtn" data-code="${cd}" aria-pressed="${state.loginCode===cd}">${cd}</button>`).join('')}</div>`:''}</div>`:''}
 
     ${r==='cts'?`<div class="lgroup"><div class="llabel">เลือกชื่อของคุณ</div>
+      <div style="margin-bottom:14px;text-align:center">
+        <span class="tbadge" style="background:${TEAMS.SUP.color}">MANAGER</span>
+        <div class="who-grid" style="margin-top:8px;grid-template-columns:minmax(0,104px);justify-content:center">
+          <button class="who-card" data-c="belle" aria-pressed="${state.loginCts==='belle'}" style="--c:${pal('belle').c}">
+            <img src="${FACES.belle||''}" alt="" style="--c:${pal('belle').c}"><b>${byId('belle').nick}</b>
+            <small>Manager</small></button></div></div>
       ${['A','B'].map(t=>`<div style="margin-bottom:12px">
         <span class="tbadge" style="background:${TEAMS[t].color}">${TEAMS[t].label.toUpperCase()}</span>
         <div class="who-grid" style="margin-top:8px">${teamCTS(t).map(c=>`
@@ -1376,23 +1401,71 @@ function maCard(){
 }
 
 /* ---- month ---- */
+/* ===== คิวชุดเดียวกันที่ต่อเนื่องหลายวัน =====
+   วาดเป็นแถบเดียวลากคร่อมวัน แทนกล่องแยกวันละใบ จะได้เห็นว่างานลากยาวถึงเมื่อไหร่
+   ชุดเดียวกัน = มาจากคิวที่ CTS ลงเองใบเดียวกัน (selfId) หรือคำขอใบเดียวกัน (reqId) */
+const seriesId=j=>j.selfId?'se'+j.selfId:j.reqId?'rq'+j.reqId:null;
+function weekSpans(days){          // days = 7 ช่องของสัปดาห์นั้น (null = ช่องนอกเดือน)
+  const bySid=new Map();
+  days.forEach((g,i)=>{if(!g)return;g.jobs.forEach(e=>{const s=seriesId(e.job);if(!s)return;
+    if(!bySid.has(s))bySid.set(s,[]);bySid.get(s).push({i,e});});});
+  const bars=[],skip=new Set();    // skip = "คอลัมน์|key" ที่ถูกแถบยาวกินไปแล้ว ไม่ต้องวาดซ้ำในช่อง
+  bySid.forEach(list=>{
+    const cols=[...new Set(list.map(x=>x.i))].sort((a,b)=>a-b);
+    let run=[cols[0]];
+    const flush=()=>{
+      if(run.length>1){
+        bars.push({c0:run[0],n:run.length,e:list.find(x=>x.i===run[0]).e,k:days[run[0]].k});
+        run.forEach(i=>list.filter(x=>x.i===i).forEach(x=>skip.add(i+'|'+x.e.key)));
+      }
+      run=[];
+    };
+    for(let p=1;p<cols.length;p++){
+      if(cols[p]===cols[p-1]+1)run.push(cols[p]);else{flush();run=[cols[p]];}
+    }
+    flush();
+  });
+  bars.sort((a,b)=>a.c0-b.c0||b.n-a.n);
+  const lane=[];                   // เลนละ 1 แถบ แถบที่ไม่ทับกันใช้เลนเดียวกันได้
+  bars.forEach(b=>{let L=lane.findIndex(end=>end<=b.c0);if(L<0){L=lane.length;lane.push(0);}
+    lane[L]=b.c0+b.n;b.ln=L;});
+  return {bars,skip,lanes:lane.length};
+}
+function spanBar(b){
+  const nicks=b.e.who.map(i=>byId(i).nick).join(', ');
+  return `<button class="spanbar" data-job="${b.k}|${b.e.key}" title="${nicks} · ${esc(b.e.job.title||'')}"
+    style="${jobStyle({...b.e.job,attendees:b.e.who},b.e.who[0])};--ln:${b.ln};left:calc(${b.c0}*100%/7 + 3px);width:calc(${b.n}*100%/7 - 6px)">
+    <span class="etx">${okMark(b.e.job)}${leadText(b.e.job)?leadText(b.e.job)+' · ':''}${esc(b.e.job.title||'งาน')}${nicks?' · '+nicks:''}</span></button>`;
+}
 function monthHTML(){
   const y=state.month.getFullYear(),mo=state.month.getMonth();
   const start=new Date(y,mo,1).getDay(),last=new Date(y,mo+1,0).getDate();
   const vis=visibleCTS(),total=vis.length;
-  let cells='';
-  for(let i=0;i<start;i++)cells+='<div class="mcell pad"></div>';
-  for(let d=1;d<=last;d++){
-    const dt=new Date(y,mo,d),k=key(dt);
+  const names=canSeeNames();
+  /* เก็บข้อมูลรายวันไว้ก่อน แล้วค่อยแบ่งเป็นสัปดาห์ — ต้องรู้ว่าวันไหนถูกแถบยาวกินไปแล้ว */
+  const grid=[];
+  for(let i=0;i<start;i++)grid.push(null);
+  for(let d=1;d<=last;d++){const dt=new Date(y,mo,d),k=key(dt);
+    /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
+    grid.push({d,dt,k,jobs:names?dayEntries(k).filter(e=>e.job):[]});}
+  while(grid.length%7)grid.push(null);
+
+  let rows='';
+  for(let w=0;w<grid.length;w+=7){
+    const week=grid.slice(w,w+7);
+    const sp=names?weekSpans(week):{bars:[],skip:new Set(),lanes:0};
+    const pad=sp.lanes?`<span class="spanpad" style="height:${sp.lanes*17-3}px"></span>`:'';
+    const cells=week.map((g,ci)=>{
+    if(!g)return '<div class="mcell pad"></div>';
+    const {d,dt,k}=g;
     const hol=holidayOf(k);
     const wknd=isWeekend(dt);
     const past=dt<TODAY&&k!==key(TODAY),today=k===key(TODAY);
     const sel=state.picks.some(p=>p.date===k);
     let inner='';
     {
-      if(canSeeNames()){
-        /* เรียงตามเวลาจริงจาก dayEntries — คิวทั้งวันขึ้นก่อน ไม่ยึดช่องเช้า/บ่าย จึงไม่ซ้ำและไม่จำกัด 2 คิว */
-        const jobs=dayEntries(k).filter(e=>e.job);
+      if(names){
+        const jobs=g.jobs.filter(e=>!sp.skip.has(ci+'|'+e.key));
         const ma=dayEvents(k);
         /* มือถือ: แถบชื่องานบรรทัดเดียวเรียงกัน (แบบ Google Calendar) — เดิมเป็นจุดสีซึ่งดูไม่ออกว่างานอะไร
            จอใหญ่: แถบ 2 บรรทัด มีเวลาและชื่อคนกำกับ */
@@ -1407,7 +1480,7 @@ function monthHTML(){
               style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
               <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
                 <span class="who">${nicks}</span></span>
-              <span class="etx">${okMark(o.job)}${prodText(o.job.product)?prodText(o.job.product)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
+              <span class="etx">${okMark(o.job)}${leadText(o.job)?leadText(o.job)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
         const cap=one?4:3;
         inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
       }else{
@@ -1428,13 +1501,15 @@ function monthHTML(){
           : `<div class="blks">${blk('am')}${blk('pm')}</div>`;
       }
     }
-    cells+=`<div class="mcell${wknd?' wknd':''}${hol?' hol':''}${past?' past':''}${today?' today':''}${sel?' sel':''}"
+    return `<div class="mcell${wknd?' wknd':''}${hol?' hol':''}${past?' past':''}${today?' today':''}${sel?' sel':''}"
       ${past?'':'data-d="'+k+'" role="button" tabindex="0"'} aria-label="${fmtDate(k)}${hol?' '+hol.name:''}">
-      <span class="dn"><b>${d}</b>${dayEvents(k).length&&!canSeeNames()?'<span style="color:var(--ma)">●</span>':''}</span>
-      ${inner}${hol&&canSeeNames()?`<span class="holname">${esc(hol.name)}</span>`:''}</div>`;
+      <span class="dn"><b>${d}</b>${dayEvents(k).length&&!names?'<span style="color:var(--ma)">●</span>':''}</span>
+      ${pad}${inner}${hol&&names?`<span class="holname">${esc(hol.name)}</span>`:''}</div>`;
+    }).join('');
+    rows+=`<div class="mweek">${cells}${sp.bars.map(spanBar).join('')}</div>`;
   }
   return `<div class="dow">${THDOW.map((x,i)=>`<span class="${i===0?'sun':''}">${x}</span>`).join('')}</div>
-    <div class="mgrid">${cells}</div>${legend()}`;
+    <div class="mgrid wk">${rows}</div>${legend()}`;
 }
 
 /* ---- week ---- */
@@ -1461,7 +1536,7 @@ function weekHTML(){
           +entriesOf(k,c.id).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
             <span class="slb">${timeLabel(e.job,e)}</span>
-            <span class="etx2">${okMark(e.job)}${prodText(e.job.product)?prodText(e.job.product)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
+            <span class="etx2">${okMark(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
             ${e.job.detail?`<span class="etx3">${esc(e.job.detail)}</span>`:''}
             ${upLabel(e.job)?`<span class="etx4">${esc(upLabel(e.job))}</span>`:''}</button>`).join('');
         return `<div class="wcell${hol?' holc2':''}">${html||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
@@ -1478,7 +1553,7 @@ function weekHTML(){
       /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
       const quiet=isWeekend(d)||hol;
       return `<div class="scell${isWeekend(d)?' wkndcell':''}${hol?' wcell holc2':''}">
-        ${quiet?`<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:${hol?'#B4535F':'var(--ink3)'};font-size:12px">${hol?esc(hol.name):'เสาร์–อาทิตย์'}</span>`
+        ${quiet?`<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:${hol?'var(--hol-ink)':'var(--ink3)'};font-size:12px">${hol?esc(hol.name):'เสาร์–อาทิตย์'}</span>`
           :`<span class="sdot" style="background:${bl?'var(--ma)':rampColor(f,total)}"></span>
             <span class="sbig" style="color:${f&&!bl?'var(--ok)':'var(--ink3)'}">${bl?'MA':gateBlocked()?'?':f}<small>${bl?'งานกลาง':gateBlocked()?'เลือก Product':'ว่าง / '+total}</small></span>`}
         <button class="btn sm ${picked?'ok':''}" ${(!f||bl)?'disabled':''} data-book="${k}" data-slot="${sl}">
@@ -1491,14 +1566,14 @@ function legend(){
     <span class="lr">แสดงเฉพาะงานจริง — ช่องว่างคือยังไม่มีงาน</span>
     <span class="lr"><i style="background:repeating-linear-gradient(45deg,#DBCDF0 0 5px,#C9E4DE 5px 10px)"></i>ลายทาง = ไปด้วยกันหลายคน</span>
     <span class="lr"><i style="background:var(--ma-soft);border:1px dashed var(--ma-edge)"></i>งานกลาง MA</span>
-    <span class="lr"><i style="background:#FDEEEF;box-shadow:inset 0 0 0 1px #F3C9CE"></i>วันหยุด</span>
+    <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span>
     <span class="lr">สีของแต่ละคน = คิวงานของคนนั้น</span>
     ${teamPool().map(c=>`<span class="lr"><i style="background:${pal(c.id).c}"></i>${c.nick}</span>`).join('')}</div>`;
   return `<div class="legend">
     <span class="lr"><span class="ramp">${RAMP.map(c=>`<i style="background:${c}"></i>`).join('')}</span>ว่างน้อย → ว่างมาก (ตัวเลข = จำนวน CTS ที่ว่าง)</span>
     <span class="lr"><i style="background:var(--a0)"></i>เต็ม</span>
     <span class="lr"><i style="background:var(--ma-soft);box-shadow:inset 0 0 0 1px var(--ma-edge)"></i>งานกลาง MA</span>
-    <span class="lr"><i style="background:#FDEEEF;box-shadow:inset 0 0 0 1px #F3C9CE"></i>วันหยุด</span></div>`;
+    <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span></div>`;
 }
 
 /* ---- picking ---- */
@@ -1566,7 +1641,7 @@ function upcMonthHTML(){
     <div class="mgrid">${cells}</div>
     <div class="legend"><span class="lr"><i style="background:#E4E0F3"></i>คิวเทรน UPC</span>
       <span class="lr"><i style="background:var(--ma-soft);box-shadow:inset 0 0 0 1px var(--ma-edge)"></i>งานกลาง MA</span>
-      <span class="lr"><i style="background:#FDEEEF;box-shadow:inset 0 0 0 1px #F3C9CE"></i>วันหยุด</span>
+      <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span>
       <span class="lr">🕒 รออนุมัติ · ✓ อนุมัติแล้ว</span></div>`;
 }
 function upcWeekHTML(){
@@ -1993,7 +2068,7 @@ function timelineHTML(k){
       style="top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px);${style}">
       <span class="tb-h"><b>${e.start}–${e.end}</b>
         <span class="tb-who">${ids.map(i=>`<i style="background:${pal(i).c};box-shadow:0 0 0 1px ${pal(i).ci}55"></i>`).join('')}</span></span>
-      <span class="tb-t">${okMark(j)}${prodText(j.product)?prodText(j.product)+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (TBC — ล็อกไว้ก่อน)':''}</span>
+      <span class="tb-t">${okMark(j)}${leadText(j)?leadText(j)+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (TBC — ล็อกไว้ก่อน)':''}</span>
       <span class="tb-n">${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;
   }).join('');
   const adBar=allDay.length?`<div class="tl-allday">
@@ -2001,7 +2076,7 @@ function timelineHTML(k){
     <div class="adlist">${allDay.map(e=>{const ids=e.who.length?e.who:[e.anchor.cid];
       return `<button class="adchip" data-job="${k}|${e.key}"
         style="${jobStyle({...e.job,attendees:ids},ids[0])}">
-        <b>${okMark(e.job)}${prodText(e.job.product)?prodText(e.job.product)+' · ':''}${esc(e.job.title||'งาน')}</b>
+        <b>${okMark(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'งาน')}</b>
         <span>${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;}).join('')}</div></div>`:'';
   return adBar+`<div class="tl" style="height:${H}px">
     <div class="tl-hours">${hours.map(h=>`<div class="tl-h" style="height:${rowH}px"><span>${String(h).padStart(2,'0')}:00</span></div>`).join('')}</div>
@@ -2073,7 +2148,7 @@ function dayNamed(k){
       const t=slotTime(k,c.id,slot);
       const txt={free:'ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
       const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด 🕑 เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
-        :(j.title?(prodText(j.product)?prodText(j.product)+' · ':'')+esc(j.title):'');
+        :(j.title?(leadText(j)?leadText(j)+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked'||s==='tbc';
       /* คิวที่ทับช่วงนี้ (ตามเวลาจริง) — ใช้เปิดรายละเอียดคิว */
       const en=entriesOf(k,c.id).find(x=>toMin(x.start)<toMin(SLOT_DEF[slot].end)&&toMin(x.end)>toMin(SLOT_DEF[slot].start));
@@ -2506,6 +2581,8 @@ function confirmTBC(id){
 function convertTBC(id){
   const r=state.requests.find(x=>x.id===id);
   if(!r)return;
+  /* ต้องรอหัวหน้า (PAM / MILK) ตรวจคิว TBC ก่อน ถึงจะเลือกวันจริงได้ */
+  if(!r.tbcOk)return toast('รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' ตรวจคิว TBC ก่อน');
   const need=(MODULES[r.module]||{def:1}).def;
   const D={pick:r.sessions.map((_,i)=>i).slice(0,need)};
   const draw=()=>{
@@ -2626,11 +2703,13 @@ function reqCard(r,act){
       <span>${fmtDate(s.date)} · ${s.start||SLOT_DEF[s.slot].start}–${s.end||SLOT_DEF[s.slot].end}${s.ctsId&&showCts?' · <b style="font-family:var(--sans)">'+byId(s.ctsId).nick+'</b>':' · รอจัด CTS'}</span></div>`).join('')}</div>
     ${r.photos.length?`<div class="thumbs">${r.photos.map(p=>`<img src="${p.url}" alt="">`).join('')}</div>`:''}
     ${missBox(r)}
-    ${r.status==='tbc'?`<div class="tbcbar"><b>🔒 คิว TBC — ล็อกไว้ ${r.sessions.length} วัน</b><br>
-      ${r.tbcOk?'หัวหน้าตรวจแล้ว':'รอหัวหน้าตรวจ'} · เหลือเวลาอีก ${Math.max(0,tbcLeft(r))} วัน ก่อนปล่อยวันคืนระบบ</div>`:''}
+    ${r.status==='tbc'?`<div class="tbcbar"><b>⚠️ คิว TBC — ล็อกไว้ ${r.sessions.length} วัน · เหลืออีก ${Math.max(0,tbcLeft(r))} วัน ก่อนปล่อยวันคืนระบบ</b><br>
+      ${r.tbcOk?'หัวหน้าตรวจแล้ว — อย่าลืมกด Confirm and Request เพื่อเลือกวันที่จะเอา'
+        :'รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' ตรวจคิวก่อน ถึงจะกด Confirm and Request ได้'}</div>`:''}
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
     ${r.status==='tbc'&&(state.role==='sales'||state.role==='admin')?
-      `<button class="btn primary block" data-tbcgo="${r.id}" style="margin-top:10px">Confirm and Request</button>`:''}
+      (r.tbcOk?`<button class="btn primary block" data-tbcgo="${r.id}" style="margin-top:10px">Confirm and Request</button>`
+        :`<button class="btn block" disabled style="margin-top:10px">Confirm and Request · รอ ${leadsOf(r.team).map(l=>l.nick).join(' / ')} ตรวจคิวก่อน</button>`):''}
     ${r.status==='tbc'&&canApprove(r)?
       `<button class="btn block" data-tbcok="${r.id}" style="margin-top:8px">${
         r.tbcOk?'✎ แก้ CTS ของคิว TBC นี้':'✓ ตรวจคิว TBC · เปลี่ยน CTS รายวัน'}</button>`:''}

@@ -95,7 +95,9 @@ function authed(req) {
   if (!req) return false;
   if (req.role === 'sales') return true;
   if (NEED_PW.indexOf(req.role) < 0) return false;
-  var want = PropertiesService.getScriptProperties().getProperty('PW');
+  /* Admin ใช้รหัสของตัวเอง (Script property PW_ADMIN) ถ้าไม่ได้ตั้งไว้ก็ใช้ PW ร่วมกับ CTS */
+  var p = PropertiesService.getScriptProperties();
+  var want = (req.role === 'admin' && p.getProperty('PW_ADMIN')) || p.getProperty('PW');
   return !!want && want === req.pw;
 }
 
