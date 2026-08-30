@@ -3033,7 +3033,7 @@ function trainRows(){
   dateRange(R.from,R.to).forEach(k=>{
     dayEntries(k,pool).filter(e=>e.job&&e.who.length).forEach(e=>{
       const fams=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
-      out.push({cid:ownerOf(e),uid:k+'|'+e.key,fams,share:e.who.length>1});
+      out.push({cid:ownerOf(e),date:k,uid:k+'|'+e.key,fams});
     });
   });
   return out;
@@ -3047,11 +3047,15 @@ function renderDash(){
   const R=dashRange(),rows=trainRows();
   const cts=CTS.filter(c=>rows.some(x=>x.cid===c.id));
   const cols=DASH_PRODUCTS;    // 4 ตระกูลเท่านั้น — SKU ย่อยถูกรวมมาแล้วตอนนับ
-  /* ponytail: นับด้วยการวนซ้ำตรงๆ — ข้อมูลระดับหลักร้อยแถว ไม่ต้องทำ index */
-  const n=(cid,p)=>rows.filter(x=>x.cid===cid&&x.fams.includes(p)).length;
+  /* ponytail: นับด้วยการวนซ้ำตรงๆ — ข้อมูลระดับหลักร้อยแถว ไม่ต้องทำ index
+     ตัวเลขราย product = จำนวน "วัน" ที่มีคิวของตระกูลนั้น — วันเดียวกันหลาย SKU หรือหลายคิว นับเป็น 1
+     คนละวันนับแยก เช่น Belotero 3 วันในเดือนนั้น = 3 */
+  const days=list=>new Set(list.map(x=>x.cid+'|'+x.date)).size;
+  const n=(cid,p)=>days(rows.filter(x=>x.cid===cid&&x.fams.includes(p)));
+  const nAll=p=>days(rows.filter(x=>x.fams.includes(p)));
   const qOf=cid=>rows.filter(x=>x.cid===cid).length;
   const totQ=new Set(rows.map(x=>x.uid)).size;
-  const top=cols.map(p=>[p,rows.filter(x=>x.fams.includes(p)).length]).sort((a,b)=>b[1]-a[1])[0];
+  const top=cols.map(p=>[p,nAll(p)]).sort((a,b)=>b[1]-a[1])[0];
 
   /* การ์ดรายคน — รูป CTS + จำนวนคิวของแต่ละ product */
   const cards=cts.map(c=>`<div class="dcard" style="--c:${pal(c.id).c};--ci:${pal(c.id).ci}">
@@ -3066,7 +3070,7 @@ function renderDash(){
       <span class="grow"><b>รวมทุกคน</b><em>${cts.length} คน</em></span>
       <span class="dtot"><b>${totQ}</b><small>คิว</small></span></div>
     <div class="dprods">${cols.map(p=>`<span class="dp on" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
-      <b>${rows.filter(x=>x.fams.includes(p)).length}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
+      <b>${nAll(p)}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
 
   view().innerHTML=`<h1 class="pt">Dashboard</h1>
     <p class="psub">สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ Product ไหนไปกี่คิว</p>
@@ -3086,10 +3090,10 @@ function renderDash(){
       <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่มีคิวมากสุด</span></span></div>
     </div>
     ${cts.length?`<div class="dgrid">${cards}${totCard}</div>
-      <div class="muted" style="margin:0 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · 1 คิวในปฏิทิน = 1 คิว ·
-        คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว คนที่ไปด้วยไม่นับ ·
-        SKU ย่อยรวมเป็นตระกูลเดียว (เช่น Belotero Revive / Soft / Balance → Belotero) ·
-        คิวที่ระบุหลาย Product นับให้ทุกตัว และคิวที่ไม่ได้ระบุ Product จะนับเฉพาะใน "คิว" รวม ตัวเลขราย Product จึงไม่เท่ากับยอดรวมได้</div>`
+      <div class="muted" style="margin:0 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว คนที่ไปด้วยไม่นับ ·
+        <b>ตัวเลขราย Product = จำนวนวันที่มีคิวของตระกูลนั้น</b> — SKU ย่อยรวมเป็นตระกูลเดียว (Belotero Revive / Soft / Balance → Belotero)
+        วันเดียวกันมีหลาย SKU หรือหลายคิวของตระกูลเดียวกันนับเป็น 1 · คนละวันนับแยก เช่น มีคิว Belotero 3 วันในเดือนนั้น = 3 ·
+        ตัวเลขมุมขวาบน = จำนวนคิวจริงในปฏิทิน จึงไม่เท่ากับผลรวมราย Product ได้</div>`
     :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
 
   const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
