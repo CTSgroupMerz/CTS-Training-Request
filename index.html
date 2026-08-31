@@ -367,7 +367,6 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .mcell:nth-child(7n){border-right:0}
 .mcell.pad{background:#FCFBFE}
 .mcell.off{background:repeating-linear-gradient(45deg,#FAF9FD,#FAF9FD 6px,#F4F2FA 6px,#F4F2FA 12px)}
-.mcell.past{opacity:.42}
 .mcell .dn{font-size:12px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:4px;line-height:1.2}
 .mcell.off .dn{color:#B9B5C8;font-weight:500}
 .mcell.today .dn b{background:var(--brand-deep);color:#fff;border-radius:50%;width:21px;height:21px;
@@ -392,16 +391,16 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .okmk.off{color:currentColor;opacity:.32}
 /* Admin แตะได้ — ขยายพื้นที่กดให้นิ้วโดนง่ายบนมือถือ */
 .okmk.tap{cursor:pointer;display:inline-block;padding:0 5px;margin:-2px 1px -2px -3px;
-  border-radius:6px;box-shadow:inset 0 0 0 1px currentColor}
-.okmk.tap.off{opacity:.45}
+  border-radius:6px;background:var(--ok);color:#fff;box-shadow:none}
+.okmk.tap.off{background:#fff;color:#9AA0A8;opacity:1;box-shadow:inset 0 0 0 1.5px #C4C9D0}
 .fabsm{display:none}
 .req-star{color:#D14343;font-weight:900;margin-left:2px}
 .slotblk.gate{background:#EDE7FA;color:#5B3E9E}
 .slot.closed{background:#F6E9EA;color:#A15B62;box-shadow:inset 0 0 0 1px #E8CDD0}
-.skchip{font-size:11.5px}
-.skchip.off{opacity:.65}
-.skchip.self{--cc:#C9E4DE;--ct:#22705F}
-.skchip.senior{--cc:#FAEDCB;--ct:#8A6A11}
+.chip.skchip{font-size:11.5px;font-weight:700;background:var(--cc);color:var(--ct);border-color:var(--ct)}
+.chip.skchip.off{--cc:#F1F0F5;--ct:#8A8794;border-color:#D8D5DE}
+.chip.skchip.self{--cc:#9AD7BF;--ct:#0E5744}
+.chip.skchip.senior{--cc:#F7CE85;--ct:#7A4A06}
 .half.job{cursor:pointer;text-align:left;font-family:inherit;align-items:flex-start;flex-direction:column;gap:1px}
 .half.job .slb{opacity:.85;font-size:9px}
 .evchip .etx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -792,14 +791,14 @@ const FACES = {"belle":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHAAAABwCA
 /* ========================= MASTER DATA ========================= */
 /* pastel palette — fill + ink (text/border on that fill) */
 const PALETTE={
-  parichat  :{c:'#DBCDF0', ci:'#5B3E9E'},
-  narakamon :{c:'#C6DEF1', ci:'#245F94'},
-  koollanut :{c:'#C9E4DE', ci:'#22705F'},
-  onkamol   :{c:'#D8EFC4', ci:'#4A7524'},
-  kanwara   :{c:'#FAEDCB', ci:'#8A6A11'},
-  witchukorn:{c:'#F7D9C4', ci:'#9C5726'},
-  pariyachat:{c:'#F9C6C6', ci:'#A94446'},
-  pitchaporn:{c:'#F2C6DE', ci:'#9C3A6E'},
+  parichat  :{c:'#C4AEE8', ci:'#4B2F8C'},
+  narakamon :{c:'#A6CCEA', ci:'#1B4E80'},
+  koollanut :{c:'#A5D6CC', ci:'#175E4F'},
+  onkamol   :{c:'#BFE39F', ci:'#3C651B'},
+  kanwara   :{c:'#F5DFA3', ci:'#7A5C0A'},
+  witchukorn:{c:'#F3C3A1', ci:'#8B4A1D'},
+  pariyachat:{c:'#F5A9A9', ci:'#98383A'},
+  pitchaporn:{c:'#EBA6CC', ci:'#8B2E60'},
   belle     :{c:'#5FBFB0', ci:'#0B443D'},   /* หัวหน้างาน — เขียวมรกตเข้ม แยกชัดจากทุกคนในทีม */
 };
 const TEAMS={
@@ -1049,7 +1048,7 @@ function okMark(j){
   const cls='okmk'+(j.emailOk?'':' off')+(tag?' tap':'');
   if(!tag)return `<span class="${cls}" title="Email Approved แล้ว">✓</span>`;
   return `<span class="${cls}" role="button" tabindex="0" data-mailtag="${tag}"
-    title="${j.emailOk?'Email Approved แล้ว — แตะเพื่อยกเลิก':'แตะเพื่อทำเครื่องหมายว่า Email Approved แล้ว'}">✓</span>`;
+    title="${j.emailOk?'Email Approved แล้ว — แตะเพื่อยกเลิก':'ยังไม่ได้ทำเครื่องหมาย Email Approved — แตะเพื่อทำเครื่องหมาย'}">${j.emailOk?'✓':'○'}</span>`;
 }
 /* ผูกปุ่ม ✓ ทุกที่ที่โผล่ — ปฏิทิน สรุปรายวัน และหน้ารายละเอียดคิว */
 function bindMail(scope){
@@ -2230,7 +2229,7 @@ function dayNamed(k){
       const s=slotStatus(k,c.id,slot),ev=eventFor(k,c.id,slot),j=jobOf(k,c.id,slot)||{};
       const picked=state.picks.some(p=>p.date===k&&p.slot===slot&&p.ctsId===c.id);
       const t=slotTime(k,c.id,slot);
-      const txt={free:'ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
+      const txt={free:'✅ ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
       const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด 🕑 เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
         :(j.title?(leadText(j)?leadText(j)+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked'||s==='tbc';
@@ -2262,6 +2261,8 @@ function openEventForm(editId,keep){
     <label class="f">ชื่องาน</label><input class="in" id="evT" value="${esc(E.title)}" placeholder="เช่น Ultherapy PRIME Workshop">
     <label class="f">ประเภท</label><select class="in" id="evTy">${EVTYPE.map(t=>`<option ${E.type===t?'selected':''}>${t}</option>`).join('')}${ev?'':'<option>วันหยุด</option>'}</select>
     <label class="f">วันที่</label><input class="in" id="evD" type="date" lang="en-GB" value="${E.date}">
+    ${ev?'':`<label class="f">ถึงวันที่ <span>· เว้นว่าง = วันเดียว · ใส่เพื่อลงหลายวันรวด</span></label>
+    <input class="in" id="evD2" type="date" lang="en-GB" value="${E.date2||''}" min="${E.date}">`}
     <label class="f">ช่วงเวลา</label><select class="in" id="evS">
       ${[['all','ทั้งวัน'],['am','เช้า'],['pm','บ่าย']].map(([v,l])=>`<option value="${v}" ${E.slot===v?'selected':''}>${l}</option>`).join('')}</select>
     <label class="f">CTS ที่ร่วมงาน <span>· กดเลือกรายคน หรือใช้ปุ่มลัด</span></label>
@@ -2275,7 +2276,8 @@ function openEventForm(editId,keep){
     <button class="btn primary block" id="evSave" style="margin-top:14px">${ev?'บันทึกการแก้ไข':'บันทึกลงปฏิทิน'}</button>
     ${ev?'<button class="btn bad block" id="evDel" style="margin-top:8px">ลบงานกลางนี้</button>':''}</div>`);
   const B=$('sheetBody');
-  const grab=()=>{E.title=$('evT').value;E.date=$('evD').value;E.slot=$('evS').value;E.type=$('evTy').value;};
+  const grab=()=>{E.title=$('evT').value;E.date=$('evD').value;E.slot=$('evS').value;E.type=$('evTy').value;
+    const d2=$('evD2');if(d2)E.date2=d2.value;};
   B.querySelectorAll('[data-evall]').forEach(b=>b.onclick=()=>{grab();E.cts='all';openEventForm(editId,E);});
   B.querySelectorAll('[data-evteam]').forEach(b=>b.onclick=()=>{grab();E.cts=teamCTS(b.dataset.evteam).map(x=>x.id);openEventForm(editId,E);});
   B.querySelectorAll('[data-evc]').forEach(b=>b.onclick=()=>{grab();
@@ -2290,16 +2292,19 @@ function openEventForm(editId,keep){
     const t=E.title.trim(),d=E.date;
     if(!t||!d)return toast('ใส่ชื่องานและวันที่');
     if(E.cts!=='all'&&!E.cts.length)return toast('เลือก CTS อย่างน้อย 1 คน หรือกด "ทุกคน"');
+    /* ลงได้ทีละหลายวัน — ใส่ "ถึงวันที่" แล้วสร้างให้ทุกวันในช่วง · ตอนแก้ไขยังเป็นวันเดียวเหมือนเดิม */
+    const stop=(!ev&&E.date2&&E.date2>d)?E.date2:d,days=[];
+    for(let x=parse(d);key(x)<=stop;x.setDate(x.getDate()+1))days.push(key(x));
     if(!ev&&E.type==='วันหยุด'){
-      if(!state.holidays.some(h=>h.date===d))state.holidays.push({date:d,name:t});
+      days.forEach(dd=>{if(!state.holidays.some(h=>h.date===dd))state.holidays.push({date:dd,name:t});});
       state.month=new Date(parse(d).getFullYear(),parse(d).getMonth(),1);
       state.weekStart=mondayOf(parse(d));
-      closeSheet();state.tab='cal';render();return toast('เพิ่มวันหยุดแล้ว');}
+      closeSheet();state.tab='cal';render();return toast(`เพิ่มวันหยุดแล้ว ${days.length} วัน`);}
     if(ev)Object.assign(ev,{date:d,slot:E.slot,type:E.type,title:t,cts:E.cts});
-    else state.events.push({id:'EV-'+(state.evSeq++),date:d,slot:E.slot,type:E.type,title:t,cts:E.cts});
+    else days.forEach(dd=>state.events.push({id:'EV-'+(state.evSeq++),date:dd,slot:E.slot,type:E.type,title:t,cts:E.cts}));
     state.month=new Date(parse(d).getFullYear(),parse(d).getMonth(),1);
     state.weekStart=mondayOf(parse(d));
-    closeSheet();state.tab='cal';render();toast(ev?'บันทึกงานกลางแล้ว':'เพิ่มงานกลางแล้ว');};
+    closeSheet();state.tab='cal';render();toast(ev?'บันทึกงานกลางแล้ว':`เพิ่มงานกลางแล้ว ${days.length} วัน`);};
 }
 
 /* ========================= REQUEST FORM ========================= */
@@ -2970,6 +2975,7 @@ function bindCards(scope){
    แตะชิปเพื่อวนสถานะ: ปิด -> เปิด (รับเองได้) -> Train with Senior -> ปิด */
 const SKILL_NEXT={null:'self',self:'senior',senior:null};
 const SKILL_LABEL={self:'เปิด',senior:'+Senior'};
+const SKILL_ICON={null:'○',self:'✓',senior:'★'};
 function setSkill(cid,prod,val){
   if(!state.skills[cid])state.skills[cid]={};
   if(val)state.skills[cid][prod]=val; else delete state.skills[cid][prod];
@@ -2989,17 +2995,16 @@ function renderSkills(){
         <button class="btn sm" data-sknone="${c.id}">ปิดหมด</button></div>
       <div class="chips" style="margin-top:10px">${PRODUCTS.map(pr=>{
         const v=mine[pr]||null;
-        return `<button class="chip skchip ${v||'off'}" data-sk="${c.id}|${pr}"
-          style="--cc:${v?PRODHEX[pr]:'#F2F1F6'};--ct:${v?pink(pr):'var(--ink3)'}">
-          ${pr}${v?' · '+SKILL_LABEL[v]:''}</button>`;}).join('')}</div></div>`;}).join('');
+        return `<button class="chip skchip ${v||'off'}" data-sk="${c.id}|${pr}">
+          ${SKILL_ICON[String(v)]} ${pr}${v?' · '+SKILL_LABEL[v]:''}</button>`;}).join('')}</div></div>`;}).join('');
   view().innerHTML=`<h1 class="pt">Skills CTS</h1>
     <p class="psub">เปิด product ที่แต่ละคนเทรนได้ — Sales จะเห็นคิวว่างของคนนั้นเฉพาะ product ที่เปิดไว้</p>
     <div class="card" style="margin-bottom:14px"><div class="row" style="gap:9px;flex-wrap:wrap">
-      <span class="chip skchip off" style="--cc:#F2F1F6;--ct:var(--ink3)">ปิด</span><span class="muted">ไม่ขึ้นเป็นคิวว่างของ product นั้น</span></div>
+      <span class="chip skchip off">○ ปิด</span><span class="muted">ไม่ขึ้นเป็นคิวว่างของ product นั้น</span></div>
       <div class="row" style="gap:9px;flex-wrap:wrap;margin-top:7px">
-      <span class="chip skchip self" style="--cc:#C9E4DE;--ct:#22705F">เปิด</span><span class="muted">รับคิวเองได้เลย</span></div>
+      <span class="chip skchip self">✓ เปิด</span><span class="muted">รับคิวเองได้เลย</span></div>
       <div class="row" style="gap:9px;flex-wrap:wrap;margin-top:7px">
-      <span class="chip skchip senior" style="--cc:#FAEDCB;--ct:#8A6A11">+Senior</span><span class="muted">รับได้ แต่ต้องมี PAM หรือ MILK ว่างไปด้วย คิวว่างจะถูกจำกัดตามคิวของหัวหน้า</span></div>
+      <span class="chip skchip senior">★ +Senior</span><span class="muted">รับได้ แต่ต้องมี PAM หรือ MILK ว่างไปด้วย คิวว่างจะถูกจำกัดตามคิวของหัวหน้า</span></div>
       <div class="note" style="margin-top:10px">แตะชิปเพื่อวนสถานะ ปิด → เปิด → +Senior → ปิด</div></div>
     ${rows}`;
   view().querySelectorAll('[data-sk]').forEach(b=>b.onclick=()=>{
