@@ -644,7 +644,7 @@ textarea.in{min-height:76px;resize:vertical}
   border-radius:99px;padding:4px 9px;white-space:nowrap}
 .status.pending{background:var(--warn-soft);color:#8A6C1B;border:1px solid var(--warn-edge)}
 .status.approved{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok-edge)}
-.status.rejected{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad-edge)}
+.status.rejected,.status.cancelled{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad-edge)}
 .status.tbc{background:#EDE4FF;color:#5B3E9E;border:1px solid #C9B6F2}
 .status.expired{background:#F2F1F6;color:var(--ink3);border:1px solid var(--line)}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
@@ -872,7 +872,7 @@ const PRODINK=Object.fromEntries(PRODUCTS.concat(LEGACY_PRODUCTS).map(x=>[x,FAMI
 /* สีตัวอักษรบนพื้นสี product (พื้นอ่อน ต้องใช้ตัวอักษรเข้ม) */
 const pink=pr=>PRODINK[pr]||'var(--ink)';
 const EVTYPE=['Workshop','Symposium','MA Central Event'];
-const TOPIC_TAGS=['KUD','Med School','MSC'];   // หัวข้อที่เกี่ยวข้องของคิวงาน — เลือกได้หลายอัน
+const TOPIC_TAGS=['KUD','Med School','MSC','OTOS'];   // หัวข้อที่เกี่ยวข้องของคิวงาน — เลือกได้หลายอัน
 const EXP=['Beginner — ยังไม่เคยฉีด / ไม่เคยใช้เครื่อง','Intermediate — เคยใช้บ้าง ต้องมีคนคุม','Advanced — ใช้ประจำ ต้องการ technique ใหม่'];
 const RAMP=['var(--a1)','var(--a2)','var(--a3)','var(--a4)','var(--a5)'];
 /* วันหยุดประจำเดือน — แก้/เพิ่มได้ที่นี่ (Admin เพิ่มในแอปได้ด้วย) */
@@ -927,7 +927,7 @@ function canSeeReq(r){
 const myRequests=()=>state.requests.filter(canSeeReq);
 /* UPC = เขตต่างจังหวัด เดินทางหลายวัน — ไม่ต้องดูคิวว่างรายครึ่งวัน */
 const isUPC=()=>state.role==='sales'&&state.area==='UPC';
-const upcReqs=()=>state.requests.filter(r=>r.mode==='upc'&&r.status!=='rejected'&&canSeeReq(r));
+const upcReqs=()=>state.requests.filter(r=>r.mode==='upc'&&r.status!=='rejected'&&r.status!=='cancelled'&&canSeeReq(r));
 function upcOnDate(k){
   const out=[];
   upcReqs().forEach(r=>{(r.days||[]).forEach(d=>{if(d.date===k)out.push({r,day:d});});});
@@ -1032,6 +1032,10 @@ const timeLabel=(j,t)=>(j&&j.allDay)?'ทั้งวัน':fmtT(t);
 /* ใครกำลังใช้งานอยู่ — ใช้บันทึกว่าคิวนี้ถูกแก้ล่าสุดโดยใคร */
 const whoAmI=()=>state.role==='cts'?byId(state.me).nick:state.role==='admin'?'Admin':(state.salesId||'Sales');
 const stampNow=o=>{o.upBy=whoAmI();o.upAt=new Date().toISOString();return o;};
+/* id ใหม่ — เลขวิ่งไว้ให้เรียงและอ่านง่ายเหมือนเดิม ตัวอักษร 2 ตัวท้ายไว้กันชน
+   จำเป็นเพราะแต่ละเครื่องเดินเลขของตัวเองไปก่อน กว่าจะรู้ว่าอีกเครื่องใช้เลขไหนก็ตอนบันทึกแล้ว
+   ถ้าใช้เลขเปล่า สองคนที่เปิดแอปค้างไว้จะได้ TR ซ้ำกัน แล้วตอน merge จะเหลือใบเดียว = คำขอหาย */
+const newId=(pre,n)=>pre+'-'+n+(Math.random().toString(36)+'00').slice(2,4).toUpperCase();
 const upLabel=j=>{
   if(!j||!j.upBy||!j.upAt)return '';
   const d=new Date(j.upAt);if(isNaN(d))return '';
@@ -1076,7 +1080,7 @@ const leadText=j=>[prodText(j.product),topicText(j.topics)].filter(Boolean).join
    ว่าง = เห็นทุกอย่างเหมือนเดิม · เลือกแล้ว = เห็นเฉพาะประเภทที่เลือก (เลือกพร้อมกันได้หลายอัน)
    กรองตอนวาดปฏิทินเท่านั้น ไม่แตะการนับคิวว่างและการคำนวณเวลา */
 const TYPE_HEX={'MA':['var(--ma-soft)','#FFFFFF'],'KUD':['#FBE0C8','#8A4A18'],
-  'Med School':['#CFE3F5','#1D5A8F'],'MSC':['#F6CFE4','#96336A']};
+  'Med School':['#CFE3F5','#1D5A8F'],'MSC':['#F6CFE4','#96336A'],'OTOS':['#CDECD8','#1F6B3F']};
 const TYPE_FILTERS=['MA'].concat(TOPIC_TAGS);
 const tfOn=()=>state.tfilter.size>0;
 const jobTypeOk=j=>!tfOn()||(j.topics||[]).some(t=>state.tfilter.has(t));
@@ -1309,12 +1313,13 @@ function render(){
         <div class="bsub">Training Request · Clinical Training</div></div>
       <nav class="navlist">${nav}</nav>
       ${state.role==='admin'?'<button class="btn sm block" id="sideEv">＋ เพิ่มงานกลาง MA</button>':''}
-      <div class="sidefoot"><button class="btn sm block ghost" id="sideRules" style="margin-bottom:8px">กติกาการใช้งาน</button>${userChip()}</div>
+      <div class="sidefoot"><button class="btn sm block ghost" id="sideSync" style="margin-bottom:8px">⟳ รีเฟรชข้อมูล</button>
+        <button class="btn sm block ghost" id="sideRules" style="margin-bottom:8px">กติกาการใช้งาน</button>${userChip()}</div>
     </aside>
     <div class="main">
       <div class="topbar"><img class="mzlogo xs" src="${LOGO_DARK}" alt="Merz">
         <span class="tt">Training Request<small>${sub}</small></span>
-        <button class="iconbtn" id="tRules">?</button><button class="iconbtn" id="tOut">↪</button></div>
+        <button class="iconbtn" id="tSync">⟳</button><button class="iconbtn" id="tRules">?</button><button class="iconbtn" id="tOut">↪</button></div>
       <div class="page" id="view"></div>
     </div>
     <nav class="botnav${tabs.length>4?' tight':''}${tabs.length>6?' tight2':''}" style="grid-template-columns:repeat(${tabs.length},1fr)">${bnav}</nav>
@@ -1323,6 +1328,7 @@ function render(){
   root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
   ['uOut','tOut'].forEach(i=>{const e=$(i);if(e)e.onclick=logout;});
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
+  ['sideSync','tSync'].forEach(i=>{const e=$(i);if(e)e.onclick=refresh;});
   const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
   ({cal:renderCal,sale:renderCal,dash:renderDash,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
   syncBadge();     // เรียกหลังเรนเดอร์แท็บ — เปิดแท็บแจ้งเตือนแล้วป้ายบนไอคอนต้องหายไปเลย
@@ -1934,7 +1940,7 @@ function openSelfEntry(date,editId,keep){
     if(D.multi&&D.dateEnd&&D.dateEnd<D.date){e.hidden=false;e.textContent='วันสิ้นสุดต้องไม่ก่อนวันเริ่ม';return;}
     if(!D.multi)D.dateEnd='';
     if(ev){Object.assign(ev,D);stampNow(ev);syncSelf(ev);}
-    else{const nv=stampNow({...D,id:'SE-'+(state.seSeq++)});state.selfEvents.push(nv);syncSelf(nv);}
+    else{const nv=stampNow({...D,id:newId('SE',state.seSeq++)});state.selfEvents.push(nv);syncSelf(nv);}
     state.month=new Date(parse(D.date).getFullYear(),parse(D.date).getMonth(),1);
     state.weekStart=mondayOf(parse(D.date));
     const n=dateRange(D.date,D.dateEnd||D.date).length;
@@ -2001,6 +2007,7 @@ function openJob(k,ekey){
     ${canSeeNames()&&r&&r.status==='approved'&&r.mode!=='upc'&&j.sIdx!==undefined
       ?`<button class="btn block" data-reqsess="${r.id}|${j.sIdx}" style="margin-top:11px">✎ แก้ไขคิวงานนี้ (หัวข้อ · เวลา · ผู้ร่วมงาน)</button>`:''}
     ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">🕑 แก้เวลา / เวลาที่ว่าง</button>`:''}
+    ${canSeeNames()&&r&&r.status==='approved'?`<button class="btn bad block" data-cancelreq="${r.id}" style="margin-top:9px">✕ คิวยกเลิก — ลบออกจากปฏิทิน</button>`:''}
     ${upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc(upLabel(j))}</div>`:''}
   </div>${detail}
   <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
@@ -2095,7 +2102,7 @@ function dayEntries(k,pool){
       start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
   });
   state.requests.forEach(r=>{
-    if(r.status==='rejected')return;
+    if(r.status==='rejected'||r.status==='cancelled')return;   // คิวยกเลิก = หายจากปฏิทิน CTS
     (r.sessions||[]).forEach((s,i)=>{
       if(s.date!==k||!s.ctsId)return;
       const day=(r.days||[]).find(x=>x.date===k);
@@ -2301,7 +2308,7 @@ function openEventForm(editId,keep){
       state.weekStart=mondayOf(parse(d));
       closeSheet();state.tab='cal';render();return toast(`เพิ่มวันหยุดแล้ว ${days.length} วัน`);}
     if(ev)Object.assign(ev,{date:d,slot:E.slot,type:E.type,title:t,cts:E.cts});
-    else days.forEach(dd=>state.events.push({id:'EV-'+(state.evSeq++),date:dd,slot:E.slot,type:E.type,title:t,cts:E.cts}));
+    else days.forEach(dd=>state.events.push({id:newId('EV',state.evSeq++),date:dd,slot:E.slot,type:E.type,title:t,cts:E.cts}));
     state.month=new Date(parse(d).getFullYear(),parse(d).getMonth(),1);
     state.weekStart=mondayOf(parse(d));
     closeSheet();state.tab='cal';render();toast(ev?'บันทึกงานกลางแล้ว':`เพิ่มงานกลางแล้ว ${days.length} วัน`);};
@@ -2617,7 +2624,7 @@ function bookUPC(req){
 function clearUPC(req){req.sessions.forEach(sn=>{if(sn.ctsId){setJob(sn.date,sn.ctsId,'am',null);setJob(sn.date,sn.ctsId,'pm',null);}});}
 
 function submitUPC(D){
-  const req={id:'TR-'+(state.seq++),team:'BOTH',area:'UPC',mode:'upc',status:'pending',created:new Date(),
+  const req={id:newId('TR',state.seq++),team:'BOTH',area:'UPC',mode:'upc',status:'pending',created:new Date(),
     dateFrom:D.from,dateTo:D.to,days:JSON.parse(JSON.stringify(D.days.map(d=>({...d,items:d.items.map(i=>({...i,photos:[]}))})))),
     requester:D.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),
     sessions:D.days.map(d=>({date:d.date,slot:'day',ctsId:null,fullDay:true})),
@@ -2711,7 +2718,7 @@ function submitTBC(){
   const box=$('errBox');
   if(e.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+e.join(' · ');box.scrollIntoView({block:'center'});return;}
   const team=activeTeam();
-  const req={id:'TR-'+(state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
+  const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
     status:'tbc',tbc:true,tbcAt:new Date().toISOString(),created:new Date(),
     sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,clinic:d.clinic,map:d.map,
@@ -2743,7 +2750,7 @@ function submit(){
   if(e.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+e.join(' · ');box.scrollIntoView({block:'center'});return;}
 
   const team=activeTeam();
-  const req={id:'TR-'+(state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
+  const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
     status:'pending',created:new Date(),sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,clinic:d.clinic,map:d.map,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
@@ -2941,6 +2948,25 @@ function upcCard(r,act){
     ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
   </div></div>`;
 }
+/* คิวที่อนุมัติแล้วโดนยกเลิกทีหลัง — เอาออกจากปฏิทิน CTS แล้วคืนช่องให้ Sales จองใหม่
+   เก็บคำขอไว้ (status=cancelled) ไม่ลบทิ้ง จะได้ยังตามประวัติได้ · ลบจริงใช้ "ลบคำขอนี้" */
+function cancelReq(id){
+  const r=state.requests.find(x=>x.id===id);
+  if(!r)return;
+  openSheet(`<div class="eyebrow">${r.id}</div><h2>คิวนี้ยกเลิก?</h2>`,
+  `<div class="card"><div class="warn" style="margin-top:0"><b>${esc(r.clinic||r.module||r.id)}</b><br>
+    ${r.sessions.length} session · คิวจะหายจากปฏิทิน CTS และกลับเป็นช่องว่างให้ Sales จองใหม่</div>
+    <div class="note">คำขอยังอยู่ในระบบ สถานะจะเปลี่ยนเป็น cancelled</div>
+    <button class="btn bad block" id="cxYes" style="margin-top:13px">ยืนยัน — คิวยกเลิก</button>
+    <button class="btn ghost block" id="cxNo" style="margin-top:8px">ไม่ใช่ ปิดหน้านี้</button></div>`);
+  $('cxNo').onclick=closeSheet;
+  $('cxYes').onclick=()=>{
+    r.status='cancelled';r.cancelledBy=whoAmI();r.cancelledAt=new Date().toISOString();
+    if(r.mode==='upc')clearUPC(r);
+    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
+    notify(r,'cancelled');
+    closeSheet();render();toast('คิวยกเลิกแล้ว — ลบออกจากปฏิทิน CTS แล้ว');};
+}
 /* ลบคำขอทิ้ง — เฉพาะ CTS · ถามยืนยันก่อนเพราะกู้คืนไม่ได้ */
 function delReq(id){
   const r=state.requests.find(x=>x.id===id);
@@ -2968,6 +2994,7 @@ function bindCards(scope){
     if(r&&r.mode==='upc'){state.upcDraft=null;openUPCForm(r.id);}else openEdit(b.dataset.edit);});
   scope.querySelectorAll('[data-uedit]').forEach(b=>b.onclick=()=>{state.upcDraft=null;openUPCForm(b.dataset.uedit);});
   scope.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delReq(b.dataset.del));
+  scope.querySelectorAll('[data-cancelreq]').forEach(b=>b.onclick=()=>cancelReq(b.dataset.cancelreq));
   scope.querySelectorAll('[data-tbcok]').forEach(b=>b.onclick=()=>confirmTBC(b.dataset.tbcok));
   scope.querySelectorAll('[data-tbcgo]').forEach(b=>b.onclick=()=>convertTBC(b.dataset.tbcgo));
 }
@@ -3309,6 +3336,7 @@ const NKIND={
   pending :{ic:'🕒', label:'รออนุมัติ', bg:'var(--warn-soft)', bd:'var(--warn-edge)', ink:'#8A6C1B'},
   approved:{ic:'✓',  label:'อนุมัติแล้ว', bg:'var(--ok-soft)',  bd:'var(--ok-edge)',  ink:'var(--ok)'},
   rejected:{ic:'✕',  label:'ไม่อนุมัติ', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
+  cancelled:{ic:'✕', label:'คิวยกเลิก', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
 };
 function notiCard(it){
   const r=it.r,K=NKIND[it.kind];
@@ -3330,6 +3358,8 @@ function notiCard(it){
       <div class="nwhen">${when.map(w=>`<span>${w}</span>`).join('')}</div>
       ${it.kind==='pending'
         ? `<div class="muted" style="margin-top:8px">รอ ${leadsOf(r.team).map(l=>l.nick).join(' หรือ ')} พิจารณา${r.team==='BOTH'?' (อนุมัติได้ทั้งสองคน)':''}</div>`
+        : it.kind==='cancelled'
+        ? `<div class="muted" style="margin-top:8px">ยกเลิกโดย ${esc(r.cancelledBy||'—')} — ลบออกจากปฏิทิน CTS แล้ว คิวว่างกลับคืนให้ Sales</div>`
         : it.kind==='rejected'
         ? `<div class="muted" style="margin-top:8px">คิวถูกคืนให้ CTS แล้ว — ติดต่อ Leader เพื่อจัดวันใหม่</div>`
         : `<div class="nsess">${r.sessions.filter(s=>s.ctsId).map((s,i)=>`<span class="s" style="background:${pal(s.ctsId).c};color:${pal(s.ctsId).ci}">
@@ -3366,6 +3396,7 @@ function renderFeed(){
       <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">🕒 รออนุมัติ (${n('pending')})</button>
       <button class="fchip all" data-nf="approved" aria-pressed="${f==='approved'}" style="--c:var(--ok-soft);--ci:var(--ok)">✓ อนุมัติแล้ว (${n('approved')})</button>
       <button class="fchip all" data-nf="rejected" aria-pressed="${f==='rejected'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ ไม่อนุมัติ (${n('rejected')})</button>
+      <button class="fchip all" data-nf="cancelled" aria-pressed="${f==='cancelled'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ คิวยกเลิก (${n('cancelled')})</button>
     </div>
     ${feed.length?`<div class="nfeed">${feed.map(notiCard).join('')}</div>`:
     '<div class="card"><div class="empty"><div class="big">✦</div>ไม่มีรายการในหมวดนี้</div></div>'}`;
@@ -3456,12 +3487,59 @@ const api=body=>fetch(API,{method:'POST',
   headers:{'Content-Type':'text/plain'},            // text/plain = ไม่เกิด CORS preflight กับ Apps Script
   body:JSON.stringify({...body,role:auth.role,pw:auth.pw})}).then(r=>r.json());
 
+/* ===== รวมข้อมูลตอนสองคนแก้พร้อมกัน =====
+   เดิม: ฝั่งที่บันทึกทีหลังโดนโยนข้อมูลเซิร์ฟเวอร์ทับ งานที่เพิ่งกรอกหายเงียบๆ
+   ตอนนี้: เทียบ 3 ทาง (base = ของที่โหลดมาล่าสุด, mine = ของเรา, theirs = ของบนเซิร์ฟเวอร์)
+   ใครแก้ตรงไหน ตรงนั้นชนะ · แก้จุดเดียวกันทั้งคู่ค่อยให้ฝั่งเซิร์ฟเวอร์ชนะ */
+const sm=v=>JSON.stringify(v===undefined?null:v);
+const eqv=(a,b)=>sm(a)===sm(b);
+const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+/* ตัวระบุแถวในลิสต์ — ไม่มี id ก็ merge ไม่ได้ */
+const rowId=x=>isObj(x)?(x.id!=null?x.id:(isObj(x.r)&&x.r.id!=null?'f'+x.r.id:(x.date!=null?x.date:null))):null;
+function merge3(base,mine,theirs){
+  if(mine===undefined)return theirs;
+  if(theirs===undefined)return mine;
+  if(eqv(mine,theirs)||eqv(base,mine))return theirs;   // เราไม่ได้แก้ -> เอาของเขา
+  if(eqv(base,theirs))return mine;                     // เขาไม่ได้แก้ -> เอาของเรา
+  if(Array.isArray(mine)&&Array.isArray(theirs))return mergeList(Array.isArray(base)?base:[],mine,theirs);
+  if(isObj(mine)&&isObj(theirs)){
+    const out={},b=isObj(base)?base:{};
+    new Set(Object.keys(mine).concat(Object.keys(theirs))).forEach(k=>{
+      const v=merge3(b[k],mine[k],theirs[k]);
+      if(v!==undefined)out[k]=v;});
+    return out;
+  }
+  return theirs;   // ค่าเดี่ยวที่แก้ชนกันจริงๆ ให้ฝั่งเซิร์ฟเวอร์ชนะ
+}
+/* ตัวนับ id ต้องบวกรวมกัน ไม่ใช่เอาค่าใดค่าหนึ่ง — สองฝั่งเดินคนละที เลขจะได้ไม่ถอยหลัง
+   (ตัว id เองกันชนด้วยตัวอักษรท้ายจาก newId อยู่แล้ว ตรงนี้แค่ทำให้เลขวิ่งไปข้างหน้า) */
+function mergeState(base,mine,theirs){
+  const out=merge3(base,mine,theirs);
+  ['seq','evSeq','seSeq'].forEach(k=>{const b=base[k]||0;
+    out[k]=Math.max(mine[k]||0,theirs[k]||0,(mine[k]||0)+(theirs[k]||0)-b);});
+  return out;
+}
+function mergeList(base,mine,theirs){
+  if(mine.concat(theirs).some(x=>rowId(x)==null))return mine;   // ไม่มีตัวระบุ = merge ไม่ได้ เก็บของเราไว้
+  const map=l=>new Map(l.map(x=>[rowId(x),x]));
+  const bm=map(base),tm=map(theirs),seen=new Set(),out=[];
+  mine.forEach(x=>{const k=rowId(x);seen.add(k);
+    if(bm.has(k)&&!tm.has(k)&&eqv(bm.get(k),x))return;          // เขาลบ เราไม่ได้แก้ -> ลบตาม
+    out.push(tm.has(k)?merge3(bm.get(k),x,tm.get(k)):x);});
+  theirs.forEach(x=>{const k=rowId(x);
+    if(seen.has(k))return;
+    if(bm.has(k)&&eqv(bm.get(k),x))return;                      // เราลบ เขาไม่ได้แก้ -> ลบตาม
+    out.push(x);});
+  return out;
+}
+/* feed เก็บ request มาด้วย — หลังโหลด/merge ต้องชี้กลับไปที่ตัวจริง ไม่งั้นการ์ดแจ้งเตือนจะค้างข้อมูลเก่า */
+const relinkFeed=()=>state.feed.forEach(f=>{const m=state.requests.find(x=>x.id===f.r.id);if(m)f.r=m;});
+
 /* เอาข้อมูลจากเซิร์ฟเวอร์มาใส่ state */
 function apply(d){
   if(d.data&&Object.keys(d.data).length){
     Object.assign(state,d.data);
-    /* feed เก็บ request มาด้วย — หลังโหลดต้องชี้กลับไปที่ตัวจริง ไม่งั้นการ์ดแจ้งเตือนจะค้างข้อมูลเก่า */
-    state.feed.forEach(f=>{const m=state.requests.find(x=>x.id===f.r.id);if(m)f.r=m;});
+    relinkFeed();
   }
   sweepTBC();
   version=d.version||0;
@@ -3483,6 +3561,14 @@ async function load(){
   }
 }
 
+/* ปุ่ม ⟳ — ดึงข้อมูลล่าสุดมาดูเดี๋ยวนี้ ไม่ต้องรอสลับแอปหรือรีโหลดหน้า */
+async function refresh(){
+  if(!API)return toast('โหมดออฟไลน์ — ไม่มีข้อมูลให้รีเฟรช');
+  if(saving)return toast('กำลังบันทึกอยู่ — รอสักครู่แล้วกดใหม่');
+  toast('กำลังโหลดข้อมูลล่าสุด…');
+  if(await load()){render();toast('อัปเดตข้อมูลล่าสุดแล้ว');}
+}
+
 async function save(){
   if(!API||!loaded||saving)return;
   const body=JSON.stringify(snap());
@@ -3491,7 +3577,14 @@ async function save(){
   try{
     const d=await api({version,data:JSON.parse(body)});
     if(!d.ok){toast('รหัสผ่านใช้ไม่ได้แล้ว — กรุณาเข้าสู่ระบบใหม่');loaded=false;return logout();}
-    if(d.stale){apply(d);render();toast('มีคนแก้พร้อมกัน — โหลดข้อมูลล่าสุดแล้ว');}
+    if(d.stale){
+      /* มีคนบันทึกแทรกเข้ามา — รวมของเขากับของเราแทนการทับทิ้ง แล้วปล่อยให้รอบ retry ส่งผลรวมกลับขึ้นไป */
+      const merged=mergeState(JSON.parse(lastSaved),JSON.parse(body),d.data);
+      apply(d);                       // ตั้ง version + lastSaved เป็นของบนเซิร์ฟเวอร์
+      Object.assign(state,merged);    // แล้วทับด้วยผลรวม -> snap() != lastSaved -> finally จะ save ต่อให้
+      relinkFeed();
+      render();toast('มีคนแก้พร้อมกัน — รวมข้อมูลของทั้งสองฝั่งแล้ว');
+    }
     else{version=d.version;lastSaved=body;}
   }catch(e){
     toast('บันทึกไม่สำเร็จ — จะลองใหม่อัตโนมัติ');

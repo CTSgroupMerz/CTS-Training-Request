@@ -31,6 +31,10 @@ new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
 const K='2026-08-24';
+/* ตรึงปฏิทินไว้ที่สัปดาห์/เดือนของ K — ปกติแอปเปิดที่ "วันนี้" พอเวลาผ่าน 24 ส.ค. 69 ไป
+   คิวทดสอบก็หลุดออกนอกจอที่ monthHTML/weekHTML วาด แล้วเทสพังเองทั้งที่โค้ดไม่ได้เสีย */
+X.state.month=new Date(2026,7,1);
+X.state.weekStart=new Date(2026,7,24);
 const ME=X.CTS[0].id, OTHER=X.CTS[1].id;
 /* ดูเป็น CTS คนแรก — visibleCTS() จะได้ไม่ตัดใครทิ้ง */
 X.state.role='cts'; X.state.me=ME; X.state.authed=true; X.state.tab='cal';

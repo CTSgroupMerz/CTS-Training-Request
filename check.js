@@ -20,7 +20,7 @@ const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Nu
   fetch:(u,o)=>{posts.push(JSON.parse(o.body));return Promise.resolve({json:()=>Promise.resolve({ok:true,version:9,data:{}})});}};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
-src += String.fromCharCode(10) + "__x={state,TODAY,snap,SAVED,save,load,signIn,needPw,logout,API};";
+src += String.fromCharCode(10) + "__x={state,TODAY,snap,SAVED,save,load,signIn,needPw,logout,API,mergeState,newId};";
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -81,5 +81,30 @@ X.save(); assert.strictEqual(posts.length,0,'save() ต้องเงียบ�
   assert.ok(!/getProperty\(['"]PW['"]\)\s*\|\||PW\s*=\s*['"]cts1234['"]/.test(fs.readFileSync('Code.gs','utf8')),
     'Code.gs ต้องอ่านรหัสจาก Script Properties เท่านั้น');
 
-  console.log('✓ ผ่านทั้ง 10 ข้อ');
+  // 11. สองคนแก้พร้อมกันแล้วต้องไม่มีใครข้อมูลหาย (merge 3 ทาง)
+  const M=X.mergeState;
+  const base={requests:[{id:'A'},{id:'B'}],sched:{'2026-09-01':{pam:{am:null,pm:null}}},seq:10};
+  const mine={requests:[{id:'A'},{id:'B'},{id:'C',clinic:'ของเรา'}],
+              sched:{'2026-09-01':{pam:{am:{title:'ของเรา'},pm:null}}},seq:11};
+  const theirs={requests:[{id:'A'},{id:'B'},{id:'D',clinic:'ของเขา'}],
+                sched:{'2026-09-01':{pam:{am:null,pm:{title:'ของเขา'}}}},seq:11};
+  const m=M(base,mine,theirs);
+  assert.strictEqual(JSON.stringify(m.requests.map(r=>r.id).sort()),JSON.stringify(["A","B","C","D"]),'คำขอที่สองคนเพิ่มพร้อมกันต้องอยู่ครบ');
+  assert.strictEqual(m.sched['2026-09-01'].pam.am.title,'ของเรา','คิวเช้าที่เราลงต้องไม่หาย');
+  assert.strictEqual(m.sched['2026-09-01'].pam.pm.title,'ของเขา','คิวบ่ายที่อีกคนลงต้องไม่หาย');
+  assert.strictEqual(m.seq,12,'ตัวนับ id ต้องเดินต่อจากค่าสูงสุด ไม่ย้อนกลับ');
+  // ลบฝั่งเดียว = ลบจริง · ไม่ใช่ถูกอีกฝั่งใส่กลับมา
+  assert.strictEqual(JSON.stringify(M(base,{requests:[{id:'A'}]},{requests:[{id:'A'},{id:'B'}]}).requests),JSON.stringify([{id:"A"}]),'ที่เราลบต้องไม่ถูกใส่กลับ');
+  assert.strictEqual(JSON.stringify(M(base,{requests:[{id:'A'},{id:'B'}]},{requests:[{id:'A'}]}).requests),JSON.stringify([{id:"A"}]),'ที่อีกฝั่งลบต้องลบตาม');
+  // แก้แถวเดียวกันคนละฟิลด์ ต้องได้ทั้งสองฟิลด์
+  const both=M({requests:[{id:'A',clinic:'x'}]},{requests:[{id:'A',clinic:'x',topic:'ของเรา'}]},
+                {requests:[{id:'A',clinic:'x',doctors:3}]}).requests[0];
+  assert.deepStrictEqual([both.topic,both.doctors],['ของเรา',3],'แก้คนละฟิลด์ในคำขอเดียวกันต้องอยู่ครบทั้งคู่');
+
+  // 12. id ใหม่ต้องไม่ชนแม้เลข seq เดียวกัน (สองเครื่องเดินเลขของตัวเองไปก่อน)
+  const ids=new Set();for(let i=0;i<200;i++)ids.add(X.newId('TR',1041));
+  assert.ok(ids.size>100,'id เลขเดียวกันต้องกระจาย ไม่ใช่ซ้ำกันหมด');
+  assert.ok(Array.from(ids).every(v=>/^TR-1041[A-Z0-9]{2}$/.test(v)),'รูปแบบ id เพี้ยน');
+
+  console.log('✓ ผ่านทั้ง 12 ข้อ');
 })();
