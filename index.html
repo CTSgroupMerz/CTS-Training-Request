@@ -1136,15 +1136,20 @@ function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.rem
 /* ponytail: บนมือถือทั้งหน้าเว็บคือตัวเลื่อน — พอเขียน innerHTML ทับ เนื้อหาหายไปชั่วขณะ
    เบราว์เซอร์เลยดีด scroll กลับขึ้นบนสุด (กดชิปเลือกข้อมูลทีไรหน้าเด้ง)
    ทุกจุดที่เรนเดอร์ใหม่ต้องเขียนผ่าน setHTML — จำตำแหน่งไว้แล้วคืนทีเดียวตอนเรนเดอร์ครบทั้งชุด
-   (คืนทันทีไม่ได้ เพราะบางหน้าเขียนสองท่อน เช่น renderCal เขียน view ก่อนแล้วค่อยเติมตารางใน calshell) */
+   (คืนทันทีไม่ได้ เพราะบางหน้าเขียนสองท่อน เช่น renderCal เขียน view ก่อนแล้วค่อยเติมตารางใน calshell)
+   แถบที่เลื่อนแนวนอนได้ก็เด้งกลับซ้ายสุดแบบเดียวกัน (ตัวกรองคน/ประเภทคิว และตารางสัปดาห์)
+   จำ scrollLeft ไว้ด้วย เทียบตามลำดับที่เจอในหน้า — โครงหน้าเดิมลำดับไม่เปลี่ยน */
+const XSCROLL='.filterbar,.wscroll';
 let _keepY=null;
 function setHTML(el,s){
-  if(_keepY===null){const k=_keepY={y:window.scrollY||0};
-    Promise.resolve().then(()=>{_keepY=null;if((window.scrollY||0)!==k.y)window.scrollTo?.(0,k.y);});}
+  if(_keepY===null){const k=_keepY={y:window.scrollY||0,x:[...document.querySelectorAll(XSCROLL)].map(n=>n.scrollLeft)};
+    Promise.resolve().then(()=>{_keepY=null;
+      if((window.scrollY||0)!==k.y)window.scrollTo?.(0,k.y);
+      document.querySelectorAll(XSCROLL).forEach((n,i)=>{if(k.x[i])n.scrollLeft=k.x[i];});});}
   el.innerHTML=s;
 }
 /* เปลี่ยนแท็บคือเปลี่ยนหน้า — อันนี้ต้องเริ่มที่บนสุด ไม่ใช่คงตำแหน่งเดิม */
-function toTop(){if(_keepY)_keepY.y=0;else window.scrollTo?.(0,0);}
+function toTop(){if(_keepY){_keepY.y=0;_keepY.x=[];}else window.scrollTo?.(0,0);}
 $('scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
 
