@@ -1128,8 +1128,23 @@ const root=document.getElementById('root');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2800);}
-function openSheet(h,b){$('sheetHead').innerHTML=h;$('sheetBody').innerHTML=b;$('sheet').classList.add('on');$('scrim').classList.add('on');$('sheet').scrollTop=0;}
+/* ponytail: re-render ของ sheet เดิม (เช่นกดเลือก CTS ในฟอร์ม) ต้องคงตำแหน่ง scroll ไว้ ไม่งั้นเด้งขึ้นบนบนมือถือ
+   ใช้หัวเรื่องเป็นตัวบอกว่าใบเดิมหรือใบใหม่ — ฟอร์มเดียวกันเรนเดอร์ซ้ำหัวเรื่องไม่เปลี่ยน ส่วนใบใหม่ต้องเริ่มที่บนสุด */
+function openSheet(h,b){const s=$('sheet'),y=s.classList.contains('on')&&s._h===h?s.scrollTop:0;s._h=h;
+  $('sheetHead').innerHTML=h;$('sheetBody').innerHTML=b;s.classList.add('on');$('scrim').classList.add('on');s.scrollTop=y;}
 function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.remove('on');}
+/* ponytail: บนมือถือทั้งหน้าเว็บคือตัวเลื่อน — พอเขียน innerHTML ทับ เนื้อหาหายไปชั่วขณะ
+   เบราว์เซอร์เลยดีด scroll กลับขึ้นบนสุด (กดชิปเลือกข้อมูลทีไรหน้าเด้ง)
+   ทุกจุดที่เรนเดอร์ใหม่ต้องเขียนผ่าน setHTML — จำตำแหน่งไว้แล้วคืนทีเดียวตอนเรนเดอร์ครบทั้งชุด
+   (คืนทันทีไม่ได้ เพราะบางหน้าเขียนสองท่อน เช่น renderCal เขียน view ก่อนแล้วค่อยเติมตารางใน calshell) */
+let _keepY=null;
+function setHTML(el,s){
+  if(_keepY===null){const k=_keepY={y:window.scrollY||0};
+    Promise.resolve().then(()=>{_keepY=null;if((window.scrollY||0)!==k.y)window.scrollTo?.(0,k.y);});}
+  el.innerHTML=s;
+}
+/* เปลี่ยนแท็บคือเปลี่ยนหน้า — อันนี้ต้องเริ่มที่บนสุด ไม่ใช่คงตำแหน่งเดิม */
+function toTop(){if(_keepY)_keepY.y=0;else window.scrollTo?.(0,0);}
 $('scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
 
@@ -1150,7 +1165,7 @@ function renderLogin(){
     ${TEAMS[t].areas.map(a=>`<option value="${a}" ${state.loginArea===a?'selected':''}>${a}</option>`).join('')}</optgroup>`).join('');
   const codes=state.loginArea?AREA_CFG[state.loginArea].codes:[];
   const ready=r==='admin'||(r==='sales'&&state.loginArea&&(!codes.length||state.loginCode))||(r==='cts'&&state.loginCts);
-  root.innerHTML=`<div class="login"><div class="login-card">
+  setHTML(root,`<div class="login"><div class="login-card">
     <img class="mzlogo" src="${LOGO_DARK}" alt="Merz Aesthetics">
     <h1>Training Request</h1>
     <p class="sub">ระบบขอคิวเทรนและดูตารางงานทีม CTS — ใช้ได้ทั้งมือถือ iPad และคอมพิวเตอร์</p>
@@ -1198,7 +1213,7 @@ function renderLogin(){
     <button class="lgo" id="lGo" ${ready?'':'disabled'}>เข้าสู่ระบบ</button>
     <div class="lhint">ขอรหัสผ่านได้ที่ผู้ดูแลระบบ</div>
     <button class="lcredit" id="lDev">ผู้พัฒนา</button>
-  </div></div>`;
+  </div></div>`);
 
   $('lDev').onclick=openCredit;
   root.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{state.loginRole=b.dataset.r;renderLogin();});
@@ -1307,7 +1322,7 @@ function render(){
     <span class="ic">${t.ic}</span><span class="lb">${t.s||t.t}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
   const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:'Admin · ทุกทีม';
 
-  root.innerHTML=`<div class="shell">
+  setHTML(root,`<div class="shell">
     <aside class="side">
       <div class="brand"><img class="mzlogo sm" src="${LOGO_DARK}" alt="Merz Aesthetics">
         <div class="bsub">Training Request · Clinical Training</div></div>
@@ -1323,9 +1338,9 @@ function render(){
       <div class="page" id="view"></div>
     </div>
     <nav class="botnav${tabs.length>4?' tight':''}${tabs.length>6?' tight2':''}" style="grid-template-columns:repeat(${tabs.length},1fr)">${bnav}</nav>
-  </div>`;
+  </div>`);
 
-  root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();});
+  root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render();toTop();});
   ['uOut','tOut'].forEach(i=>{const e=$(i);if(e)e.onclick=logout;});
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
   ['sideSync','tSync'].forEach(i=>{const e=$(i);if(e)e.onclick=refresh;});
@@ -1335,7 +1350,7 @@ function render(){
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
 const view=()=>$('view');
-function goTab(t){state.tab=t;render();}
+function goTab(t){state.tab=t;render();toTop();}
 
 /* ========================= CALENDAR ========================= */
 const NARROW=()=>window.innerWidth<700;
@@ -1374,7 +1389,7 @@ function renderCal(){
         return `<div class="period">${a.getDate()} ${THMON[a.getMonth()]} – ${b.getDate()} ${THMON[b.getMonth()]}
           <span>WEEK OF ${ENMON[a.getMonth()]} ${a.getDate()}, ${a.getFullYear()}</span></div>`;})();
 
-  view().innerHTML=`
+  setHTML(view(),`
     <h1 class="pt">${isUPC()?'ตารางเทรน UPC':salesView()?'ปฏิทิน Sale':canSeeNames()?'ตารางงานทีม':'คิวว่างของทีม'}</h1>
     <p class="psub">${isUPC()
       ? 'เห็นเฉพาะคิวเทรนของ UPC · งานกลาง MA · วันหยุด — UPC เดินทางหลายวัน จึงไม่ต้องเลือกคิวว่างรายครึ่งวัน'
@@ -1391,7 +1406,7 @@ function renderCal(){
     ${canSeeNames()?filterBar():''}
     <div class="calshell" id="calshell"></div>
     ${maCard()}
-    ${state.picks.length?pickBar():''}`;
+    ${state.picks.length?pickBar():''}`);
 
   view().querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{state.view=b.dataset.v;renderCal();});
   $('pv').onclick=()=>{shift(-1);renderCal();};
@@ -1419,8 +1434,8 @@ function renderCal(){
     renderCal();});
 
   const shell=$('calshell');
-  shell.innerHTML=isUPC()?(state.view==='month'?upcMonthHTML():upcWeekHTML())
-    :(state.view==='month'?monthHTML():weekHTML());
+  setHTML(shell,isUPC()?(state.view==='month'?upcMonthHTML():upcWeekHTML())
+    :(state.view==='month'?monthHTML():weekHTML()));
   shell.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>openDay(b.dataset.d));
   shell.querySelectorAll('[data-book]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     quickPick(b.dataset.book,b.dataset.slot,b.dataset.cts||null);});
@@ -3009,7 +3024,7 @@ function setSkill(cid,prod,val){
 }
 function renderSkills(){
   if(state.role!=='admin'){
-    view().innerHTML='<h1 class="pt">Skills CTS</h1><div class="card"><div class="empty"><div class="big">◆</div>เฉพาะ Admin</div></div>';
+    setHTML(view(),'<h1 class="pt">Skills CTS</h1><div class="card"><div class="empty"><div class="big">◆</div>เฉพาะ Admin</div></div>');
     return;}
   const rows=BOOKABLE_CTS().map(c=>{
     const mine=state.skills[c.id]||{};
@@ -3024,7 +3039,7 @@ function renderSkills(){
         const v=mine[pr]||null;
         return `<button class="chip skchip ${v||'off'}" data-sk="${c.id}|${pr}">
           ${SKILL_ICON[String(v)]} ${pr}${v?' · '+SKILL_LABEL[v]:''}</button>`;}).join('')}</div></div>`;}).join('');
-  view().innerHTML=`<h1 class="pt">Skills CTS</h1>
+  setHTML(view(),`<h1 class="pt">Skills CTS</h1>
     <p class="psub">เปิด product ที่แต่ละคนเทรนได้ — Sales จะเห็นคิวว่างของคนนั้นเฉพาะ product ที่เปิดไว้</p>
     <div class="card" style="margin-bottom:14px"><div class="row" style="gap:9px;flex-wrap:wrap">
       <span class="chip skchip off">○ ปิด</span><span class="muted">ไม่ขึ้นเป็นคิวว่างของ product นั้น</span></div>
@@ -3033,7 +3048,7 @@ function renderSkills(){
       <div class="row" style="gap:9px;flex-wrap:wrap;margin-top:7px">
       <span class="chip skchip senior">★ +Senior</span><span class="muted">รับได้ แต่ต้องมี PAM หรือ MILK ว่างไปด้วย คิวว่างจะถูกจำกัดตามคิวของหัวหน้า</span></div>
       <div class="note" style="margin-top:10px">แตะชิปเพื่อวนสถานะ ปิด → เปิด → +Senior → ปิด</div></div>
-    ${rows}`;
+    ${rows}`);
   view().querySelectorAll('[data-sk]').forEach(b=>b.onclick=()=>{
     const [cid,pr]=b.dataset.sk.split('|');
     setSkill(cid,pr,SKILL_NEXT[String(skillOf(cid,pr))]);
@@ -3104,7 +3119,7 @@ function renderDash(){
     <div class="dprods">${cols.map(p=>`<span class="dp on" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
       <b>${nAll(p)}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
 
-  view().innerHTML=`<h1 class="pt">Dashboard</h1>
+  setHTML(view(),`<h1 class="pt">Dashboard</h1>
     <p class="psub">สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ Product ไหนไปกี่คิว</p>
     <div class="card">
       <div class="eyebrow">ช่วงเวลาที่ดู</div>
@@ -3126,7 +3141,7 @@ function renderDash(){
         <b>ตัวเลขราย Product = จำนวนวันที่มีคิวของตระกูลนั้น</b> — SKU ย่อยรวมเป็นตระกูลเดียว (Belotero Revive / Soft / Balance → Belotero)
         วันเดียวกันมีหลาย SKU หรือหลายคิวของตระกูลเดียวกันนับเป็น 1 · คนละวันนับแยก เช่น มีคิว Belotero 3 วันในเดือนนั้น = 3 ·
         ตัวเลขมุมขวาบน = จำนวนคิวจริงในปฏิทิน จึงไม่เท่ากับผลรวมราย Product ได้</div>`
-    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`;
+    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`);
 
   const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
   view().querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>set(...DASH_PRESETS[+b.dataset.dp][1]()));
@@ -3138,21 +3153,21 @@ function renderReqs(){
   const list=myRequests();
   const scope=state.role==='sales'?`คำขอของ ${state.salesId} เท่านั้น`
     :state.role==='cts'?`ของ ${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
-  view().innerHTML=`<h1 class="pt">คำขอของฉัน</h1><p class="psub">ติดตามสถานะ — ${scope}</p>
+  setHTML(view(),`<h1 class="pt">คำขอของฉัน</h1><p class="psub">ติดตามสถานะ — ${scope}</p>
     ${list.length?`<div class="reqgrid">${list.map(r=>reqCard(r,false)).join('')}</div>`:
-    '<div class="card"><div class="empty"><div class="big">▤</div>ยังไม่มีคำขอ<br><span class="muted">ไปที่ปฏิทิน เลือกช่วงเวลาที่ว่าง แล้วสร้างคำขอ</span></div></div>'}`;
+    '<div class="card"><div class="empty"><div class="big">▤</div>ยังไม่มีคำขอ<br><span class="muted">ไปที่ปฏิทิน เลือกช่วงเวลาที่ว่าง แล้วสร้างคำขอ</span></div></div>'}`);
   bindCards(view());
 }
 function renderApprovals(){
   if(!(isLead()||state.role==='admin')){
-    view().innerHTML=`<h1 class="pt">การอนุมัติ</h1>
+    setHTML(view(),`<h1 class="pt">การอนุมัติ</h1>
       <div class="card"><div class="empty"><div class="big">✓</div>เฉพาะ Senior Leader<br>
-      <span class="muted">${state.role==='sales'?'คำขอของคุณจะถูกส่งให้ Senior Leader ของทีมที่ดูแลพื้นที่คุณพิจารณา':'เฉพาะ Senior Leader ของทีมเท่านั้นที่อนุมัติได้'}</span></div></div>`;return;}
+      <span class="muted">${state.role==='sales'?'คำขอของคุณจะถูกส่งให้ Senior Leader ของทีมที่ดูแลพื้นที่คุณพิจารณา':'เฉพาะ Senior Leader ของทีมเท่านั้นที่อนุมัติได้'}</span></div></div>`);return;}
   const list=state.requests.filter(r=>(r.status==='pending'||r.status==='tbc')&&canApprove(r));
-  view().innerHTML=`<h1 class="pt">รออนุมัติ (${list.length})</h1>
+  setHTML(view(),`<h1 class="pt">รออนุมัติ (${list.length})</h1>
     <p class="psub">${state.role==='admin'?'ทุกทีม':`${TEAMS[byId(state.me).team].label} และ UPC · ${byId(state.me).name}`}</p>
     ${list.length?`<div class="reqgrid">${list.map(r=>reqCard(r,true)).join('')}</div>`:
-    '<div class="card"><div class="empty"><div class="big">✓</div>ไม่มีคำขอค้าง<br><span class="muted">คำขอใหม่จะมาแสดงที่นี่</span></div></div>'}`;
+    '<div class="card"><div class="empty"><div class="big">✓</div>ไม่มีคำขอค้าง<br><span class="muted">คำขอใหม่จะมาแสดงที่นี่</span></div></div>'}`);
   bindCards(view());
 }
 function assign(id){
@@ -3387,7 +3402,7 @@ function renderFeed(){
   const n=k=>all.filter(i=>i.kind===k).length;
   const scope=state.role==='sales'?`เฉพาะคำขอของ ${state.salesId}`
     :state.role==='cts'?`${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
-  view().innerHTML=`<h1 class="pt">แจ้งเตือน</h1>
+  setHTML(view(),`<h1 class="pt">แจ้งเตือน</h1>
     <p class="psub">1 คำขอ = 1 การ์ด อัปเดตสถานะล่าสุดเสมอ — ${scope}</p>
     ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดป้ายตัวเลขบนไอคอนแอป</button>
       <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · ตัวเลขจะขึ้นที่ไอคอนเหมือนแอปทั่วไป</div>`:''}
@@ -3399,7 +3414,7 @@ function renderFeed(){
       <button class="fchip all" data-nf="cancelled" aria-pressed="${f==='cancelled'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ คิวยกเลิก (${n('cancelled')})</button>
     </div>
     ${feed.length?`<div class="nfeed">${feed.map(notiCard).join('')}</div>`:
-    '<div class="card"><div class="empty"><div class="big">✦</div>ไม่มีรายการในหมวดนี้</div></div>'}`;
+    '<div class="card"><div class="empty"><div class="big">✦</div>ไม่มีรายการในหมวดนี้</div></div>'}`);
   const an=$('askNoti');if(an)an.onclick=async()=>{
     try{
       const p=await Notification.requestPermission();

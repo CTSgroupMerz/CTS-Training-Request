@@ -6,7 +6,7 @@ const L=html.split('\n');
 const a=L.findIndex(l=>l.trim()==='<script>'), b=L.findIndex(l=>l.trim()==='</script>');
 let src=L.slice(a+1,b).join('\n').replace(/^restoreLogin\(\);.*$/m,'');
 
-const el=()=>({innerHTML:'',classList:{add(){},remove(){}},style:{},querySelectorAll:()=>[],
+const el=()=>({innerHTML:'',classList:{add(){},remove(){},contains(){return false}},style:{},querySelectorAll:()=>[],
   addEventListener(){},appendChild(){},focus(){},scrollIntoView(){},scrollTop:0,dataset:{},textContent:'',value:''});
 const store={};
 const badge={n:0};   // จับ setAppBadge ที่แอปยิงออกมา

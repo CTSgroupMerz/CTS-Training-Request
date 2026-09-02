@@ -9,7 +9,7 @@ src=src.replace(/^restoreLogin\(\);.*$/m,'');          // ไม่ bootstrap �
 
 let posts=[];
 const store={};
-const el=()=>({innerHTML:'',classList:{add(){},remove(){}},style:{},querySelectorAll:()=>[],
+const el=()=>({innerHTML:'',classList:{add(){},remove(){},contains(){return false}},style:{},querySelectorAll:()=>[],
   addEventListener(){},appendChild(){},focus(){},scrollTop:0,dataset:{},textContent:'',value:''});
 const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
