@@ -2133,8 +2133,9 @@ function bindTime(scope){
 /* ================= มุมมองรายวันแบบไทม์ไลน์ (สำหรับ CTS / Admin) ================= */
 const DAY_VIEW={from:7*60,to:20*60,rowH:40};
 /* งานจริงของวันนั้นตามเวลาจริง — อ่านจากต้นทาง (คิวที่ CTS ลงเอง + คำขอที่จัด CTS แล้ว)
-   ไม่ได้อ่านจาก state.sched เพราะ sched มีแค่ช่องเช้า/บ่าย ทำให้คิวคร่อมเที่ยงถูกเขียนลง 2 ช่อง
+   คิวพวกนั้นไม่อ่านจาก state.sched เพราะ sched มีแค่ช่องเช้า/บ่าย ทำให้คิวคร่อมเที่ยงถูกเขียนลง 2 ช่อง
    แล้วโผล่ซ้ำในปฏิทิน และคิวที่ 3 ของวันจะหายไป
+   ส่วนคิวที่ "มีแต่ใน sched" (ย้ายมาจาก Sheet ไม่มี reqId/selfId) ต้องอ่านจาก sched เพราะไม่มีต้นทางอื่น
    sched ยังทำหน้าที่เดิมทุกอย่าง คือเป็นตัวนับคิวว่างให้ฝั่ง Sales */
 function dayEntries(k,pool){
   const vis=pool||visibleCTS().map(c=>c.id);   // pool ระบุเองได้ — การคำนวณคิวว่างต้องไม่ขึ้นกับตัวกรองหน้าจอ
@@ -2161,6 +2162,21 @@ function dayEntries(k,pool){
         reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||it.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
+    });
+  });
+  /* คิวที่บันทึกในตาราง jobs โดยตรง (ไม่ได้มาจากคำขอ และไม่ใช่งานที่ CTS ลงเอง) — ข้อมูลที่ย้ายมาจาก Sheet
+     คิวที่มี reqId ถูกสร้างจาก state.requests ข้างบนแล้ว · คิวที่มี selfId ถูกสร้างจาก selfEvents แล้ว -> ข้าม กันซ้ำ
+     job เดียวที่คร่อมเที่ยงถูกเขียนลงทั้งช่องเช้าและบ่าย -> รวมเป็นรายการเดียว ไม่งั้นโผล่ซ้ำ 2 อัน */
+  vis.forEach(cid=>{
+    const s=(state.sched[k]||{})[cid];if(!s)return;
+    const own=j=>!!j&&!j.reqId&&!j.selfId;
+    const both=own(s.am)&&own(s.pm)&&s.am.title===s.pm.title&&s.am.start===s.pm.start&&s.am.end===s.pm.end;
+    ['am','pm'].forEach(sl=>{
+      const j=s[sl];
+      if(!own(j)||(both&&sl==='pm'))return;
+      put('jb-'+cid+'-'+(both?'day':sl),{...j,
+        start:j.start||SLOT_DEF[both?'am':sl].start,
+        end:j.end||SLOT_DEF[both?'pm':sl].end},[cid]);
     });
   });
   state.events.filter(e=>e.date===k).forEach(e=>{

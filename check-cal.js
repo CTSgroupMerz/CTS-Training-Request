@@ -470,4 +470,32 @@ G("rsSave").onclick();
 assert.strictEqual(X.slotStatus(K,B2,'am'),'free','เอาคนออกแล้วคิวว่างต้องคืนให้เขา');
 assert.strictEqual(X.entriesOf(K,B1).length,1,'ผู้เทรนหลักต้องยังมีคิวอยู่');
 
-console.log('✓ ผ่านทั้ง 35 ข้อ');
+/* 36. คิวที่อยู่แต่ในตาราง jobs (state.sched) — ย้ายมาจาก Sheet ไม่มีคำขอ ไม่ใช่งานที่ CTS ลงเอง
+      เดิม dayEntries ไม่อ่าน sched เลย คิวพวกนี้เลยไม่โผล่ในปฏิทินหลัง migration */
+clean();
+X.state.role='cts';X.state.me=B1;X.state.tab='cal';X.state.view='week';
+X.state.sched[K]={[B1]:{am:{kind:'booked',title:'OTOS',product:'OTOS',reqId:null,
+  attendees:[B1],start:'09:00',end:'12:00'},pm:null}};
+assert.strictEqual(X.entriesOf(K,B1).length,1,'คิวจากตาราง jobs ต้องขึ้นในปฏิทิน');
+assert.strictEqual(X.entriesOf(K,B1)[0].job.title,'OTOS','ต้องใช้หัวข้อจากตาราง jobs');
+assert.ok(/OTOS/.test(X.weekHTML()),'ปฏิทินรายสัปดาห์ต้องโชว์คิวจากตาราง jobs');
+/* job เดียวที่คร่อมเที่ยงถูกเขียนลงทั้งช่องเช้าและบ่าย -> ต้องรวมเป็นอันเดียว */
+const span={kind:'booked',title:'Belotero ทั้งวัน',product:'Belotero',reqId:null,
+  attendees:[B1],start:'10:00',end:'15:00'};
+X.state.sched[K][B1]={am:{...span},pm:{...span}};
+const sp=X.entriesOf(K,B1);
+assert.strictEqual(sp.length,1,'คิวคร่อมเที่ยงในตาราง jobs ต้องไม่ขึ้นซ้ำ 2 อัน');
+assert.strictEqual(sp[0].start+'-'+sp[0].end,'10:00-15:00','ต้องใช้เวลาจริงของคิว');
+/* คิวคนละงานเช้า/บ่าย ต้องยังแยกเป็น 2 อัน */
+X.state.sched[K][B1]={am:{...span,title:'งานเช้า',end:'12:00'},pm:{...span,title:'งานบ่าย',start:'13:00'}};
+assert.strictEqual(X.entriesOf(K,B1).length,2,'งานเช้ากับบ่ายคนละงานต้องขึ้นครบ 2 อัน');
+/* คิวที่มาจากคำขอ (reqId) ถูกสร้างจาก state.requests อยู่แล้ว -> ห้ามนับซ้ำจาก sched */
+clean();
+X.state.requests=[{id:'TR-J',team:'A',status:'approved',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
+  topic:'x',clinic:'คลินิก',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'a',requesterId:'a',
+  sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]}];
+X.state.sched[K]={[B1]:{am:{kind:'booked',title:'คลินิก',product:'Ultherapy',reqId:'TR-J',
+  attendees:[B1],start:'09:00',end:'12:00'},pm:null}};
+assert.strictEqual(X.entriesOf(K,B1).length,1,'คิวจากคำขอต้องไม่ขึ้นซ้ำจากตาราง jobs');
+
+console.log('✓ ผ่านทั้ง 36 ข้อ');
