@@ -10,9 +10,9 @@
   Responsive: phone / iPad / laptop. Open the file directly, or drop it on any
   static host (GitHub Pages / Netlify / Vercel / IIS / nginx).
 
-  NOTE: state persists through the Apps Script backend (see Code.gs). Set the
-  `API` constant near the bottom of the <script> block to the deployed Web app
-  URL. Leave it empty and the app runs in memory only, as before.
+  NOTE: requests + login live in Supabase (see SUPA_URL near the bottom of the
+  <script> block). Clear SUPA_URL and the app runs in memory only, as before.
+  Phase 1 only: sched / skills / holidays / events are still in-memory state.
 
   ---------------------------------------------------------------------------
   ROLES
@@ -49,7 +49,7 @@
                    3 h next session, day ends 18:00
     HOLIDAYS_SEED  public holidays (Admin can add/remove in-app)
     EXP            experience-level options
-    API            Apps Script Web app URL (empty = in-memory only)
+    SUPA_URL/KEY   Supabase project + publishable key (empty = in-memory only)
     SAVED          which state keys get persisted
 
   ---------------------------------------------------------------------------
@@ -70,10 +70,13 @@
   ---------------------------------------------------------------------------
   TO GO LIVE  (suggested path)
   ---------------------------------------------------------------------------
-    1. Backend — DONE. Code.gs stores the whole state as one JSON file on
-       Drive; load() reads it, save() writes it from render().
-    2. Auth: renderLogin() still trusts whatever role you pick. Add a per-role
-       password checked server-side (never keep it in this file).
+    1. Backend — phase 1 DONE. Requests live in Supabase (requests +
+       request_sessions + upc_days + upc_items); load() reads them, save()
+       upserts one row per request from render(). Phase 2 DONE (sched -> jobs),
+       phase 3 DONE (skills / holidays / events + selfEvents). Only `avail`
+       (hand-edited free windows) is still in memory.
+    2. Auth — DONE. Supabase Auth, one e-mail + password per person
+       (Sales stays anonymous). Nothing secret is kept in this file.
     3. Calendar write-back: on approve(), create the event in each CTS's
        Google Calendar.
     4. Photos: currently local preview only (URL.createObjectURL) — swap for
@@ -97,6 +100,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- Supabase client (auth + REST) — ต้องโหลดก่อน <script> ท้ายไฟล์ · โหลดไม่ได้ = แอปตกไปโหมดออฟไลน์เอง -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --ink:#2B2A3D; --ink2:#5B5A73; --ink3:#8E8DA5;
@@ -1231,7 +1236,7 @@ function renderLogin(){
     btn.disabled=true;btn.textContent='กำลังตรวจสอบ…';err.style.display='none';
     const ok=await signIn(r,pw?pw.value:'');
     if(!ok){btn.disabled=false;btn.textContent='เข้าสู่ระบบ';
-      err.textContent=needPw(r)?'รหัสผ่านไม่ถูกต้อง หรือเชื่อมต่อเซิร์ฟเวอร์ไม่ได้':'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ลองใหม่อีกครั้ง';
+      err.textContent=authErr||(needPw(r)?'รหัสผ่านไม่ถูกต้อง หรือเชื่อมต่อเซิร์ฟเวอร์ไม่ได้':'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ลองใหม่อีกครั้ง');
       err.style.display='';if(pw)pw.focus();return;}
     enter();
   };
@@ -1239,12 +1244,24 @@ function renderLogin(){
 /* CTS กับ Admin ต้องใช้รหัส · Sales เข้าได้เลย */
 const needPw=r=>r==='cts'||r==='admin';
 
-/* ตรวจรหัสกับเซิร์ฟเวอร์แล้วโหลดข้อมูลในครั้งเดียว — ผ่านถึงจะถือว่าเข้าระบบได้ */
+/* ===== เข้าสู่ระบบด้วย Supabase Auth =====
+   CTS / Admin = ผู้ใช้รายคน (อีเมล + รหัสผ่านของตัวเอง) · Sales ยังเข้าได้เลยแบบไม่ต้องล็อกอิน (anon)
+   อีเมลผูกกับ member_id ตายตัว — ถ้าเปลี่ยนอีเมลใน Supabase (Authentication → Users) ให้แก้ที่ EMAIL_OF จุดเดียว */
+const EMAIL_DOMAIN='@ctsgroup.merz.com';
+const EMAIL_OF=mid=>mid+EMAIL_DOMAIN;
+const loginMember=role=>role==='admin'?'admin':state.loginCts;
+let authErr='';                              // ข้อความจริงจาก Supabase — เอาไปแสดงบนหน้า login ให้แก้ถูกจุด
 async function signIn(role,pwv){
-  if(!API)return true;                       // ไม่ได้ตั้ง API = โหมดออฟไลน์ในเครื่อง ไม่ต้องมีรหัส
-  auth={role,pw:pwv};
+  if(!SB)return true;                        // ไม่มี Supabase = โหมดออฟไลน์ในเครื่อง ไม่ต้องมีรหัส
+  authErr='';
+  if(needPw(role)){
+    const email=EMAIL_OF(loginMember(role));
+    const {error}=await SB.auth.signInWithPassword({email,password:pwv});
+    if(error){authErr=error.message+' ('+email+')';return false;}
+  }
+  auth={role};
   const ok=await load();
-  if(!ok)auth={role:null,pw:null};
+  if(!ok)auth={role:null};
   return ok;
 }
 
@@ -1259,17 +1276,26 @@ function enter(){
   render();
 }
 
-/* ตอนเปิดแอป: ถ้าเคยล็อกอินไว้ก็เข้าให้เลย ไม่ผ่านก็กลับไปหน้า login ตามปกติ */
+/* ตอนเปิดแอป: ถ้าเคยล็อกอินไว้ก็เข้าให้เลย ไม่ผ่านก็กลับไปหน้า login ตามปกติ
+   รหัสผ่านไม่ได้ถูกเก็บไว้ — supabase-js จำ session ให้เอง แค่ถามว่ายังไม่หมดอายุไหม */
 async function restoreLogin(){
   let s=null;try{s=JSON.parse(localStorage.getItem('cts-login')||'null');}catch(e){}
   if(!s)return renderLogin();
   Object.assign(state,{loginRole:s.loginRole,loginArea:s.loginArea,loginCts:s.loginCts,loginCode:s.loginCode});
-  if(await signIn(s.role,s.pw))return enter();
+  if(!SB){auth={role:s.role};return enter();}          // โหมดออฟไลน์ — ไม่มีอะไรให้ตรวจ
+  if(needPw(s.role)){
+    const {data}=await SB.auth.getSession();
+    if(!data||!data.session)return renderLogin();      // session หมดอายุ -> กรอกรหัสใหม่
+  }
+  auth={role:s.role};
+  if(await load())return enter();
+  auth={role:null};
   renderLogin();
 }
 
 function logout(){
-  auth={role:null,pw:null};loaded=false;
+  if(SB)SB.auth.signOut().catch(()=>{});
+  auth={role:null};loaded=false;lastSaved='';
   try{localStorage.removeItem('cts-login');}catch(e){}
   Object.assign(state,{authed:false,role:null,me:null,area:null,salesId:null,picks:[],draft:null,
   loginRole:null,loginArea:null,loginCts:null,loginCode:null,filter:new Set(),tfilter:new Set(),dash:null});renderLogin();}
@@ -3489,123 +3515,318 @@ function openRules(){
 
 let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(state.authed&&state.tab==='cal')renderCal();},220);});
 
-/* ========================= BACKEND (Google Apps Script) =========================
-   วาง Web app URL ที่ deploy แล้วลงใน API ด้านล่าง — ปล่อยว่าง = ทำงานแบบออฟไลน์ในเครื่อง
-   ข้อมูลทั้งก้อนถูกเก็บเป็นไฟล์ JSON ไฟล์เดียวใน Drive (ดู Code.gs)
-   ============================================================================== */
-const API='https://script.google.com/macros/s/AKfycbx5WKYHiN66Z6ow4hgmb8j2pwf3bn_fUT-Pr7tj1xBQk78NIvm4MtKtgNowf9fy60fNUQ/exec';
-/* เฉพาะ key เหล่านี้ที่บันทึก — ที่เหลือเป็นสถานะหน้าจอ (tab, filter, draft, login) ไม่ต้องเก็บ */
-const SAVED=['sched','avail','skills','selfEvents','seSeq','requests','events','holidays','feed','seq','evSeq'];
+/* ========================= BACKEND (Supabase) =========================
+   เฟส 1: คำขอเทรน (requests) + การล็อกอิน ย้ายมาอยู่บน Supabase แล้ว
+     ตาราง requests + request_sessions + upc_days + upc_items · ล็อกอินด้วย Supabase Auth
+     บันทึกทีละคำขอ (upsert ราย id) ไม่ใช่ยัด state ทั้งก้อนเหมือนเดิม — 60 คนแก้พร้อมกันก็ไม่ชนกันทั้งไฟล์
+   เฟส 2: ปฏิทินงาน (state.sched) ย้ายมาที่ตาราง jobs — 1 แถว = 1 ช่อง (วัน × CTS × เช้า/บ่าย)
+     บันทึกเฉพาะช่องที่เปลี่ยนจริง ไม่เขียนทั้งปฏิทินใหม่
+   เฟส 3: skills → ตาราง skills · holidays → ตาราง holidays · events + selfEvents → ตาราง events
+     upsert เฉพาะแถวที่เปลี่ยน (merge-duplicates + on_conflict) แล้วลบแถวที่หายไป
+   ยังไม่ย้าย: avail (เวลาว่างที่แก้เอง) — ยังอยู่ในหน่วยความจำเท่านั้น
+   ปล่อย SUPA_URL ว่าง หรือโหลด supabase-js ไม่ได้ = ทำงานแบบออฟไลน์ในเครื่องเหมือนเดิม
+   ====================================================================== */
+const SUPA_URL='https://hxiswcnoxboegudstyng.supabase.co';
+const SUPA_KEY='sb_publishable_rDKTTwBvD6GE4DoUeM0O6w_IPPZiVHr';   // publishable key — เปิดเผยได้ ความปลอดภัยจริงอยู่ที่ RLS
+const SB=(SUPA_URL&&window.supabase)?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
+
+/* บันทึกคำขอ (เฟส 1) + ปฏิทินงาน (เฟส 2) + skills/holidays/events (เฟส 3)
+   feed สร้างใหม่จาก requests ทุกครั้งที่โหลด · evSeq/seSeq คำนวณจาก id สูงสุดตอนโหลด จึงไม่ต้องเก็บ */
+const SAVED=['requests','seq','sched','skills','holidays','events','selfEvents'];
 const snap=()=>Object.fromEntries(SAVED.map(k=>[k,state[k]]));
 
-/* รหัสผ่านไม่เคยอยู่ในไฟล์นี้ — เก็บไว้ในหน่วยความจำ (และ localStorage ของเครื่องผู้ใช้) แล้วส่งไปให้เซิร์ฟเวอร์ตรวจทุกครั้ง */
-let auth={role:null,pw:null};
-let version=0, lastSaved='', loaded=false, saving=false;
+/* รหัสผ่านไม่เคยอยู่ในไฟล์นี้ — Supabase Auth เก็บ session ให้เอง ที่นี่เก็บแค่บทบาทที่เลือก */
+let auth={role:null};
+let lastSaved='', loaded=false, saving=false;
+let PROF={};             // member_id -> profiles.id (uuid) — ใช้ตอนเขียนคอลัมน์ FK
+let hasClientCol=true;   // ตาราง requests มีคอลัมน์ client (jsonb) ไหม — ไม่มีก็ยังบันทึกได้ แค่ฟิลด์เสริมไม่ถูกเก็บ
 
-/* ยิงไปหลังบ้านครั้งเดียวจบ — ใส่ data มาด้วย = เขียน, ไม่ใส่ = อ่านอย่างเดียว */
-const api=body=>fetch(API,{method:'POST',
-  headers:{'Content-Type':'text/plain'},            // text/plain = ไม่เกิด CORS preflight กับ Apps Script
-  body:JSON.stringify({...body,role:auth.role,pw:auth.pw})}).then(r=>r.json());
+/* ===== แปลงคำขอ: หน้าจอ <-> ตาราง =====
+   schema เก็บเฉพาะฟิลด์ที่ออกแบบไว้ · ส่วนที่หน้าจอใช้แต่ยังไม่มีคอลัมน์ (team/area/requesterId/tbc/note/photos …)
+   เก็บรวมไว้ในคอลัมน์ jsonb `client` — คอลัมน์จริงยังเป็นตัวหลักสำหรับ query / report / RLS
+   ต้องเพิ่มคอลัมน์ก่อนใช้:  alter table public.requests add column if not exists client jsonb;
+   (ยังไม่เพิ่มก็ใช้งานได้ ระบบจะข้ามไปเอง แต่ฟิลด์เสริมจะไม่ถูกบันทึก) */
+const DB_STATUS=['pending','approved','tbc','rejected','cancelled'];   // ตรงกับ check constraint ใน schema.sql
+/* คีย์ที่มีคอลัมน์ของตัวเองแล้ว — ที่เหลือทั้งหมด (รวม sessions/days/status ดิบ) ตกไปอยู่ใน client */
+const COL_KEYS=['id','mode','module','level','product','topic','clinic','map','doctors','exp',
+                'handsOn','hoProduct','hoCases','requester','created','updatedAt'];
+const numOrNull=v=>{const n=parseInt(v,10);return isNaN(n)?null:n;};
+const iso=v=>{const d=v?new Date(v):null;return d&&!isNaN(d)?d.toISOString():null;};
+const midOfNick=n=>{const c=CTS.find(x=>x.nick===n);return c?c.id:(n==='Admin'?'admin':null);};
+const idNum=id=>{const m=String(id||'').match(/\d+/);return m?+m[0]:0;};
+const bydate=(a,b)=>String(a.date).localeCompare(String(b.date));
 
-/* ===== รวมข้อมูลตอนสองคนแก้พร้อมกัน =====
-   เดิม: ฝั่งที่บันทึกทีหลังโดนโยนข้อมูลเซิร์ฟเวอร์ทับ งานที่เพิ่งกรอกหายเงียบๆ
-   ตอนนี้: เทียบ 3 ทาง (base = ของที่โหลดมาล่าสุด, mine = ของเรา, theirs = ของบนเซิร์ฟเวอร์)
-   ใครแก้ตรงไหน ตรงนั้นชนะ · แก้จุดเดียวกันทั้งคู่ค่อยให้ฝั่งเซิร์ฟเวอร์ชนะ */
-const sm=v=>JSON.stringify(v===undefined?null:v);
-const eqv=(a,b)=>sm(a)===sm(b);
-const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
-/* ตัวระบุแถวในลิสต์ — ไม่มี id ก็ merge ไม่ได้ */
-const rowId=x=>isObj(x)?(x.id!=null?x.id:(isObj(x.r)&&x.r.id!=null?'f'+x.r.id:(x.date!=null?x.date:null))):null;
-function merge3(base,mine,theirs){
-  if(mine===undefined)return theirs;
-  if(theirs===undefined)return mine;
-  if(eqv(mine,theirs)||eqv(base,mine))return theirs;   // เราไม่ได้แก้ -> เอาของเขา
-  if(eqv(base,theirs))return mine;                     // เขาไม่ได้แก้ -> เอาของเรา
-  if(Array.isArray(mine)&&Array.isArray(theirs))return mergeList(Array.isArray(base)?base:[],mine,theirs);
-  if(isObj(mine)&&isObj(theirs)){
-    const out={},b=isObj(base)?base:{};
-    new Set(Object.keys(mine).concat(Object.keys(theirs))).forEach(k=>{
-      const v=merge3(b[k],mine[k],theirs[k]);
-      if(v!==undefined)out[k]=v;});
-    return out;
-  }
-  return theirs;   // ค่าเดี่ยวที่แก้ชนกันจริงๆ ให้ฝั่งเซิร์ฟเวอร์ชนะ
+function toRow(r){
+  const row={id:r.id,mode:r.mode==='upc'?'upc':'normal',
+    status:DB_STATUS.includes(r.status)?r.status:'cancelled',   // 'expired' ไม่มีใน constraint — ค่าจริงเก็บไว้ใน client
+    module:r.module||null,level:r.level||null,products:prodList(r.product),
+    topic:r.topic||null,clinic:r.clinic||null,map_url:r.map||null,
+    doctors:numOrNull(r.doctors),exp:r.exp||null,
+    hands_on:!!r.handsOn,ho_product:r.hoProduct||null,ho_cases:numOrNull(r.hoCases),
+    requester:r.requester||null,requester_profile_id:PROF[r.requesterId]||null,
+    approved_by:PROF[midOfNick(r.approvedBy)]||null,approved_at:iso(r.approvedAt),
+    created_at:iso(r.created)||new Date().toISOString(),updated_at:new Date().toISOString()};
+  if(hasClientCol)row.client=Object.fromEntries(Object.entries(r).filter(([k])=>!COL_KEYS.includes(k)));
+  return row;
 }
-/* ตัวนับ id ต้องบวกรวมกัน ไม่ใช่เอาค่าใดค่าหนึ่ง — สองฝั่งเดินคนละที เลขจะได้ไม่ถอยหลัง
-   (ตัว id เองกันชนด้วยตัวอักษรท้ายจาก newId อยู่แล้ว ตรงนี้แค่ทำให้เลขวิ่งไปข้างหน้า) */
-function mergeState(base,mine,theirs){
-  const out=merge3(base,mine,theirs);
-  ['seq','evSeq','seSeq'].forEach(k=>{const b=base[k]||0;
-    out[k]=Math.max(mine[k]||0,theirs[k]||0,(mine[k]||0)+(theirs[k]||0)-b);});
+/* มี client ก็ใช้ของเดิมได้เลย · ไม่มี (แถวที่ seed เข้าไปตรงๆ) ค่อยประกอบจากคอลัมน์ + ตารางลูก */
+function fromRow(x){
+  const c=x.client||{};
+  const upcDays=(x.upc_days||[]).slice().sort(bydate);
+  const days=c.days||upcDays.map(d=>({date:d.date,
+    items:(d.upc_items||[]).map(i=>({clinic:i.clinic||'',province:i.province||'',module:i.module||'',level:i.level||'',
+      product:i.product||'',topic:i.topic||'',doctors:i.doctors||'',exp:i.exp||'',
+      handsOn:!!i.hands_on,hoProduct:i.ho_product||'',hoCases:i.ho_cases==null?'':String(i.ho_cases),photos:[]}))}));
+  const sessions=c.sessions||(x.mode==='upc'
+    ? upcDays.map(d=>({date:d.date,slot:'day',ctsId:d.cts_id||null,fullDay:true}))
+    : (x.request_sessions||[]).slice().sort(bydate).map(s=>({date:s.date,slot:s.slot||'day',ctsId:s.cts_id||null,
+        start:s.start||null,end:s.end_time||null,sProduct:s.product||null,sTopic:s.topic||null,fullDay:!!s.full_day})));
+  const area=c.area||(x.mode==='upc'?'UPC':'—');
+  return {...c,
+    id:x.id,mode:x.mode,status:c.status||x.status,
+    module:x.module||'',level:x.level||'',product:x.products||[],
+    topic:x.topic||'',clinic:x.clinic||'',map:x.map_url||'',
+    doctors:x.doctors==null?'':String(x.doctors),exp:x.exp||'',
+    handsOn:!!x.hands_on,hoProduct:x.ho_product||'',hoCases:x.ho_cases==null?'':String(x.ho_cases),
+    requester:x.requester||'',created:x.created_at,updatedAt:x.updated_at,
+    approvedAt:x.approved_at||c.approvedAt||null,
+    team:c.team||(x.mode==='upc'?'BOTH':teamOfArea(area)),area,
+    photos:c.photos||[],sessions,days:x.mode==='upc'?days:(c.days||[])};
+}
+
+/* แจ้งเตือน = สรุปสถานะล่าสุดของแต่ละคำขอ (1 คำขอ = 1 การ์ด เหมือนที่ notify() ทำ) */
+const FEED_KIND={pending:'pending',tbc:'pending',approved:'approved',rejected:'rejected',cancelled:'cancelled',expired:'cancelled'};
+const rebuildFeed=()=>{state.feed=state.requests
+  .map(r=>({r,kind:FEED_KIND[r.status]||'pending',at:r.updatedAt||r.created||new Date()}))
+  .sort((a,b)=>new Date(b.at)-new Date(a.at));};
+
+/* ===== ปฏิทินงาน: state.sched[วัน][ctsId][am|pm] <-> ตาราง jobs (1 แถว = 1 ช่อง) =====
+   วันที่ใน DB เป็น 'YYYY-MM-DD' อยู่แล้ว = คีย์เดียวกับที่ key() สร้าง จึงใช้ตรงๆ ได้
+   คอลัมน์ end เป็น SQL keyword — ในตารางใช้ชื่อ end_time แต่ฝั่งหน้าจอยังเป็น job.end เหมือนเดิม */
+const JOB_COLS='date,cts_id,slot,start,end_time,title,product,kind,req_id,attendees';
+const jobRow=(k,cid,slot,j)=>({date:k,cts_id:cid,slot,
+  start:j.start||null,end_time:j.end||null,title:j.title||null,
+  product:prodMain(j.product),kind:j.kind||'booked',req_id:j.reqId||null,
+  attendees:j.attendees||[]});
+const jobFrom=x=>({kind:x.kind||'booked',title:x.title||'',product:x.product||null,
+  reqId:x.req_id||null,attendees:x.attendees||[],start:x.start||null,end:x.end_time||null});
+
+/* แผ่ sched เป็นแถวแบน (คีย์ วัน|cts|ช่อง -> job) ไว้เทียบว่าช่องไหนเปลี่ยน
+   ข้ามคิวที่มาจาก "งานที่ CTS ลงเอง" (selfId) — นั่นคือ selfEvents ของเฟส 3
+   syncSelf() สร้างคิวพวกนี้ใหม่ทุกครั้งที่โหลด ถ้าเก็บลง DB ด้วยจะกลายเป็นคิวค้างที่ลบไม่ออก */
+function flatSched(sched){
+  const out={};
+  Object.keys(sched||{}).forEach(k=>Object.keys(sched[k]||{}).forEach(cid=>
+    ['am','pm'].forEach(sl=>{const j=(sched[k][cid]||{})[sl];if(j&&!j.selfId)out[k+'|'+cid+'|'+sl]=j;})));
   return out;
 }
-function mergeList(base,mine,theirs){
-  if(mine.concat(theirs).some(x=>rowId(x)==null))return mine;   // ไม่มีตัวระบุ = merge ไม่ได้ เก็บของเราไว้
-  const map=l=>new Map(l.map(x=>[rowId(x),x]));
-  const bm=map(base),tm=map(theirs),seen=new Set(),out=[];
-  mine.forEach(x=>{const k=rowId(x);seen.add(k);
-    if(bm.has(k)&&!tm.has(k)&&eqv(bm.get(k),x))return;          // เขาลบ เราไม่ได้แก้ -> ลบตาม
-    out.push(tm.has(k)?merge3(bm.get(k),x,tm.get(k)):x);});
-  theirs.forEach(x=>{const k=rowId(x);
-    if(seen.has(k))return;
-    if(bm.has(k)&&eqv(bm.get(k),x))return;                      // เราลบ เขาไม่ได้แก้ -> ลบตาม
-    out.push(x);});
-  return out;
-}
-/* feed เก็บ request มาด้วย — หลังโหลด/merge ต้องชี้กลับไปที่ตัวจริง ไม่งั้นการ์ดแจ้งเตือนจะค้างข้อมูลเก่า */
-const relinkFeed=()=>state.feed.forEach(f=>{const m=state.requests.find(x=>x.id===f.r.id);if(m)f.r=m;});
 
-/* เอาข้อมูลจากเซิร์ฟเวอร์มาใส่ state */
-function apply(d){
-  if(d.data&&Object.keys(d.data).length){
-    Object.assign(state,d.data);
-    relinkFeed();
+/* PostgREST คืนหน้าละไม่เกิน 1000 แถว — ดึงต่อจนหมด ไม่งั้นคิวจะหายเงียบๆ ตอนข้อมูลโตเกิน 1000 */
+async function allJobs(){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const {data,error}=await SB.from('jobs').select(JOB_COLS).order('id').range(from,from+999);
+    if(error)throw error;
+    out.push(...data);
+    if(data.length<1000)return out;
   }
-  sweepTBC();
-  version=d.version||0;
-  lastSaved=JSON.stringify(snap());
-  loaded=true;
+}
+
+/* เขียนเฉพาะช่องที่เปลี่ยนจริง — ลบแถวเดิมของช่องนั้นแล้วใส่ใหม่ (คืนว่าง = ลบอย่างเดียว)
+   เทียบกันที่ "แถวที่จะเขียน" ไม่ใช่ตัว job ฟิลด์ที่ไม่มีคอลัมน์ (upBy/upAt) เปลี่ยนจึงไม่ทำให้เขียนซ้ำ
+   ponytail: jobs ยังไม่มี unique (date,cts_id,slot) — on_conflict จึงใช้ไม่ได้ (42P10)
+   เพิ่ม unique index เมื่อไหร่ ค่อยเปลี่ยนลูปนี้เป็น .upsert(rows,{onConflict:'date,cts_id,slot'}) ครั้งเดียวจบ */
+async function saveSched(prev,now){
+  const was=flatSched(prev),is=flatSched(now);
+  for(const ck of new Set(Object.keys(was).concat(Object.keys(is)))){
+    const [k,cid,sl]=ck.split('|');
+    const str=j=>j?JSON.stringify(jobRow(k,cid,sl,j)):'';
+    if(str(was[ck])===str(is[ck]))continue;
+    const del=await SB.from('jobs').delete().eq('date',k).eq('cts_id',cid).eq('slot',sl);
+    if(del.error)throw del.error;
+    if(is[ck]){const ins=await SB.from('jobs').insert(jobRow(k,cid,sl,is[ck]));if(ins.error)throw ins.error;}
+  }
+}
+
+/* ===== เฟส 3: skills / holidays / events (+ selfEvents) <-> ตารางจริง =====
+   skills   : state.skills[ctsId][product]='self'|'senior'  -> 1 แถว = 1 คู่ (cts, product)
+   holidays : [{date,name}]                                 -> 1 แถว = 1 วัน (date เป็น PK)
+   events   : งานกลาง MA (id EV…) + คิวงานที่ CTS ลงเอง (id SE…) อยู่ตารางเดียวกัน แยกกันที่ client.src
+   id ของ events หน้าจอกำหนดเอง (EV n -> n, SE n -> EV_OFFSET+n) จะได้ upsert on_conflict=id ตรงๆ
+   ต้องรัน 2 บรรทัดท้าย schema.sql ก่อน (events.client + id set generated by default) */
+const EV_OFFSET=1000000;   // SE นั่งคนละช่วง id กับ EV ในตารางเดียวกัน
+const evDbId=e=>(String(e.id).startsWith('SE')?EV_OFFSET:0)+idNum(e.id);
+const isSelfEv=e=>String(e.id).startsWith('SE');
+const evList=s=>[...(s.events||[]).map(e=>[e,'EV']),...(s.selfEvents||[]).map(e=>[e,'SE'])];
+/* คอลัมน์จริงไว้ query/report · ฟิลด์ที่หน้าจอใช้แต่ยังไม่มีคอลัมน์ (type/allDay/start/end/attendees/owner)
+   เก็บครบใน client jsonb แบบเดียวกับ requests เฟส 1 */
+const evRow=(e,src)=>({id:evDbId(e),date:e.date,slot:src==='EV'?(e.slot||'all'):'all',
+  cts:src==='EV'?(e.cts==='all'?['all']:(e.cts||[]).slice()):(e.attendees||[]).slice(),
+  title:e.title||null,detail:e.detail||null,product:prodMain(e.product),
+  topics:e.topics||[],client:{src,...e}});
+/* ไม่มี client (ยังไม่ได้รัน alter หรือแถวที่ seed เข้าไปตรงๆ) = ประกอบจากคอลัมน์จริง ถือเป็นงานกลาง */
+const evFrom=x=>{const c=x.client||{};
+  return c.id?c:{id:'EV'+x.id,date:x.date,slot:x.slot||'all',type:EVTYPE[2],title:x.title||'',
+                 cts:(x.cts||[]).includes('all')?'all':(x.cts||[])};};
+
+/* ทักษะ: เขียนเฉพาะคู่ (cts,product) ที่เปลี่ยน · ปิดทักษะ = ลบแถวนั้น
+   ponytail: ลบทีละแถวเพราะคีย์เป็นคู่ (PostgREST ลบหลายคู่ในคำสั่งเดียวไม่ได้ตรงๆ)
+   ถ้าวันหลัง Admin กดเปิด/ปิดทีเป็นสิบๆ ค่อยเปลี่ยนเป็น .delete().or('and(...)') รอบเดียว */
+async function saveSkills(prev,now){
+  const flat=s=>{const o={};Object.keys(s||{}).forEach(cid=>
+    Object.keys(s[cid]||{}).forEach(pr=>{if(s[cid][pr])o[cid+'|'+pr]=s[cid][pr];}));return o;};
+  const was=flat(prev),is=flat(now);
+  /* cts_id เป็น FK -> profiles.member_id · คนที่ยังไม่มีใน profiles ข้ามไป ไม่งั้นทั้งรอบบันทึกล้มทั้งชุด */
+  const rows=Object.keys(is).filter(k=>was[k]!==is[k])
+    .map(k=>{const [cts_id,product]=k.split('|');return {cts_id,product,mode:is[k]};})
+    .filter(r=>PROF[r.cts_id]);
+  if(rows.length){const up=await SB.from('skills').upsert(rows,{onConflict:'cts_id,product'});if(up.error)throw up.error;}
+  for(const k of Object.keys(was)){
+    if(is[k])continue;
+    const [cid,pr]=k.split('|');
+    const del=await SB.from('skills').delete().eq('cts_id',cid).eq('product',pr);
+    if(del.error)throw del.error;
+  }
+}
+/* วันหยุด: date เป็น PK — upsert on conflict date แล้วลบวันที่ถูกเอาออก */
+async function saveHolidays(prev,now){
+  const was=new Map((prev||[]).map(h=>[h.date,h.name||null]));
+  const is=new Map((now||[]).map(h=>[h.date,h.name||null]));
+  const rows=[...is].filter(([d,n])=>!was.has(d)||was.get(d)!==n).map(([date,name])=>({date,name}));
+  if(rows.length){const up=await SB.from('holidays').upsert(rows,{onConflict:'date'});if(up.error)throw up.error;}
+  const gone=[...was.keys()].filter(d=>!is.has(d));
+  if(gone.length){const del=await SB.from('holidays').delete().in('date',gone);if(del.error)throw del.error;}
+}
+/* งานกลาง + คิวงานที่ลงเอง: upsert on conflict id (ชุดเดียวจบ) แล้วลบ id ที่หายไป */
+let evReady=true;   // ตาราง events รับ id/client จากหน้าจอได้ไหม — ยังไม่ได้รัน 2 บรรทัดท้าย schema.sql = ไม่ได้
+async function saveEvents(prev,now){
+  if(!evReady)return;
+  const was=new Map(prev.map(([e])=>[evDbId(e),JSON.stringify(e)]));
+  const rows=now.filter(([e])=>was.get(evDbId(e))!==JSON.stringify(e)).map(([e,src])=>evRow(e,src));
+  if(rows.length){
+    const up=await SB.from('events').upsert(rows,{onConflict:'id'});
+    /* 42703 = ไม่มีคอลัมน์ client · 428C9 = id ยังเป็น generated always
+       เตือนครั้งเดียวแล้วหยุดเขียน ไม่งั้น save() จะวน retry ทุก 1.5 วินาทีไม่จบ */
+    if(up.error&&['42703','428C9'].includes(up.error.code)){
+      evReady=false;return toast('งานกลาง/คิวงานที่ลงเอง ยังบันทึกขึ้นเซิร์ฟเวอร์ไม่ได้ — รัน 2 บรรทัดท้าย supabase/schema.sql ก่อน');}
+    if(up.error)throw up.error;
+  }
+  const live=new Set(now.map(([e])=>evDbId(e)));
+  const gone=[...was.keys()].filter(id=>!live.has(id));
+  if(gone.length){const del=await SB.from('events').delete().in('id',gone);if(del.error)throw del.error;}
 }
 
 async function load(){
-  if(!API)return;
+  if(!SB)return false;
   try{
-    const d=await api({});
-    if(!d.ok)return false;
-    apply(d);
+    const [reqs,profs,jobs,skills,hols,evs]=await Promise.all([
+      SB.from('requests').select('*,request_sessions(*),upc_days(*,upc_items(*))').order('created_at',{ascending:false}),
+      SB.from('profiles').select('member_id,id'),
+      allJobs(),
+      SB.from('skills').select('cts_id,product,mode'),
+      SB.from('holidays').select('date,name').order('date'),
+      SB.from('events').select('*').order('id')]);
+    if(reqs.error)throw reqs.error;
+    if(!profs.error)PROF=Object.fromEntries(profs.data.map(p=>[p.member_id,p.id]));
+    if(reqs.data.length&&!('client' in reqs.data[0]))hasClientCol=false;
+    state.requests=reqs.data.map(fromRow);
+    state.seq=Math.max(state.seq,...state.requests.map(r=>idNum(r.id)+1));
+    /* เฟส 3 — ตารางไหนอ่านไม่ได้ (ยังไม่ได้สร้าง / RLS ปิด) ก็คงของเดิมในเครื่องไว้ ไม่ล้างทิ้ง */
+    if(!skills.error){
+      state.skills={};
+      skills.data.forEach(s=>{(state.skills[s.cts_id]||(state.skills[s.cts_id]={}))[s.product]=s.mode;});
+    }
+    if(!hols.error){
+      /* ตารางว่าง = ยังไม่เคยย้าย -> ส่งวันหยุดตั้งต้นขึ้นไปครั้งเดียว
+         ไม่งั้นวันหยุดที่ Admin ลบจะโผล่กลับมาจาก HOLIDAYS_SEED ทุกครั้งที่โหลด */
+      if(!hols.data.length&&HOLIDAYS_SEED.length)await SB.from('holidays').upsert(HOLIDAYS_SEED,{onConflict:'date'});
+      state.holidays=hols.data.length?hols.data.map(h=>({date:h.date,name:h.name||''})):HOLIDAYS_SEED.slice();
+    }
+    if(!evs.error){
+      state.events=[];state.selfEvents=[];
+      evs.data.map(evFrom).forEach(e=>(isSelfEv(e)?state.selfEvents:state.events).push(e));
+      state.evSeq=Math.max(state.evSeq,...state.events.map(e=>idNum(e.id)+1));
+      state.seSeq=Math.max(state.seSeq,...state.selfEvents.map(e=>idNum(e.id)+1));
+    }
+    /* ปฏิทินงานสร้างใหม่จาก DB ทั้งก้อน แล้วค่อยวางคิวงานที่ CTS ลงเองทับ (syncSelf สร้างใหม่ทุกครั้ง) */
+    state.sched={};
+    jobs.forEach(x=>{if(x.slot==='am'||x.slot==='pm')setJob(x.date,x.cts_id,x.slot,jobFrom(x));});
+    state.selfEvents.forEach(syncSelf);
+    rebuildFeed();
+    sweepTBC();
+    lastSaved=JSON.stringify(snap());
+    loaded=true;
     return true;
   }catch(e){
     /* โหลดไม่สำเร็จ = ห้ามบันทึก ไม่งั้นจะเอา state เปล่าไปทับของจริงบนเซิร์ฟเวอร์ */
-    toast('โหลดข้อมูลไม่ได้ — ตรวจอินเทอร์เน็ตแล้วลองใหม่');
+    toast('โหลดข้อมูลไม่ได้ — '+(e.message||'ตรวจอินเทอร์เน็ตแล้วลองใหม่'));
     return false;
   }
 }
 
 /* ปุ่ม ⟳ — ดึงข้อมูลล่าสุดมาดูเดี๋ยวนี้ ไม่ต้องรอสลับแอปหรือรีโหลดหน้า */
 async function refresh(){
-  if(!API)return toast('โหมดออฟไลน์ — ไม่มีข้อมูลให้รีเฟรช');
+  if(!SB)return toast('โหมดออฟไลน์ — ไม่มีข้อมูลให้รีเฟรช');
   if(saving)return toast('กำลังบันทึกอยู่ — รอสักครู่แล้วกดใหม่');
   toast('กำลังโหลดข้อมูลล่าสุด…');
   if(await load()){render();toast('อัปเดตข้อมูลล่าสุดแล้ว');}
 }
 
+/* บันทึกคำขอเดียว — upsert แถวหลัก (ON CONFLICT id DO UPDATE) แล้วเขียนตารางลูกใหม่ทับของเดิม
+   ponytail: ลบลูกทั้งหมดแล้วใส่กลับ เพราะคำขอหนึ่งมีไม่กี่ session — ถ้าวันหลังคำขอใหญ่ขึ้นค่อยเปลี่ยนเป็น diff ราย session */
+async function saveReq(r){
+  const row=toRow(r);
+  let {error}=await SB.from('requests').upsert(row);
+  if(error&&hasClientCol&&/client/.test(error.message||'')){   // ยังไม่ได้เพิ่มคอลัมน์ client — บันทึกต่อโดยไม่มีฟิลด์เสริม
+    hasClientCol=false;delete row.client;
+    ({error}=await SB.from('requests').upsert(row));
+  }
+  if(error)throw error;
+  if(r.mode==='upc'){
+    const del=await SB.from('upc_days').delete().eq('request_id',r.id);   // upc_items ตามไปด้วย (on delete cascade)
+    if(del.error)throw del.error;
+    for(const d of (r.days||[])){
+      const sn=(r.sessions||[]).find(s=>s.date===d.date);
+      const day=await SB.from('upc_days').insert({request_id:r.id,date:d.date,cts_id:(sn&&sn.ctsId)||null}).select('id').single();
+      if(day.error)throw day.error;
+      const items=(d.items||[]).map(i=>({upc_day_id:day.data.id,clinic:i.clinic||null,province:i.province||null,
+        module:i.module||null,level:i.level||null,product:prodMain(i.product),topic:i.topic||null,
+        doctors:i.doctors===''||i.doctors==null?null:String(i.doctors),exp:i.exp||null,
+        hands_on:!!i.handsOn,ho_product:i.hoProduct||null,ho_cases:numOrNull(i.hoCases)}));
+      if(items.length){const ins=await SB.from('upc_items').insert(items);if(ins.error)throw ins.error;}
+    }
+  }else{
+    const del=await SB.from('request_sessions').delete().eq('request_id',r.id);
+    if(del.error)throw del.error;
+    const rows=(r.sessions||[]).map(s=>({request_id:r.id,date:s.date,slot:s.slot||'day',
+      start:s.start||null,end_time:s.end||null,cts_id:s.ctsId||null,
+      product:prodMain(s.sProduct)||prodMain(r.product),topic:s.sTopic||null,full_day:!!s.fullDay}));
+    if(rows.length){const ins=await SB.from('request_sessions').insert(rows);if(ins.error)throw ins.error;}
+  }
+}
+
+/* ส่งเฉพาะคำขอที่เปลี่ยนจริงตั้งแต่โหลด/บันทึกครั้งก่อน — ที่เหลือไม่ต้องแตะ
+   บันทึกไม่ครบ = ไม่อัป lastSaved -> รอบ retry ส่งซ้ำทั้งชุด (upsert ซ้ำได้ ไม่เสียหาย) */
 async function save(){
-  if(!API||!loaded||saving)return;
+  if(!SB||!loaded||saving)return;
   const body=JSON.stringify(snap());
   if(body===lastSaved)return;
   saving=true;
   try{
-    const d=await api({version,data:JSON.parse(body)});
-    if(!d.ok){toast('รหัสผ่านใช้ไม่ได้แล้ว — กรุณาเข้าสู่ระบบใหม่');loaded=false;return logout();}
-    if(d.stale){
-      /* มีคนบันทึกแทรกเข้ามา — รวมของเขากับของเราแทนการทับทิ้ง แล้วปล่อยให้รอบ retry ส่งผลรวมกลับขึ้นไป */
-      const merged=mergeState(JSON.parse(lastSaved),JSON.parse(body),d.data);
-      apply(d);                       // ตั้ง version + lastSaved เป็นของบนเซิร์ฟเวอร์
-      Object.assign(state,merged);    // แล้วทับด้วยผลรวม -> snap() != lastSaved -> finally จะ save ต่อให้
-      relinkFeed();
-      render();toast('มีคนแก้พร้อมกัน — รวมข้อมูลของทั้งสองฝั่งแล้ว');
-    }
-    else{version=d.version;lastSaved=body;}
+    const old=lastSaved?JSON.parse(lastSaved):{requests:[],sched:{}};
+    const cur=JSON.parse(body);
+    const prev=old.requests||[];
+    const was=new Map(prev.map(r=>[r.id,JSON.stringify(r)]));
+    const now=cur.requests;
+    for(const r of now)if(was.get(r.id)!==JSON.stringify(r))await saveReq(r);
+    const live=new Set(now.map(r=>r.id));
+    const gone=prev.filter(r=>!live.has(r.id)).map(r=>r.id);
+    if(gone.length){const del=await SB.from('requests').delete().in('id',gone);if(del.error)throw del.error;}
+    await saveSched(old.sched||{},cur.sched||{});
+    await saveSkills(old.skills,cur.skills);
+    await saveHolidays(old.holidays,cur.holidays);
+    await saveEvents(evList(old),evList(cur));
+    lastSaved=body;
   }catch(e){
     toast('บันทึกไม่สำเร็จ — จะลองใหม่อัตโนมัติ');
   }finally{
