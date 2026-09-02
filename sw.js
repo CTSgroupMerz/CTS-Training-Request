@@ -1,6 +1,6 @@
 /* Service worker — network-first, cache เป็นตัวสำรองตอนเน็ตหลุดเท่านั้น
    ตั้งใจไม่ใช้ cache-first เพราะเคยเจอปัญหาไฟล์ค้างเวอร์ชันเก่าหลัง deploy */
-const C = 'cts-v1';
+const C = 'cts-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
