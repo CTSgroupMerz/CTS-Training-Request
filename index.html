@@ -2841,7 +2841,7 @@ function submit(){
   const d=state.draft,e=[];
   if(!d.module)e.push('เลือก Module Training');
   missingRequired(d).forEach(x=>e.push('กรอก '+x));
-  if(state.picks.length!==d.slots)e.push(`เลือกวันให้ครบ ${d.slots} slot`);
+  if(!state.tbcMode&&state.picks.length!==d.slots)e.push(`เลือกวันให้ครบ ${d.slots} slot`);
   state.picks.forEach((p,i)=>{
     if(p.start&&p.end&&p.end<=p.start)e.push(`S${i+1}: เวลาสิ้นสุดต้องหลังเวลาเริ่ม`);
     if(p.ctsId&&p.start){const w=slotTime(p.date,p.ctsId,p.slot);
