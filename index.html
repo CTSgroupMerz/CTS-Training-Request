@@ -3562,7 +3562,7 @@ const SB=(SUPA_URL&&window.supabase)?window.supabase.createClient(SUPA_URL,SUPA_
 
 /* บันทึกคำขอ (เฟส 1) + ปฏิทินงาน (เฟส 2) + skills/holidays/events (เฟส 3)
    feed สร้างใหม่จาก requests ทุกครั้งที่โหลด · evSeq/seSeq คำนวณจาก id สูงสุดตอนโหลด จึงไม่ต้องเก็บ */
-const SAVED=['requests','seq','sched','skills','holidays','events','selfEvents'];
+const SAVED=['requests','seq','sched','skills','holidays','events','selfEvents','avail'];
 const snap=()=>Object.fromEntries(SAVED.map(k=>[k,state[k]]));
 
 /* รหัสผ่านไม่เคยอยู่ในไฟล์นี้ — Supabase Auth เก็บ session ให้เอง ที่นี่เก็บแค่บทบาทที่เลือก */
@@ -3727,6 +3727,22 @@ async function saveHolidays(prev,now){
   const gone=[...was.keys()].filter(d=>!is.has(d));
   if(gone.length){const del=await SB.from('holidays').delete().in('date',gone);if(del.error)throw del.error;}
 }
+/* ช่วงเวลาที่ Admin/CTS แก้เอง (state.avail) — เขียน/ลบเฉพาะค่าที่ไม่ใช่ null
+   avail[date][cts][slot] = {start,end} | {closed:true,start,end} | null(=ใช้ auto window) */
+async function saveAvail(prev,now){
+  const flat=s=>{const o={};Object.keys(s||{}).forEach(k=>{Object.keys(s[k]||{}).forEach(cid=>{
+    Object.keys(s[k][cid]||{}).forEach(sl=>{const v=s[k][cid][sl];if(v)o[k+'|'+cid+'|'+sl]=v;});});});return o;};
+  const was=flat(prev),is=flat(now);
+  const rows=[];
+  Object.keys(is).forEach(key=>{if(was[key]&&JSON.stringify(was[key])===JSON.stringify(is[key]))return;
+    const [date,cts_id,slot]=key.split('|'),v=is[key];
+    rows.push({date,cts_id,slot,start:v.start||null,end_time:v.end||null,closed:!!v.closed});});
+  if(rows.length){const up=await SB.from('avail').upsert(rows,{onConflict:'date,cts_id,slot'});if(up.error)throw up.error;}
+  const gone=Object.keys(was).filter(k=>!is[k]);
+  for(const k of gone){const [date,cts_id,slot]=k.split('|');
+    const del=await SB.from('avail').delete().eq('date',date).eq('cts_id',cts_id).eq('slot',slot);
+    if(del.error)throw del.error;}
+}
 /* งานกลาง + คิวงานที่ลงเอง: upsert on conflict id (ชุดเดียวจบ) แล้วลบ id ที่หายไป */
 let evReady=true;   // ตาราง events รับ id/client จากหน้าจอได้ไหม — ยังไม่ได้รัน 2 บรรทัดท้าย schema.sql = ไม่ได้
 async function saveEvents(prev,now){
@@ -3749,13 +3765,14 @@ async function saveEvents(prev,now){
 async function load(){
   if(!SB)return false;
   try{
-    const [reqs,profs,jobs,skills,hols,evs]=await Promise.all([
+    const [reqs,profs,jobs,skills,hols,evs,avl]=await Promise.all([
       SB.from('requests').select('*,request_sessions(*),upc_days(*,upc_items(*))').order('created_at',{ascending:false}),
       SB.from('profiles').select('member_id,id'),
       allJobs(),
       SB.from('skills').select('cts_id,product,mode'),
       SB.from('holidays').select('date,name').order('date'),
-      SB.from('events').select('*').order('id')]);
+      SB.from('events').select('*').order('id'),
+      SB.from('avail').select('date,cts_id,slot,start,end_time,closed')]);
     if(reqs.error)throw reqs.error;
     if(!profs.error)PROF=Object.fromEntries(profs.data.map(p=>[p.member_id,p.id]));
     if(reqs.data.length&&!('client' in reqs.data[0]))hasClientCol=false;
@@ -3777,6 +3794,13 @@ async function load(){
       evs.data.map(evFrom).forEach(e=>(isSelfEv(e)?state.selfEvents:state.events).push(e));
       state.evSeq=Math.max(state.evSeq,...state.events.map(e=>idNum(e.id)+1));
       state.seSeq=Math.max(state.seSeq,...state.selfEvents.map(e=>idNum(e.id)+1));
+    }
+    if(!avl.error){
+      state.avail={};
+      avl.data.forEach(r=>{
+        (state.avail[r.date]||(state.avail[r.date]={}))[r.cts_id] ||= {};
+        state.avail[r.date][r.cts_id][r.slot]={start:r.start,end:r.end_time,closed:!!r.closed};
+      });
     }
     /* ปฏิทินงานสร้างใหม่จาก DB ทั้งก้อน แล้วค่อยวางคิวงานที่ CTS ลงเองทับ (syncSelf สร้างใหม่ทุกครั้ง) */
     state.sched={};
@@ -3856,6 +3880,7 @@ async function save(){
     await saveSkills(old.skills,cur.skills);
     await saveHolidays(old.holidays,cur.holidays);
     await saveEvents(evList(old),evList(cur));
+    await saveAvail(old.avail,cur.avail);
     lastSaved=body;
   }catch(e){
     toast('บันทึกไม่สำเร็จ — จะลองใหม่อัตโนมัติ');
