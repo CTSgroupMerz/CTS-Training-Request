@@ -93,6 +93,7 @@
 ### วันนี้เสร็จแล้ว: ✅ push + cache-bust + GitHub Pages
 
 ### ยังต้องทำ (ให้ผู้ใช้ / เฟสถัดไป):
+0. **งานกลาง MA ไม่แสดง (data gap) — สำคัญ** — ตาราง `events` ว่าง (0 แถว): migration ปล่อยว่าง "รอ Admin เพิ่ม" และ**งานกลาง MA ที่เคยอยู่ในแอปเก่า (GAS blob) ไม่ถูกย้ายมา** → ปฏิทินไม่ขึ้นงานสีน้ำเงินเข้ม. ตรวจแล้วว่า **สูตร/เงื่อนไขธุรกิจทั้งหมด (autoWindow/slotTime/freeIds/needsSenior/product gate/approval)** ยังอยู่ครบ (diff เก่า-ใหม่ = IDENTICAL); ที่ต่างคือ storage-layer เท่านั้น. → **ต้อง re-add งานกลาง MA ผ่าน Admin ("เพิ่มงานกลาง MA")** หรือให้ข้อมูลรายการงานกลางมาให้ผม seed. (render รองรับ multi-CTS สีรวมแล้ว — commit 75c40ca)
 1. **เปลี่ยน email จริงของ 10 users** (placeholder `@ctsgroup.merz.com` → email จริง) — ต้องแก้ `EMAIL_OF` ใน index.html + Supabase Auth (Authentication → Users)
 2. **ตั้ง/แจก password** ให้ทีม 10 คน (ตอนนี้ตั้งเอง/แจกเองได้)
 3. **จำกัดพื้นที่ Sales** (RLS รอบสอง — จาก `using(true)` → เฉพาะพื้นที่ตัวเอง)
