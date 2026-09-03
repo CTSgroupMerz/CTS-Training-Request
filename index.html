@@ -659,6 +659,9 @@ textarea.in{min-height:76px;resize:vertical}
 .status.expired{background:#F2F1F6;color:var(--ink3);border:1px solid var(--line)}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
 /* กล่องแจ้งเตือนคิว TBC — สีแดง ให้ Sales เห็นชัดว่าเหลืออีกกี่วันก่อนปล่อยวันคืนระบบ */
+/* ป้าย TBC สีแดงหน้าชื่องาน — หัวหน้าเห็นทันทีว่าคิวนี้ยังไม่คอนเฟิร์ม */
+.tbctag{display:inline-block;background:#D92D42;color:#fff;font-size:9.5px;font-weight:800;line-height:1;
+  padding:2px 4px;border-radius:4px;margin-right:4px;vertical-align:1px;letter-spacing:.3px}
 .tbcbar{background:#FDE7E9;border:1.5px solid #E08A96;color:#9E2233;border-radius:12px;padding:10px 12px;font-size:12.5px;margin-top:10px;font-weight:600}
 .kv{display:grid;grid-template-columns:86px 1fr;gap:4px 10px;margin-top:12px;font-size:13px}
 .kv dt{color:var(--ink3);font-size:12px}
@@ -1086,6 +1089,8 @@ const prodText=v=>prodList(v).join(' · ');
 /* หัวข้อที่เกี่ยวข้อง (KUD / Med School / MSC) — โชว์นำหน้าชื่องานในปฏิทินแบบเดียวกับ product */
 const topicText=v=>(v||[]).join(' · ');
 const leadText=j=>[prodText(j.product),topicText(j.topics)].filter(Boolean).join(' · ');
+/* คิว TBC = ล็อกวันไว้ยังไม่คอนเฟิร์ม — ติดป้ายแดงนำหน้าชื่องานทุกที่ที่วาดการ์ดคิว */
+const tbcTag=j=>j&&j.kind==='tbc'?'<span class="tbctag">TBC</span>':'';
 /* ===== กรองปฏิทินตามประเภทคิว =====
    ว่าง = เห็นทุกอย่างเหมือนเดิม · เลือกแล้ว = เห็นเฉพาะประเภทที่เลือก (เลือกพร้อมกันได้หลายอัน)
    กรองตอนวาดปฏิทินเท่านั้น ไม่แตะการนับคิวว่างและการคำนวณเวลา */
@@ -1616,12 +1621,12 @@ function monthHTML(){
             : `<span class="evchip ma" data-ev="${e.id}"><span class="etx">MA · ${esc(e.title)}</span></span>`)
           .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
             if(one)return `<button class="evchip one" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
-              style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">${okMark(o.job)}${esc(o.job.title||'งาน')}</button>`;
+              style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">${okMark(o.job)}${tbcTag(o.job)}${esc(o.job.title||'งาน')}</button>`;
             return `<button class="evchip two" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
               style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">
               <span class="l1"><span class="cdot"></span><span class="sl">${timeLabel(o.job,o)}</span>
                 <span class="who">${nicks}</span></span>
-              <span class="etx">${okMark(o.job)}${leadText(o.job)?leadText(o.job)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
+              <span class="etx">${okMark(o.job)}${tbcTag(o.job)}${leadText(o.job)?leadText(o.job)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
         const cap=one?4:3;
         inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
       }else{
@@ -1677,7 +1682,7 @@ function weekHTML(){
           +entriesOf(k,c.id).filter(e=>jobTypeOk(e.job)).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
             <span class="slb">${timeLabel(e.job,e)}</span>
-            <span class="etx2">${okMark(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':e.job.kind==='tbc'?' (TBC)':''}</span>
+            <span class="etx2">${okMark(e.job)}${tbcTag(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'ติดงาน')}${e.job.kind==='pend'?' (รออนุมัติ)':''}</span>
             ${e.job.detail?`<span class="etx3">${esc(e.job.detail)}</span>`:''}
             ${upLabel(e.job)?`<span class="etx4">${esc(upLabel(e.job))}</span>`:''}</button>`).join('');
         return `<div class="wcell${hol?' holc2':''}">${html||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
@@ -2234,7 +2239,7 @@ function timelineHTML(k){
       style="top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px);${style}">
       <span class="tb-h"><b>${e.start}–${e.end}</b>
         <span class="tb-who">${ids.map(i=>`<i style="background:${pal(i).c};box-shadow:0 0 0 1px ${pal(i).ci}55"></i>`).join('')}</span></span>
-      <span class="tb-t">${okMark(j)}${leadText(j)?leadText(j)+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (TBC — ล็อกไว้ก่อน)':''}</span>
+      <span class="tb-t">${okMark(j)}${tbcTag(j)}${leadText(j)?leadText(j)+' · ':''}${esc(j.title||'งาน')}${j.kind==='pend'?' (รออนุมัติ)':j.kind==='tbc'?' (ล็อกไว้ก่อน)':''}</span>
       <span class="tb-n">${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;
   }).join('');
   const adBar=allDay.length?`<div class="tl-allday">
@@ -2242,7 +2247,7 @@ function timelineHTML(k){
     <div class="adlist">${allDay.map(e=>{const ids=e.who.length?e.who:[e.anchor.cid];
       return `<button class="adchip" data-job="${k}|${e.key}"
         style="${jobStyle({...e.job,attendees:ids},ids[0])}">
-        <b>${okMark(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'งาน')}</b>
+        <b>${okMark(e.job)}${tbcTag(e.job)}${leadText(e.job)?leadText(e.job)+' · ':''}${esc(e.job.title||'งาน')}</b>
         <span>${ids.map(i=>byId(i).nick).join(', ')}</span></button>`;}).join('')}</div></div>`:'';
   return adBar+`<div class="tl" style="height:${H}px">
     <div class="tl-hours">${hours.map(h=>`<div class="tl-h" style="height:${rowH}px"><span>${String(h).padStart(2,'0')}:00</span></div>`).join('')}</div>
@@ -2517,8 +2522,8 @@ function openForm(){
       <span style="font-size:12.5px;color:#7E6317">ส่งแล้วจะแจ้งเตือนไปที่ <b>${leads.map(l=>l.nick).join(' และ ')}</b> เพื่ออนุมัติ${state.role==='sales'?' และจัด CTS ผู้เทรน':''}${activeTeam()==='BOTH'?' (UPC อนุมัติได้ทั้งสองคน)':''}</span></div>
     <div class="note">หัวข้อที่มี <b class="req-star">*</b> ต้องกรอกก่อนถึงจะส่งได้ · ที่เหลือกรอกไม่ครบก็ส่งได้ ระบบจะสรุปรายการที่ขาดและขอตอนอนุมัติ</div>
     <div class="err" id="errBox" hidden></div>
-    <button class="btn primary block" id="btnSend" style="margin-top:14px">ส่งคำขอ</button>
-    <button class="btn block" id="btnTbc" style="margin-top:8px">🔒 ล็อกวันไว้ก่อน (คิว TBC)</button>
+    ${state.tbcMode?'':'<button class="btn primary block" id="btnSend" style="margin-top:14px">ส่งคำขอ</button>'}
+    <button class="btn ${state.tbcMode?'primary ':''}block" id="btnTbc" style="margin-top:${state.tbcMode?14:8}px">🔒 ล็อกวันไว้ก่อน (คิว TBC)</button>
     <div class="note">คิว TBC = ยังไม่คอนเฟิร์มแพทย์/คลินิก · เลือกได้หลายวัน ระบบล็อกให้ ${TBC_DAYS} วัน แล้วค่อยกลับมากด "Confirm and Request"</div>
     <button class="btn ghost block" id="btnCancel" style="margin-top:8px">ยกเลิกคำขอนี้</button></div>`);
 
@@ -2543,7 +2548,7 @@ function openForm(){
   $('btnPick').onclick=()=>{grab();closeSheet();goTab('cal');toast('เลือกวันให้ครบ แล้วกด "กลับไปกรอกฟอร์ม"');};
   $('fHO').onchange=e=>{grab();d.handsOn=e.target.checked;openForm();};
   const ph=$('fPhoto');if(ph)ph.onchange=e=>{grab();[...e.target.files].forEach(f=>d.photos.push({name:f.name,url:URL.createObjectURL(f)}));openForm();};
-  $('btnSend').onclick=submit;
+  if($('btnSend'))$('btnSend').onclick=submit;   /* โหมด TBC ไม่มีปุ่มส่งคำขอ */
   $('btnTbc').onclick=submitTBC;
   $('btnCancel').onclick=()=>{state.draft=null;state.picks=[];closeSheet();render();};
 }
@@ -2760,7 +2765,10 @@ function saveUPC(r,D){
    ครบ 3 วันนับจากวันที่ส่ง TBC แล้วยังไม่ได้เปลี่ยน -> ปล่อยวันคืนระบบอัตโนมัติ */
 const TBC_DAYS=3;
 const tbcDeadline=r=>new Date(new Date(r.tbcAt).getTime()+TBC_DAYS*864e5);
-const tbcLeft=r=>Math.ceil((tbcDeadline(r)-Date.now())/864e5);
+/* วันที่เหลือ = นับเป็นวันตามปฏิทินจาก TBC_DAYS — คำขอที่เพิ่งล็อกวันนี้ต้องเห็น 3 วันเต็ม
+   (ของเดิมนับจากเวลาจริง เลยเหลือ 2 ทันทีที่ข้ามคืนแรก) */
+const midnightOf=d=>new Date(d).setHours(0,0,0,0);
+const tbcLeft=r=>TBC_DAYS-Math.max(0,Math.round((midnightOf(Date.now())-midnightOf(r.tbcAt))/864e5));
 function releaseTBC(r){r.sessions.forEach(sn=>{if(sn.ctsId)setJob(sn.date,sn.ctsId,sn.slot,null);});}
 /* ปล่อยคิว TBC ที่หมดอายุ — เรียกตอนโหลดข้อมูลและทุกครั้งที่เรนเดอร์ ไม่ต้องพึ่ง cron ฝั่งเซิร์ฟเวอร์ */
 function sweepTBC(){
