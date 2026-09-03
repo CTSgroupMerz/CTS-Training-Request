@@ -3864,10 +3864,10 @@ async function refresh(){
    ponytail: ลบลูกทั้งหมดแล้วใส่กลับ เพราะคำขอหนึ่งมีไม่กี่ session — ถ้าวันหลังคำขอใหญ่ขึ้นค่อยเปลี่ยนเป็น diff ราย session */
 async function saveReq(r){
   const row=toRow(r);
-  let {error}=await SB.from('requests').upsert(row);
+  let {error}=await SB.from('requests').upsert(row,{onConflict:'id'});
   if(error&&hasClientCol&&/client/.test(error.message||'')){   // ยังไม่ได้เพิ่มคอลัมน์ client — บันทึกต่อโดยไม่มีฟิลด์เสริม
     hasClientCol=false;delete row.client;
-    ({error}=await SB.from('requests').upsert(row));
+    ({error}=await SB.from('requests').upsert(row,{onConflict:'id'}));
   }
   if(error)throw error;
   if(r.mode==='upc'){
