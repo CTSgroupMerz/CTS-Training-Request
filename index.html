@@ -2180,7 +2180,9 @@ function dayEntries(k,pool){
   });
   /* คิวที่บันทึกในตาราง jobs โดยตรง (ไม่ได้มาจากคำขอ และไม่ใช่งานที่ CTS ลงเอง) — ข้อมูลที่ย้ายมาจาก Sheet
      คิวที่มี reqId ถูกสร้างจาก state.requests ข้างบนแล้ว · คิวที่มี selfId ถูกสร้างจาก selfEvents แล้ว -> ข้าม กันซ้ำ
-     job เดียวที่คร่อมเที่ยงถูกเขียนลงทั้งช่องเช้าและบ่าย -> รวมเป็นรายการเดียว ไม่งั้นโผล่ซ้ำ 2 อัน */
+     job เดียวที่คร่อมเที่ยงถูกเขียนลงทั้งช่องเช้าและบ่าย -> รวมเป็นรายการเดียว ไม่งั้นโผล่ซ้ำ 2 อัน
+     งานที่คนไปด้วยกันหลายคน: คอลัมน์ attendees มีครบทุกคน -> วาดเป็นลายทางรวมสีชิปเดียว (เหมือน selfEvent) */
+  const jbSeen=new Set();
   vis.forEach(cid=>{
     const s=(state.sched[k]||{})[cid];if(!s)return;
     const own=j=>!!j&&!j.reqId&&!j.selfId;
@@ -2188,9 +2190,15 @@ function dayEntries(k,pool){
     ['am','pm'].forEach(sl=>{
       const j=s[sl];
       if(!own(j)||(both&&sl==='pm'))return;
-      put('jb-'+cid+'-'+(both?'day':sl),{...j,
+      /* เดิมส่ง who=[cid] (คนเดียว) ทำให้งานเดียวกันโผล่ 1 ชิปต่อคน (e.g. 9 ชิป) เป็นสีทึบ
+         กันชิปซ้ำโดยจับคู่งานเดียวกัน (title|start|end|attendees) แล้วใช้ attendees เป็น who -> ลายทางรวมสีชิปเดียว */
+      const att=(j.attendees||[]).filter(i=>vis.includes(i));
+      if(att.length>=2){const sig=[j.title,j.start,j.end,att.join(',')].join('|');
+        if(jbSeen.has(sig))return;jbSeen.add(sig);}
+      const who=att.length?att:[cid];
+      put('jb-'+cid+'-'+(both?'day':sl),{...j,attendees:who,
         start:j.start||SLOT_DEF[both?'am':sl].start,
-        end:j.end||SLOT_DEF[both?'pm':sl].end},[cid]);
+        end:j.end||SLOT_DEF[both?'pm':sl].end},who);
     });
   });
   state.events.filter(e=>e.date===k).forEach(e=>{
