@@ -41,7 +41,7 @@
 | `request_sessions` / `upc_days` / `upc_items` | 0 / 0 / 0 | cascade ลบพร้อม dummy |
 | `holidays` | 6 | seed |
 | `sales_areas` / `sales_codes` | 8 / 21 | seed |
-| `skills` / `events` | ว่าง / **11** | **งานกลาง MA seed แล้ว (11 รายการจาก _state blob, commit 649879c)** · skills รอ Admin เพิ่มในแอป |
+| `skills` / `events` / `avail` | ว่าง / **11** / **1** | **งานกลาง MA seed แล้ว (11 รายการจาก _state blob)** · skills รอ Admin เพิ่ม · **avail (ช่วงที่แก้เอง) seed แล้ว (koollanut 28/8 pm 15:00–18:00) + แอป load/save แล้ว (commit 2928c9d)** |
 
 ---
 
