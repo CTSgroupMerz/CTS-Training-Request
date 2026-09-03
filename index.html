@@ -1485,9 +1485,9 @@ function renderCal(){
   const be=$('btnEv');if(be)be.onclick=()=>openEventForm();
   view().querySelectorAll('[data-editev]').forEach(b=>b.onclick=()=>openEventForm(b.dataset.editev));
   view().querySelectorAll('[data-delev]').forEach(b=>b.onclick=()=>{
-    state.events=state.events.filter(e=>e.id!==b.dataset.delev);renderCal();toast('ลบงานกลางแล้ว');});
+    state.events=state.events.filter(e=>e.id!==b.dataset.delev);render();toast('ลบงานกลางแล้ว');});
   view().querySelectorAll('[data-delhol]').forEach(b=>b.onclick=()=>{
-    state.holidays=state.holidays.filter(h=>h.date!==b.dataset.delhol);renderCal();toast('ลบวันหยุดแล้ว');});
+    state.holidays=state.holidays.filter(h=>h.date!==b.dataset.delhol);render();toast('ลบวันหยุดแล้ว');});
   const bu=$('btnUpc');if(bu)bu.onclick=()=>openUPCForm();
   const bs=$('btnSelf');if(bs)bs.onclick=()=>openSelfEntry(key(TODAY));
   shell.querySelectorAll('[data-upc]').forEach(b=>b.onclick=e=>{e.stopPropagation();openUPCDay(b.dataset.upc);});
@@ -1612,8 +1612,8 @@ function monthHTML(){
            จอใหญ่: แถบ 2 บรรทัด มีเวลาและชื่อคนกำกับ */
         const one=NARROW();
         const chips=ma.map(e=>one
-            ? `<span class="evchip ma one" data-ev="${e.id}" style="${maStyle(e)}">${esc(e.title)}</span>`
-            : `<span class="evchip ma" data-ev="${e.id}" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`)
+            ? `<span class="evchip ma one" data-ev="${e.id}">${esc(e.title)}</span>`
+            : `<span class="evchip ma" data-ev="${e.id}"><span class="etx">MA · ${esc(e.title)}</span></span>`)
           .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
             if(one)return `<button class="evchip one" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
               style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">${okMark(o.job)}${esc(o.job.title||'งาน')}</button>`;
@@ -1673,7 +1673,7 @@ function weekHTML(){
            คิวทั้งวันได้คลาส allday = เต็มช่อง */
         const ev=maTypeOk()?(eventFor(k,c.id,'am')||eventFor(k,c.id,'pm')):null;
         const html=(hol?`<span class="holtag" style="display:block;padding:2px 0 3px">${esc(hol.name)}</span>`:'')
-          +(ev?`<span class="half mah" data-ev="${ev.id}" style="${maStyle(ev)}"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
+          +(ev?`<span class="half mah" data-ev="${ev.id}"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
           +entriesOf(k,c.id).filter(e=>jobTypeOk(e.job)).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
             <span class="slb">${timeLabel(e.job,e)}</span>
@@ -1773,7 +1773,7 @@ function upcMonthHTML(){
     const evs=state.events.filter(e=>e.date===k);
     const ups=upcOnDate(k);
     const inner=`${hol?`<span class="holname">${esc(hol.name)}</span>`:''}
-      ${evs.map(e=>`<span class="evchip ma" data-ev="${e.id}" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`).join('')}
+      ${evs.map(e=>`<span class="evchip ma" data-ev="${e.id}"><span class="etx">MA · ${esc(e.title)}</span></span>`).join('')}
       ${ups.map(upcChip).join('')}`;
     cells+=`<div class="mcell${off?' off':''}${hol?' hol':''}${past?' past':''}${today?' today':''}">
       <span class="dn"><b>${d}</b></span>${inner}</div>`;
@@ -1797,7 +1797,7 @@ function upcWeekHTML(){
     if(hol&&!ups.length)return `<div class="wcell holc"><span class="holtag">${esc(hol.name)}</span></div>`;
     return `<div class="wcell${hol?' holc2':''}" style="min-height:150px">
       ${hol?`<span class="holtag" style="align-self:flex-start">${esc(hol.name)}</span>`:''}
-      ${evs.map(e=>`<span class="half mah" data-ev="${e.id}" style="${maStyle(e)}"><span class="slb">MA</span>${esc(e.type)}</span>`).join('')}
+      ${evs.map(e=>`<span class="half mah" data-ev="${e.id}"><span class="slb">MA</span>${esc(e.type)}</span>`).join('')}
       ${ups.map(o=>{const items=o.day.items||[];
         return items.map(it=>`<button class="half job" data-upc="${k}"
           style="--c:${it.product?PRODHEX[it.product]:'#E4E0F3'};--ci:${it.product?pink(it.product):'var(--brand-deep)'}">
@@ -2007,15 +2007,6 @@ function jobStyle(j,fallbackId){
   if(ids.length<2)return `--c:${pal(ids[0]||fallbackId).c};--ci:${pal(ids[0]||fallbackId).ci}`;
   const step=14,stops=[];
   ids.forEach((id,i)=>{stops.push(`${pal(id).c} ${i*step}px`,`${pal(id).c} ${(i+1)*step}px`);});
-  return `background:repeating-linear-gradient(45deg,${stops.join(',')});color:${pal(ids[0]).ci};--ci:${pal(ids[0]).ci}`;
-}
-/* สีงานกลาง MA: 'all' หรือคนเดียว = น้ำเงินเข้มทึบตาม default (class .ma/.mah/.tblock.ma)
-   หลายคน = ลายทางรวมสีของแต่ละคน (เหมือนคิวเทรน) ให้เห็นว่าใครไปงานนี้บ้าง */
-function maStyle(ev){
-  const ids=(ev&&ev.cts&&ev.cts!=='all')?(ev.cts||[]).filter(Boolean):[];
-  if(ids.length<2)return '';
-  const step=14,stops=[];
-  ids.forEach((id,i)=>{const p=pal(id);if(!p)return;stops.push(`${p.c} ${i*step}px`,`${p.c} ${(i+1)*step}px`);});
   return `background:repeating-linear-gradient(45deg,${stops.join(',')});color:${pal(ids[0]).ci};--ci:${pal(ids[0]).ci}`;
 }
 function openJob(k,ekey){
@@ -2235,7 +2226,7 @@ function timelineHTML(k){
     const s=Math.max(toMin(e.start),from),en=Math.min(toMin(e.end),to);
     const top=(s-from)/60*rowH, h=Math.max(30,(en-s)/60*rowH-3);
     const w=100/n, left=e.col*w;
-    if(e.ma)return `<div class="tblock ma" data-ev="${e.ma.id}" style="cursor:pointer;${maStyle(e.ma)}top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px)">
+    if(e.ma)return `<div class="tblock ma" data-ev="${e.ma.id}" style="cursor:pointer;top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px)">
       <b>${e.start}</b> MA · ${esc(e.ma.title)}</div>`;
     const j=e.job,ids=e.who.length?e.who:[e.anchor.cid];
     const style=jobStyle({...j,attendees:ids},ids[0]);
