@@ -1477,6 +1477,7 @@ function renderCal(){
     quickPick(b.dataset.book,b.dataset.slot,b.dataset.cts||null);});
   shell.querySelectorAll('[data-job]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const [k,ek]=b.dataset.job.split('|');openJob(k,ek);});
+  shell.querySelectorAll('[data-ev]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEventDetail(b.dataset.ev);});
   bindMail(shell);   // Admin แตะ ✓ บนคิวในปฏิทินได้เลย
   shell.querySelectorAll('[data-d]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
@@ -1611,8 +1612,8 @@ function monthHTML(){
            จอใหญ่: แถบ 2 บรรทัด มีเวลาและชื่อคนกำกับ */
         const one=NARROW();
         const chips=ma.map(e=>one
-            ? `<span class="evchip ma one" style="${maStyle(e)}">${esc(e.title)}</span>`
-            : `<span class="evchip ma" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`)
+            ? `<span class="evchip ma one" data-ev="${e.id}" style="${maStyle(e)}">${esc(e.title)}</span>`
+            : `<span class="evchip ma" data-ev="${e.id}" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`)
           .concat(jobs.map(o=>{const nicks=o.who.map(i=>byId(i).nick).join(', ');
             if(one)return `<button class="evchip one" data-job="${k}|${o.key}" title="${nicks} · ${esc(o.job.title||'')}"
               style="${jobStyle({...o.job,attendees:o.who},o.who[0])}">${okMark(o.job)}${esc(o.job.title||'งาน')}</button>`;
@@ -1672,7 +1673,7 @@ function weekHTML(){
            คิวทั้งวันได้คลาส allday = เต็มช่อง */
         const ev=maTypeOk()?(eventFor(k,c.id,'am')||eventFor(k,c.id,'pm')):null;
         const html=(hol?`<span class="holtag" style="display:block;padding:2px 0 3px">${esc(hol.name)}</span>`:'')
-          +(ev?`<span class="half mah" style="${maStyle(ev)}"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
+          +(ev?`<span class="half mah" data-ev="${ev.id}" style="${maStyle(ev)}"><span class="slb">MA</span>${esc(ev.type)}</span>`:'')
           +entriesOf(k,c.id).filter(e=>jobTypeOk(e.job)).map(e=>`<button class="half job${e.job.allDay?' allday':''}${e.job.kind==='tbc'?' tbcjob':''}"
             data-job="${k}|${e.key}" style="${jobStyle({...e.job,attendees:e.who},c.id)}">
             <span class="slb">${timeLabel(e.job,e)}</span>
@@ -1772,7 +1773,7 @@ function upcMonthHTML(){
     const evs=state.events.filter(e=>e.date===k);
     const ups=upcOnDate(k);
     const inner=`${hol?`<span class="holname">${esc(hol.name)}</span>`:''}
-      ${evs.map(e=>`<span class="evchip ma" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`).join('')}
+      ${evs.map(e=>`<span class="evchip ma" data-ev="${e.id}" style="${maStyle(e)}"><span class="etx">MA · ${esc(e.title)}</span></span>`).join('')}
       ${ups.map(upcChip).join('')}`;
     cells+=`<div class="mcell${off?' off':''}${hol?' hol':''}${past?' past':''}${today?' today':''}">
       <span class="dn"><b>${d}</b></span>${inner}</div>`;
@@ -1796,7 +1797,7 @@ function upcWeekHTML(){
     if(hol&&!ups.length)return `<div class="wcell holc"><span class="holtag">${esc(hol.name)}</span></div>`;
     return `<div class="wcell${hol?' holc2':''}" style="min-height:150px">
       ${hol?`<span class="holtag" style="align-self:flex-start">${esc(hol.name)}</span>`:''}
-      ${evs.map(e=>`<span class="half mah" style="${maStyle(e)}"><span class="slb">MA</span>${esc(e.type)}</span>`).join('')}
+      ${evs.map(e=>`<span class="half mah" data-ev="${e.id}" style="${maStyle(e)}"><span class="slb">MA</span>${esc(e.type)}</span>`).join('')}
       ${ups.map(o=>{const items=o.day.items||[];
         return items.map(it=>`<button class="half job" data-upc="${k}"
           style="--c:${it.product?PRODHEX[it.product]:'#E4E0F3'};--ci:${it.product?pink(it.product):'var(--brand-deep)'}">
@@ -2234,7 +2235,7 @@ function timelineHTML(k){
     const s=Math.max(toMin(e.start),from),en=Math.min(toMin(e.end),to);
     const top=(s-from)/60*rowH, h=Math.max(30,(en-s)/60*rowH-3);
     const w=100/n, left=e.col*w;
-    if(e.ma)return `<div class="tblock ma" style="${maStyle(e.ma)}top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px)">
+    if(e.ma)return `<div class="tblock ma" data-ev="${e.ma.id}" style="cursor:pointer;${maStyle(e.ma)}top:${top}px;height:${h}px;left:calc(${left}% + 2px);width:calc(${w}% - 5px)">
       <b>${e.start}</b> MA · ${esc(e.ma.title)}</div>`;
     const j=e.job,ids=e.who.length?e.who:[e.anchor.cid];
     const style=jobStyle({...j,attendees:ids},ids[0]);
@@ -2281,6 +2282,7 @@ function openDay(k){
   const add=$('dnAdd');if(add)add.onclick=()=>openSelfEntry(k);
   B.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>{
     const [kk,ek]=b.dataset.job.split('|');openJob(kk,ek);});
+  B.querySelectorAll('[data-ev]').forEach(b=>b.onclick=()=>openEventDetail(b.dataset.ev));
   B.querySelectorAll('[data-anon]:not([disabled])').forEach(b=>b.onclick=()=>{
     if(togglePick(k,b.dataset.anon,null)){closeSheet();renderCal();
       if(!state.draft&&state.picks.length===1)toast('เลือกช่วงเวลาแล้ว — กด "สร้างคำขอ"');}});
@@ -2342,6 +2344,31 @@ function dayNamed(k){
 
 /* ========================= ADMIN EVENT ========================= */
 /* งานกลาง MA — เพิ่ม / แก้ไข · เลือก CTS ที่ร่วมงานได้เป็นรายคน ไม่ใช่แค่ทั้งทีม */
+/* งานกลาง MA — คลิกชิป/บล็อกในปฏิทินแล้วเปิดรายละเอียด (Admin แก้ไข/ลบได้) */
+function openEventDetail(id){
+  const e=state.events.find(x=>x.id===id); if(!e)return;
+  const members=e.cts==='all'?CTS:e.cts.map(byId).filter(Boolean);
+  const slotTxt=e.slot==='all'?'ทั้งวัน':e.slot==='am'?'ช่วงเช้า':'ช่วงบ่าย';
+  openSheet(`<div class="eyebrow">${esc(e.type||'งานกลาง MA')}</div><h2>${esc(e.title)}</h2>`,
+  `<div class="card" style="border-left:6px solid var(--ma)">
+    <div class="row" style="gap:14px;flex-wrap:wrap">
+      <div><div class="eyebrow">วันที่</div><b style="font-size:15px">${fmtDate(e.date)}</b></div>
+      <div><div class="eyebrow">ช่วงเวลา</div><b style="font-size:15px">${slotTxt}</b></div></div>
+    <div class="muted" style="margin-top:8px">${esc(e.type||'งานกลาง MA')}</div>
+    <div class="chips" style="margin-top:10px">${members.map(c=>
+      `<button class="chip sm2" style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci};cursor:default">${face(c.id,'xs')} ${c.nick}</button>`).join('')}</div>
+    <div class="note ma" style="margin-top:12px">งานกลางจะขึ้นสีฟ้าในปฏิทินและจองช่วงนั้นไม่ได้</div>
+  </div>
+  ${state.role==='admin'
+    ?`<button class="btn block" id="evDetailEdit">✎ แก้ไขงานกลางนี้</button>
+     <button class="btn bad block" id="evDetailDel" style="margin-top:8px">🗑 ลบงานกลางนี้</button>`
+    :''}
+  <button class="btn ghost block" onclick="document.getElementById('scrim').click()" style="margin-top:8px">ปิด</button>`);
+  if(state.role==='admin'){
+    const ed=$('evDetailEdit');if(ed)ed.onclick=()=>openEventForm(id);
+    const dl=$('evDetailDel');if(dl)dl.onclick=()=>{state.events=state.events.filter(x=>x.id!==id);closeSheet();render();toast('ลบงานกลางแล้ว');};
+  }
+}
 function openEventForm(editId,keep){
   const ev=editId?state.events.find(e=>e.id===editId):null;
   const E=keep||(ev?{...ev,cts:ev.cts==='all'?'all':ev.cts.slice()}
