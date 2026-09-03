@@ -1643,7 +1643,7 @@ function monthHTML(){
       }
     }
     return `<div class="mcell${wknd?' wknd':''}${hol?' hol':''}${past?' past':''}${today?' today':''}${sel?' sel':''}"
-      ${past?'':'data-d="'+k+'" role="button" tabindex="0"'} aria-label="${fmtDate(k)}${hol?' '+hol.name:''}">
+      data-d="${k}" role="button" tabindex="0" aria-label="${fmtDate(k)}${hol?' '+hol.name:''}">
       <span class="dn"><b>${d}</b>${dayEvents(k).length&&!names?'<span style="color:var(--ma)">●</span>':''}</span>
       ${pad}${inner}${hol&&names?`<span class="holname">${esc(hol.name)}</span>`:''}</div>`;
     }).join('');
