@@ -3696,19 +3696,35 @@ async function allJobs(){
   }
 }
 
-/* เขียนเฉพาะช่องที่เปลี่ยนจริง — ลบแถวเดิมของช่องนั้นแล้วใส่ใหม่ (คืนว่าง = ลบอย่างเดียว)
-   เทียบกันที่ "แถวที่จะเขียน" ไม่ใช่ตัว job ฟิลด์ที่ไม่มีคอลัมน์ (upBy/upAt) เปลี่ยนจึงไม่ทำให้เขียนซ้ำ
-   ponytail: jobs ยังไม่มี unique (date,cts_id,slot) — on_conflict จึงใช้ไม่ได้ (42P10)
-   เพิ่ม unique index เมื่อไหร่ ค่อยเปลี่ยนลูปนี้เป็น .upsert(rows,{onConflict:'date,cts_id,slot'}) ครั้งเดียวจบ */
+/* เขียนเฉพาะช่องที่เปลี่ยนจริง — เทียบกันที่ "แถวที่จะเขียน" ไม่ใช่ตัว job
+   ฟิลด์ที่ไม่มีคอลัมน์ (upBy/upAt) เปลี่ยนจึงไม่ทำให้เขียนซ้ำ
+   แก้บันทึกพร้อมกัน 2 จอแล้วคิวหาย: เดิม delete แล้วค่อย insert ทีละคีย์ (ไม่ atomic) —
+   จอนึง delete ไปโดนของอีกจอที่เพิ่ง insert ก่อนตัวเองจะ insert ทับ คิวเลยหาย
+   ใหม่: upsert ทุกคีย์ที่มีของใหม่ในคำสั่งเดียว (ต้องมี unique index (date,cts_id,slot) — ดู
+   supabase/fix_jobs_race.sql) ส่วนคีย์ที่ถูกล้างว่างยังต้อง delete แยกอยู่ดี (upsert ลบแถวไม่ได้)
+   ยังไม่ได้รัน migration (42P10 = ไม่มี unique ให้ on_conflict) -> ใช้ delete+insert ทีละคีย์แบบเดิมไปก่อน */
+let jobsUniqueReady=true;
 async function saveSched(prev,now){
   const was=flatSched(prev),is=flatSched(now);
-  for(const ck of new Set(Object.keys(was).concat(Object.keys(is)))){
+  const keys=[...new Set(Object.keys(was).concat(Object.keys(is)))].filter(ck=>{
     const [k,cid,sl]=ck.split('|');
     const str=j=>j?JSON.stringify(jobRow(k,cid,sl,j)):'';
-    if(str(was[ck])===str(is[ck]))continue;
+    return str(was[ck])!==str(is[ck]);
+  });
+  if(jobsUniqueReady){
+    const rows=keys.filter(ck=>is[ck]).map(ck=>{const [k,cid,sl]=ck.split('|');return jobRow(k,cid,sl,is[ck]);});
+    if(rows.length){
+      const up=await SB.from('jobs').upsert(rows,{onConflict:'date,cts_id,slot'});
+      if(up.error&&up.error.code==='42P10')jobsUniqueReady=false;   // ยังไม่ได้รัน fix_jobs_race.sql
+      else if(up.error)throw up.error;
+    }
+  }
+  for(const ck of keys){
+    if(jobsUniqueReady&&is[ck])continue;   // เขียนด้วย upsert ไปแล้วข้างบน
+    const [k,cid,sl]=ck.split('|');
     const del=await SB.from('jobs').delete().eq('date',k).eq('cts_id',cid).eq('slot',sl);
     if(del.error)throw del.error;
-    if(is[ck]){const ins=await SB.from('jobs').insert(jobRow(k,cid,sl,is[ck]));if(ins.error)throw ins.error;}
+    if(is[ck]&&!jobsUniqueReady){const ins=await SB.from('jobs').insert(jobRow(k,cid,sl,is[ck]));if(ins.error)throw ins.error;}
   }
 }
 

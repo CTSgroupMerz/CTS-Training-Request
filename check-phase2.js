@@ -65,7 +65,22 @@ const count=async()=>{
   console.log('jobs ใน DB      :',total);
   console.log('ช่องใน sched    :',cells);
   console.log('จำนวนวัน        :',Object.keys(X.state.sched).length);
-  assert.strictEqual(cells,total,`sched ต้องมี ${total} ช่อง เท่ากับแถวใน jobs`);
+
+  /* เทียบด้วยคีย์ (date,cts_id,slot) ไม่ใช่นับช่องรวม — load() วาง selfEvents ทับ sched อีกชั้น
+     (syncSelf, index.html ~3858) ถ้าคีย์ตรงกับ job ที่มีอยู่แล้วจะทับค่าที่โชว์ (ไม่ลบ job จริง)
+     ถ้าคีย์ว่างอยู่ก่อนจะเพิ่มช่องใหม่ → cells มากกว่า total ได้โดยไม่ผิด */
+  const jobKeys=[];
+  for(let from=0;;from+=1000){
+    const r=await fetch(`${U}/rest/v1/jobs?select=date,cts_id,slot&order=id`,
+      {headers:{apikey:K,Authorization:'Bearer '+K,Range:`${from}-${from+999}`}});
+    const data=await r.json();
+    jobKeys.push(...data);
+    if(data.length<1000)break;
+  }
+  assert.strictEqual(jobKeys.length,total,'ดึงคีย์ jobs มาไม่ครบ');
+  const missing=jobKeys.filter(({date,cts_id,slot})=>!X.jobOf(date,cts_id,slot));
+  assert.strictEqual(missing.length,0,`มีแถว jobs ที่ไม่ถูกโหลดขึ้น sched: ${JSON.stringify(missing.slice(0,3))}`);
+  assert.ok(cells>=jobKeys.length,'ช่องใน sched ต้องไม่น้อยกว่าจำนวนแถว jobs');
 
   // โครงสร้างต้องเป็น sched[วัน][ctsId][slot] และแปลงกลับเป็นแถวตาม schema ได้
   const k=Object.keys(X.state.sched).sort()[0], cid=Object.keys(X.state.sched[k])[0];
