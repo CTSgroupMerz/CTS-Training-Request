@@ -681,6 +681,19 @@ textarea.in{min-height:76px;resize:vertical}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
 /* กล่องแจ้งเตือนคิว TBC — สีแดง ให้ Sales เห็นชัดว่าเหลืออีกกี่วันก่อนปล่อยวันคืนระบบ */
 /* ป้าย TBC สีแดงหน้าชื่องาน — หัวหน้าเห็นทันทีว่าคิวนี้ยังไม่คอนเฟิร์ม */
+.alertx{color:var(--bad);font-weight:600}
+.st-ok{color:var(--ok);font-weight:800}
+.st-wait{color:var(--bad);font-weight:800}
+/* Record: แถบย่อ 1 คำขอ = 1 บรรทัด กดเข้าไปดูรายละเอียดเต็ม */
+.rbar{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);
+  border-radius:14px;overflow:hidden;box-shadow:var(--sh1);cursor:pointer;padding:0;font:inherit}
+.rbar:active{transform:scale(.995)}
+.rbar-h{display:flex;align-items:center;gap:7px;padding:7px 11px;font-size:12px;font-weight:700;flex-wrap:wrap}
+.rbar-h .grow{flex:1}
+.rbar-b{padding:9px 11px 10px}
+.rbar-c{font-weight:800;font-size:14.5px;line-height:1.25}
+.rbar-t{font-size:12.5px;color:var(--ink2);margin-top:1px}
+.rbar-s{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:11.5px;color:var(--ink3)}
 .tbctag{display:inline-block;background:#D92D42;color:#fff;font-size:9.5px;font-weight:800;line-height:1;
   padding:2px 4px;border-radius:4px;margin-right:4px;vertical-align:1px;letter-spacing:.3px}
 .tbcbar{background:#FDE7E9;border:1.5px solid #E08A96;color:#9E2233;border-radius:12px;padding:10px 12px;font-size:12.5px;margin-top:10px;font-weight:600}
@@ -714,7 +727,7 @@ textarea.in{min-height:76px;resize:vertical}
 
 /* notifications */
 .nfeed{display:grid;gap:11px}
-@media(min-width:940px){.nfeed{grid-template-columns:repeat(auto-fill,minmax(360px,1fr));align-items:start}}
+
 .ncard{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh1)}
 .nhead{padding:10px 13px;color:#fff;font-weight:700;font-size:13px}
 .nhead2{display:flex;align-items:center;gap:9px;padding:10px 13px;font-size:13px}
@@ -907,6 +920,16 @@ const MODULES={
   'MAX-B'    :{min:4,max:6,def:4,note:'เลือก 4–6 sessions'},
 };
 const LEVELS=['Standard','Advance'];
+/* หัวข้อการเทรนของแต่ละตระกูล product — เลือกจาก dropdown ตาม product ที่ขอ
+   คีย์ = คำแรกของชื่อ product (Belotero Soft -> Belotero, Radiesse Plus -> Radiesse) */
+const TOPICS={
+  Ultherapy:['Ultherapy Legacy','Ultherapy PRIME','Ultherapy ADVANCE','Ultherapy Brow Lift','Ultherapy Decolletage','Ultherapy Body'],
+  Xeomin   :['Xeomin All program','X IIT OUT','X Skin Plus','X Beauty','X Oily Care','X Melas Care'],
+  Belotero :['Belotero All SKU','Belotero Skin Radiance','Belotero Radiance for Eyes','Belotero Balance eyes','Belotero Intense Lift','Belotero Volume Up','Belotero REVIVE','Belotero for Lips'],
+  Radiesse :['Radiesse Classic','Radiesse Plus (Lecture)','Radiesse Versatility','Radiesse All in One','RR Mix'],
+};
+const topicsOf=p=>TOPICS[String(p).split(' ')[0]]||[];
+const CLINIC_TYPES=['Chain','Branch','Single','Hospital'];
 /* Product ที่เทรนได้ — สียึดตามตระกูล (Belotero 5 ตัวสีชมพูเหมือนกัน, Radiesse 2 ตัวสีฟ้า)
    ชื่อเก่า 4 ตัว (Belotero/Radiesse เฉยๆ) ยังอยู่ในตาราง เพื่อให้คำขอเก่าที่บันทึกไว้แล้วแสดงผลได้ปกติ */
 const PRODUCTS=['Ultherapy','Xeomin',
@@ -983,7 +1006,7 @@ function canApprove(r){
   if(r.status==='mgr')return isMgr();
   return false;
 }
-const ST_LABEL={sm:'รอ SM',pending:'รอ CTS Leader',mgr:'รอ Manager',
+const ST_LABEL={sm:'รอ SM Approve',pending:'รอ CTS Leader',mgr:'รอ CTM Approve',
   approved:'approved',tbc:'TBC',rejected:'rejected',cancelled:'cancelled',expired:'expired'};
 /* ชื่อขั้นของคนที่กำลังใช้งาน — ใช้เป็นหลักฐานใน trail */
 const myStep=()=>state.role==='sm'?'SM '+state.sm
@@ -1129,7 +1152,9 @@ const upLabel=j=>{
 const mailTag=j=>!j?'':j.reqId?`R|${j.reqId}|${j.sIdx}`:j.selfId?`S|${j.selfId}|`:'';
 function okMark(j){
   const tag=state.role==='admin'?mailTag(j):'';
-  if(!j||(!j.emailOk&&!tag))return '';
+  if(!j)return '';
+  /* คิวที่อนุมัติแล้ว = ✓ เขียวนำหน้าชื่องานในปฏิทิน · Admin ยังเห็นปุ่ม ○/✓ Email Approved แทน */
+  if(!j.emailOk&&!tag)return j.kind==='booked'?'<span class="okmk ap" title="Approved">✓</span>':'';
   const cls='okmk'+(j.emailOk?'':' off')+(tag?' tap':'');
   if(!tag)return `<span class="${cls}" title="Email Approved แล้ว">✓</span>`;
   return `<span class="${cls}" role="button" tabindex="0" data-mailtag="${tag}"
@@ -1570,6 +1595,8 @@ function renderCal(){
   shell.querySelectorAll('[data-job]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const [k,ek]=b.dataset.job.split('|');openJob(k,ek);});
   shell.querySelectorAll('[data-ev]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEventDetail(b.dataset.ev);});
+  /* ชิปคิวเทรนของตัวเองในปฏิทิน Sale (ตอนยังไม่เลือก Product) */
+  shell.querySelectorAll('[data-smreq]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSMReq(b.dataset.smreq);});
   bindMail(shell);   // Admin แตะ ✓ บนคิวในปฏิทินได้เลย
   shell.querySelectorAll('[data-d]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
@@ -1668,7 +1695,7 @@ function spanBar(b){
   const nicks=b.e.who.map(i=>byId(i).nick).join(', ');
   return `<button class="spanbar" data-job="${b.k}|${b.e.key}" title="${nicks} · ${esc(b.e.job.title||'')}"
     style="${jobStyle({...b.e.job,attendees:b.e.who},b.e.who[0])};--ln:${b.ln};left:calc(${b.c0}*100%/7 + 3px);width:calc(${b.n}*100%/7 - 6px)">
-    <span class="etx">${okMark(b.e.job)}${leadText(b.e.job)?leadText(b.e.job)+' · ':''}${esc(b.e.job.title||'งาน')}${nicks?' · '+nicks:''}</span></button>`;
+    <span class="etx">${okMark(b.e.job)}${tbcTag(b.e.job)}${leadText(b.e.job)?leadText(b.e.job)+' · ':''}${esc(b.e.job.title||'งาน')}${nicks?' · '+nicks:''}</span></button>`;
 }
 function monthHTML(){
   const y=state.month.getFullYear(),mo=state.month.getMonth();
@@ -1715,6 +1742,12 @@ function monthHTML(){
                 <span class="who">${nicks}</span></span>
               <span class="etx">${okMark(o.job)}${tbcTag(o.job)}${leadText(o.job)?leadText(o.job)+' · ':''}${esc(o.job.title||'')}</span></button>`;}));
         const cap=one?4:3;
+        inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
+      }else if(gateBlocked()){
+        /* ยังไม่เลือก Product — โชว์คิวเทรนของ Sale คนนี้แทนช่องคิวว่าง */
+        const one=NARROW(),cap=one?4:3;
+        const chips=dayEvents(k).map(e=>`<span class="evchip ma${one?' one':''}" data-ev="${e.id}">${one?'':'MA · '}${esc(e.title)}</span>`)
+          .concat(smEntries(k).map(e=>smChip(e,one)));
         inner=chips.slice(0,cap).join('')+(chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:'');
       }else{
         const lab=sl=>NARROW()?(sl==='am'?'AM':'PM'):(sl==='am'?'เช้า':'บ่าย');
@@ -1866,6 +1899,17 @@ function weekHTML(){
     return `<div class="wscroll"><div class="wgrid">${head}${rows}</div></div>${legend()}`;
   }
 
+  /* ยังไม่เลือก Product — ปฏิทิน Sale โชว์คิวเทรนของตัวเองแทนจำนวนคิวว่าง */
+  if(gateBlocked()){
+    const myrow=`<div class="wrow" style="--gt:${gt}"><div class="wperson"><span><span class="nk">คิวเทรน</span><span class="nm">ของฉัน</span></span></div>
+      ${days.map(d=>{const k=key(d),h=holidayOf(k);
+        const chips=dayEvents(k).map(e=>`<span class="evchip ma one" data-ev="${e.id}">${esc(e.title)}</span>`)
+          .concat(smEntries(k).map(e=>smChip(e,true)));
+        return `<div class="wcell${h?' holc2':''}">${h?`<span class="holtag" style="display:block;padding:2px 0 3px">${esc(h.name)}</span>`:''}${
+          chips.join('')||'<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`;
+    return `<div class="wscroll"><div class="wgrid">${head}${myrow}</div></div>
+      <div class="note">เลือก Product ด้านบน แล้วปฏิทินจะกลับไปแสดงคิวว่างสำหรับขอเทรน</div>`;
+  }
   const total=teamPool().length;
   const rows=['am','pm'].map(sl=>`<div class="srow" style="--gt:${gt}">
     <div class="slabel"><b>${sl==='am'?'ช่วงเช้า':'ช่วงบ่าย'}</b><small>${sl==='am'?'09:00–12:00':'13:00–16:30'}</small></div>
@@ -2198,6 +2242,9 @@ function openJob(k,ekey){
   const c=byId(cid);
   const r=j.reqId?state.requests.find(x=>x.id===j.reqId):null;
   const st={busy:'ติดงาน',pend:'รออนุมัติ',booked:'ยืนยันแล้ว',tbc:'TBC — ล็อกไว้ก่อน'}[j.kind]||'';
+  /* หัวกล่อง: รออนุมัติ / TBC = แดง · อนุมัติแล้ว = เขียว พร้อม ✓ */
+  const stHTML=j.kind==='booked'?'<span class="st-ok">✓ Approved</span>'
+    :(j.kind==='pend'||j.kind==='tbc')?`<span class="st-wait">${st}</span>`:st;
   const detail=r?`
     <div class="card"><h3>รายละเอียดจากคำขอ ${r.id}</h3>
       <dl class="kv">
@@ -2205,6 +2252,7 @@ function openJob(k,ekey){
         <dt>Product</dt><dd>${prodList(r.product).join(', ')||'—'}${r.level?' · '+r.level:''}</dd>
         <dt>Module</dt><dd>${r.module} · ${r.sessions.length} session</dd>
         <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):'—'}</dd>
+        <dt>ประเภทคลินิก</dt><dd>${r.clinicType?esc(r.clinicType):'—'}</dd>
         <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':'—'}${r.exp?' · '+esc(r.exp.split('—')[0]):''}</dd>
         <dt>Hands-on</dt><dd>${r.handsOn?`${esc(r.hoProduct||'—')} · ${r.hoCases||'?'} เคส · รูป ${r.photos.length}`:'ไม่มี'}</dd>
         <dt>สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:'—'}</dd>
@@ -2221,7 +2269,7 @@ function openJob(k,ekey){
     :j.selfId?`<div class="card"><div class="muted">คิวงานที่ CTS ลงเอง — แก้ไขหัวข้อ เวลา และผู้ร่วมงานได้ที่ปุ่มด้านบน</div></div>`
     :`<div class="card"><div class="muted">คิวนี้บันทึกไว้ในตารางโดยตรง ไม่ได้มาจากคำขอในระบบ</div></div>`;
 
-  openSheet(`<div class="eyebrow">${st} · ${TEAMS[c.team].label}</div><h2>${esc(j.title||'คิวงาน')}</h2>`,
+  openSheet(`<div class="eyebrow">${stHTML} · ${TEAMS[c.team].label}</div><h2>${esc(j.title||'คิวงาน')}</h2>`,
   `<div class="card" style="border-left:6px solid ${pal(cid).c}">
     <div class="row">${face(cid,'m')}<div class="grow">
       <div style="font-weight:700">${c.nick} — ${c.name}</div>
@@ -2599,14 +2647,16 @@ function openEventForm(editId,keep){
 }
 
 /* ========================= REQUEST FORM ========================= */
-const newDraft=()=>({module:null,level:'',slots:1,sessions:null,product:[],topic:'',clinic:'',map:'',doctors:'',
+const newDraft=()=>({module:null,level:'',slots:1,sessions:null,product:[],ptopic:{},topicNote:'',topic:'',clinic:'',clinicType:'',map:'',doctors:'',
   exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:''});
 
 /* 5 หัวข้อนี้ต้องกรอกก่อนส่งคำขอได้ (ติดดาวในฟอร์ม) — ที่เหลือกรอกตามหลังได้เหมือนเดิม */
 const REQUIRED=[
   {k:'product', label:'Product', ok:r=>prodList(r.product).length},
-  {k:'topic',   label:'หัวข้อ / เงื่อนไขการเทรน', ok:r=>String(r.topic||'').trim()},
+  {k:'topic',   label:'หัวข้อ (ให้ครบทุก Product ที่เลือก)',
+    ok:r=>prodList(r.product).length>0&&prodList(r.product).every(p=>String((r.ptopic||{})[p]||'').trim())},
   {k:'clinic',  label:'ชื่อคลินิก', ok:r=>String(r.clinic||'').trim()},
+  {k:'clinicType',label:'ประเภทคลินิก (Chain / Branch / Single / Hospital)', ok:r=>String(r.clinicType||'').trim()},
   {k:'doctors', label:'จำนวนแพทย์ที่เข้าเทรน', ok:r=>+r.doctors>0},
   {k:'requester',label:'ชื่อผู้ขอ', ok:r=>String(r.requester||'').trim()},
 ];
@@ -2619,7 +2669,8 @@ function missingOf(r){
   if(!r.level)m.push('ระดับเนื้อหา (Standard / Advance)');
   if(!String(r.topic||'').trim())m.push('หัวข้อการเทรน');
   if(!String(r.clinic||'').trim())m.push('ชื่อคลินิก');
-  if(!String(r.map||'').trim())m.push('ลิงก์ Google Map');
+  if(!String(r.clinicType||'').trim())m.push('ประเภทคลินิก (Chain / Branch / Single / Hospital)');
+  if(!String(r.map||'').trim())m.push('สาขา/ลิงก์ Google Map');
   if(!(+r.doctors>0))m.push('จำนวนแพทย์');
   if(!r.exp)m.push('ประสบการณ์และ hands skills');
   if(!String(r.requester||'').trim())m.push('ชื่อผู้ขอ');
@@ -2636,6 +2687,7 @@ function openForm(){
   const d=state.draft,rule=d.module?MODULES[d.module]:null;
   const modChips=Object.keys(MODULES).map(m=>`<button class="chip" data-m="${m}" aria-pressed="${d.module===m}">${m}</button>`).join('');
   const prodChips=PRODUCTS.map(p=>`<button class="chip prodchip" data-p="${p}" style="--cc:${PRODHEX[p]};--ct:${pink(p)}" aria-pressed="${prodList(d.product).includes(p)}">${p}</button>`).join('');
+  const selProds=prodList(d.product);   /* เลือกกี่ product ก็มีช่อง "หัวข้อ" เท่านั้น */
   const sessBox=rule?`<label class="f">จำนวน session <span>· ${rule.note}</span></label>
     <select class="in" id="fSess" ${rule.min===rule.max?'disabled':''}>
     ${Array.from({length:rule.max-rule.min+1},(_,i)=>rule.min+i).map(n=>`<option value="${n}" ${d.sessions===n?'selected':''}>${n} session</option>`).join('')}</select>`:'';
@@ -2671,12 +2723,20 @@ function openForm(){
     <button class="btn block" id="btnPick" style="margin-top:10px">เลือกวันเพิ่ม / แก้ไขวัน</button></div>
 
   <div class="card"><h3>2 · Product และหัวข้อ <b class="req-star">*</b></h3><div class="chips">${prodChips}</div>
-    <label class="f">หัวข้อ / เงื่อนไขการเทรน <b class="req-star">*</b></label>
-    <textarea class="in" id="fTopic" placeholder="เช่น ลงเครื่องใหม่ Xeomin all program">${esc(d.topic)}</textarea></div>
+    ${selProds.length?selProds.map((p,i)=>`
+      <label class="f">หัวข้อ · ${esc(p)} <b class="req-star">*</b></label>
+      <select class="in" id="fT${i}" data-tp="${esc(p)}"><option value="">— เลือกหัวข้อ —</option>
+        ${topicsOf(p).map(t=>`<option ${(d.ptopic||{})[p]===t?'selected':''}>${t}</option>`).join('')}</select>`).join('')
+      :'<div class="warn" style="margin-top:11px">เลือก Product ก่อน แล้วจะมีช่อง "หัวข้อ" ให้เลือกตาม Product ที่เลือก</div>'}
+    <label class="f">รายละเอียดเพิ่มเติม <span>· ไม่บังคับ</span></label>
+    <textarea class="in" id="fNote" placeholder="รายละเอียดการเทรนอื่นๆ ที่อยากแจ้งเพิ่ม">${esc(d.topicNote)}</textarea></div>
 
   <div class="card"><h3>3 · ข้อมูลคลินิก</h3><div class="formgrid">
     <div class="full"><label class="f">ชื่อคลินิก <b class="req-star">*</b></label><input class="in" id="fClinic" value="${esc(d.clinic)}" placeholder="เช่น Bloom Clinic ทองหล่อ"></div>
-    <div class="full"><label class="f">ลิงก์ Google Map</label><input class="in" id="fMap" value="${esc(d.map)}" placeholder="https://maps.app.goo.gl/..."></div>
+    <div class="full"><label class="f">ประเภทคลินิก <b class="req-star">*</b></label>
+      <select class="in" id="fCType"><option value="">— เลือกประเภท —</option>
+        ${CLINIC_TYPES.map(t=>`<option ${d.clinicType===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="full"><label class="f">สาขา/ลิงก์ Google Map</label><input class="in" id="fMap" value="${esc(d.map)}" placeholder="https://maps.app.goo.gl/..."></div>
     <div><label class="f">จำนวนแพทย์ที่เข้าเทรน <b class="req-star">*</b></label><input class="in" id="fDoc" type="number" min="1" value="${esc(d.doctors)}" placeholder="เช่น 3"></div>
     <div><label class="f">ประสบการณ์และ hands skills</label>
       <select class="in" id="fExp"><option value="">— เลือก —</option>${EXP.map(e=>`<option ${d.exp===e?'selected':''}>${e}</option>`).join('')}</select></div>
@@ -2706,7 +2766,13 @@ function openForm(){
 
   const B=$('sheetBody');
   const grab=()=>{const v=id=>($(id)?$(id).value:'');
-    d.topic=v('fTopic');d.clinic=v('fClinic');d.map=v('fMap');d.doctors=v('fDoc');d.level=v('fLevel');
+    /* หัวข้อแยกราย product -> รวมเป็น d.topic บรรทัดเดียว เพื่อให้ทุกหน้าที่อ่าน topic เดิมยังใช้ได้ */
+    d.ptopic=d.ptopic||{};
+    B.querySelectorAll('[data-tp]').forEach(sel=>{d.ptopic[sel.dataset.tp]=sel.value;});
+    d.topicNote=v('fNote');
+    d.topic=[prodList(d.product).map(p=>(d.ptopic[p]||'').trim()?p+': '+d.ptopic[p]:'').filter(Boolean).join(' · '),
+             (d.topicNote||'').trim()].filter(Boolean).join(' — ');
+    d.clinic=v('fClinic');d.clinicType=v('fCType');d.map=v('fMap');d.doctors=v('fDoc');d.level=v('fLevel');
     d.exp=v('fExp');d.hoProduct=v('fHOP');d.hoCases=v('fHOC');d.requester=v('fReq');
     state.picks.forEach((p,i)=>{const a=$('pt'+i+'s'),b2=$('pt'+i+'e'),tp=$('sp'+i+'t');
       if(a&&a.value)p.start=a.value; if(b2&&b2.value)p.end=b2.value;
@@ -2800,7 +2866,7 @@ function openUPCForm(editId){
     <div class="formgrid">
       <div><label class="f">จังหวัด</label><input class="in" id="u${di}_${ii}_prov" value="${esc(it.province)}" placeholder="เช่น เชียงใหม่"></div>
       <div><label class="f">ชื่อคลินิก</label><input class="in" id="u${di}_${ii}_clinic" value="${esc(it.clinic)}" placeholder="เช่น Bloom Clinic"></div>
-      <div class="full"><label class="f">ลิงก์ Google Map</label><input class="in" id="u${di}_${ii}_map" value="${esc(it.map)}" placeholder="https://maps.app.goo.gl/..."></div>
+      <div class="full"><label class="f">สาขา/ลิงก์ Google Map</label><input class="in" id="u${di}_${ii}_map" value="${esc(it.map)}" placeholder="https://maps.app.goo.gl/..."></div>
       <div><label class="f">เวลาเริ่ม</label>${t24(`u${di}_${ii}_st`,it.start||'09:00')}</div>
       <div><label class="f">ถึง</label>${t24(`u${di}_${ii}_en`,it.end||'16:30')}</div>
     </div>
@@ -2812,8 +2878,11 @@ function openUPCForm(editId){
     <label class="f">Product</label>
     <div class="chips">${PRODUCTS.map(pr=>`<button class="chip prodchip" data-ip="${di}|${ii}|${pr}"
       style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${it.product===pr}">${pr}</button>`).join('')}</div>
-    <label class="f">หัวข้อ / เงื่อนไขการเทรน</label>
-    <textarea class="in" id="u${di}_${ii}_topic" placeholder="เช่น ลงเครื่องใหม่ Xeomin all program">${esc(it.topic)}</textarea>
+    <label class="f">หัวข้อ</label>
+    <select class="in" id="u${di}_${ii}_topic">
+      <option value="">${it.product?'— เลือกหัวข้อ —':'— เลือก Product ก่อน —'}</option>
+      ${topicsOf(it.product).concat(it.topic&&!topicsOf(it.product).includes(it.topic)?[it.topic]:[])
+        .map(t=>`<option ${it.topic===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
     <div class="formgrid">
       <div><label class="f">จำนวนแพทย์</label><input class="in" type="number" min="1" id="u${di}_${ii}_doc" value="${esc(it.doctors)}"></div>
       <div><label class="f">ประสบการณ์</label><select class="in" id="u${di}_${ii}_exp"><option value="">— เลือก —</option>
@@ -3009,7 +3078,8 @@ function submitTBC(){
   const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
     status:'tbc',tbc:true,tbcAt:new Date().toISOString(),created:new Date(),
     sessions:state.picks.map(p=>({...p})),
-    module:d.module,level:d.level,product:d.product,topic:d.topic,clinic:d.clinic,map:d.map,
+    module:d.module,level:d.level,product:d.product,topic:d.topic,ptopic:d.ptopic,topicNote:d.topicNote,
+    clinic:d.clinic,clinicType:d.clinicType,map:d.map,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
   req.sessions.forEach(sn=>{
@@ -3041,7 +3111,8 @@ function submit(){
   const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
     status:state.role==='sales'?'sm':'pending',   /* Sale ส่ง -> SM พิจารณาก่อน · CTS/Admin สร้างเอง -> เข้าหัวหน้าตามเดิม */
     created:new Date(),sessions:state.picks.map(p=>({...p})),
-    module:d.module,level:d.level,product:d.product,topic:d.topic,clinic:d.clinic,map:d.map,
+    module:d.module,level:d.level,product:d.product,topic:d.topic,ptopic:d.ptopic,topicNote:d.topicNote,
+    clinic:d.clinic,clinicType:d.clinicType,map:d.map,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
   // anonymous picks (Sales) get a tentative CTS so the slot is truly held; the Leader can change it
@@ -3080,9 +3151,10 @@ function reqCard(r,act){
       ${r.level?`<span class="pill n">${r.level}</span>`:''}</div>
     <dl class="kv">
       <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):gapv()}</dd>
+      <dt>ประเภทคลินิก</dt><dd>${r.clinicType?esc(r.clinicType):gapv()}</dd>
       <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':gapv()}${r.exp?' · '+esc(r.exp.split('—')[0]):''}</dd>
       <dt>Hands-on</dt><dd>${r.handsOn?`${r.hoProduct?esc(r.hoProduct):gapv()} · ${r.hoCases||'?'} เคส · รูป ${r.photos.length}`:'ไม่มี'}</dd>
-      <dt>สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>
+      <dt>สาขา/สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>
       <dt>ผู้ขอ</dt><dd>${r.requester?esc(r.requester):gapv()}</dd></dl>
     <div class="sess">${r.sessions.map((s,i)=>`<div class="s" style="--c:${s.ctsId&&showCts?pal(s.ctsId).c:'#F6F5FA'};--ci:${s.ctsId&&showCts?pal(s.ctsId).ci:'var(--ink2)'}">
       <b>S${i+1}</b>${s.ctsId&&showCts?face(s.ctsId,'xs'):''}
@@ -3203,6 +3275,9 @@ function bindSM(scope){
 function openEdit(id){
   const r=state.requests.find(x=>x.id===id);
   const prodChips=PRODUCTS.map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${prodList(r.product).includes(pr)}">${pr}</button>`).join('');
+  /* คำขอเก่าที่กรอกหัวข้อเป็นข้อความอิสระ — ย้ายมาไว้ช่อง "รายละเอียดเพิ่มเติม" ไม่ให้ข้อมูลหาย */
+  if(!r.ptopic&&String(r.topic||'').trim()&&!r.topicNote)r.topicNote=r.topic;
+  const eSel=prodList(r.product);
   const miss=missingOf(r);
   openSheet(`<div class="eyebrow">${r.id} · ${r.status.toUpperCase()}</div><h2>แก้ไข / เพิ่มข้อมูล</h2>`,
   `${miss.length?`<div class="warn" style="margin-top:0"><b>ยังขาด ${miss.length} รายการ</b><br>${miss.map(x=>'• '+x).join('<br>')}</div>`:'<div class="note" style="margin-top:0">ข้อมูลครบแล้ว — แก้ไขเพิ่มเติมได้ตามต้องการ</div>'}
@@ -3210,12 +3285,20 @@ function openEdit(id){
     <label class="f">ระดับเนื้อหาการเทรน</label>
     <select class="in" id="eLevel"><option value="">— เลือกระดับ —</option>
       ${LEVELS.map(l=>`<option ${r.level===l?'selected':''}>${l}</option>`).join('')}</select>
-    <label class="f">หัวข้อ / เงื่อนไขการเทรน <b class="req-star">*</b></label>
-    <textarea class="in" id="eTopic" placeholder="เช่น ลงเครื่องใหม่ Xeomin all program">${esc(r.topic)}</textarea></div>
+    ${eSel.length?eSel.map(p=>`
+      <label class="f">หัวข้อ · ${esc(p)} <b class="req-star">*</b></label>
+      <select class="in" data-etp="${esc(p)}"><option value="">— เลือกหัวข้อ —</option>
+        ${topicsOf(p).map(t=>`<option ${(r.ptopic||{})[p]===t?'selected':''}>${t}</option>`).join('')}</select>`).join('')
+      :'<div class="warn" style="margin-top:11px">เลือก Product ก่อน แล้วจะมีช่อง "หัวข้อ" ให้เลือกตาม Product ที่เลือก</div>'}
+    <label class="f">รายละเอียดเพิ่มเติม <span>· ไม่บังคับ</span></label>
+    <textarea class="in" id="eNote" placeholder="รายละเอียดการเทรนอื่นๆ ที่อยากแจ้งเพิ่ม">${esc(r.topicNote||'')}</textarea></div>
 
   <div class="card"><h3>ข้อมูลคลินิก</h3><div class="formgrid">
     <div class="full"><label class="f">ชื่อคลินิก <b class="req-star">*</b></label><input class="in" id="eClinic" value="${esc(r.clinic)}"></div>
-    <div class="full"><label class="f">ลิงก์ Google Map</label><input class="in" id="eMap" value="${esc(r.map)}" placeholder="https://maps.app.goo.gl/..."></div>
+    <div class="full"><label class="f">ประเภทคลินิก <b class="req-star">*</b></label>
+      <select class="in" id="eCType"><option value="">— เลือกประเภท —</option>
+        ${CLINIC_TYPES.map(t=>`<option ${r.clinicType===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="full"><label class="f">สาขา/ลิงก์ Google Map</label><input class="in" id="eMap" value="${esc(r.map)}" placeholder="https://maps.app.goo.gl/..."></div>
     <div><label class="f">จำนวนแพทย์ <b class="req-star">*</b></label><input class="in" id="eDoc" type="number" min="1" value="${esc(r.doctors)}"></div>
     <div><label class="f">ประสบการณ์และ hands skills</label>
       <select class="in" id="eExp"><option value="">— เลือก —</option>${EXP.map(e=>`<option ${r.exp===e?'selected':''}>${e}</option>`).join('')}</select></div>
@@ -3255,7 +3338,12 @@ function openEdit(id){
     <button class="btn ghost block" id="eCancel" style="margin-top:8px">ยกเลิก</button></div>`);
 
   const g=()=>{const v=i=>($(i)?$(i).value:'');
-    r.level=v('eLevel');r.topic=v('eTopic');r.clinic=v('eClinic');r.map=v('eMap');
+    r.ptopic=r.ptopic||{};
+    $('sheetBody').querySelectorAll('[data-etp]').forEach(sel=>{r.ptopic[sel.dataset.etp]=sel.value;});
+    r.topicNote=v('eNote');
+    r.topic=[prodList(r.product).map(p=>(r.ptopic[p]||'').trim()?p+': '+r.ptopic[p]:'').filter(Boolean).join(' · '),
+             (r.topicNote||'').trim()].filter(Boolean).join(' — ');
+    r.level=v('eLevel');r.clinic=v('eClinic');r.clinicType=v('eCType');r.map=v('eMap');
     r.doctors=v('eDoc');r.exp=v('eExp');r.hoProduct=v('eHOP');r.hoCases=v('eHOC');r.requester=v('eReq');
     r.sessions.forEach((sn,i)=>{const a=$('es'+i+'s'),b2=$('es'+i+'e'),dt=$('es'+i+'d'),tp=$('es'+i+'t');
       if(a&&a.value)sn.start=a.value; if(b2&&b2.value)sn.end=b2.value;
@@ -3615,12 +3703,20 @@ function renderDash(){
 }
 
 function renderReqs(){
-  const list=myRequests();
+  const q=(state.reqQ||'').trim().toLowerCase();
+  const list=myRequests().filter(r=>recHit(r,q));
   const scope=state.role==='sales'?`คำขอของ ${state.salesId} เท่านั้น`
     :state.role==='cts'?`ของ ${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
   setHTML(view(),`<h1 class="pt">คำขอของฉัน</h1><p class="psub">ติดตามสถานะ — ${scope}</p>
+    <div class="recsearch"><input id="reqQ" type="search" placeholder="ค้นชื่อคลินิก หรือรหัสคำขอ (TR1041)" value="${esc(state.reqQ||'')}">
+      ${state.reqQ?'<button class="btn sm" id="reqClr">ล้าง</button>':''}</div>
+    ${q?`<div class="note" style="margin-top:0">ผลการค้น "${esc(state.reqQ)}" — พบ ${list.length} คำขอ</div>`:''}
     ${list.length?`<div class="reqgrid">${list.map(r=>reqCard(r,false)).join('')}</div>`:
-    '<div class="card"><div class="empty"><div class="big">▤</div>ยังไม่มีคำขอ<br><span class="muted">ไปที่ปฏิทิน เลือกช่วงเวลาที่ว่าง แล้วสร้างคำขอ</span></div></div>'}`);
+    q?'<div class="card"><div class="empty"><div class="big">▤</div>ไม่พบคำขอที่ตรงกับคำค้น</div></div>'
+     :'<div class="card"><div class="empty"><div class="big">▤</div>ยังไม่มีคำขอ<br><span class="muted">ไปที่ปฏิทิน เลือกช่วงเวลาที่ว่าง แล้วสร้างคำขอ</span></div></div>'}`);
+  const rq=$('reqQ');
+  if(rq)rq.oninput=()=>{state.reqQ=rq.value;renderReqs();const e=$('reqQ');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}};
+  const rc=$('reqClr');if(rc)rc.onclick=()=>{state.reqQ='';renderReqs();};
   bindCards(view());
 }
 function renderApprovals(){
@@ -3839,7 +3935,7 @@ function trailHTML(r){
     <span class="tact ${t.act}">${TRAIL_ACT[t.act]||t.act}</span><b>${esc(t.step||t.by||'—')}</b>
     <br><span class="muted">${fmtStamp(t.at)}</span>
     ${t.note?`<br><span class="tnote">“${esc(t.note)}”</span>`:''}</div>`).join('')}
-    ${APPROVAL_ST.includes(r.status)?`<div class="tstep muted">◷ รออยู่ที่ ${esc(waitingFor(r))}</div>`:''}</div>`;
+    ${APPROVAL_ST.includes(r.status)?`<div class="tstep alertx">◷ รออยู่ที่ ${esc(waitingFor(r))}</div>`:''}</div>`;
 }
 /* ใครเห็นอะไรใน Record — Sale เห็นของตัวเอง · SM ทั้งทีม · Senior Leader เฉพาะที่ตัวเองแตะ · Admin/Manager ทั้งหมด */
 function canSeeRecord(r){
@@ -3859,46 +3955,50 @@ const NKIND={
   rejected:{ic:'✕',  label:'ไม่อนุมัติ', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
   cancelled:{ic:'✕', label:'คิวยกเลิก', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
 };
-function notiCard(it){
+/* Record: แถบย่อ 1 คำขอ = สถานะ + Product ที่หัวกล่อง · ด้านล่างเฉพาะรายละเอียดสำคัญ
+   กดที่แถบเพื่อดูรายละเอียดทั้งหมด + Loop การอนุมัติ */
+function notiBar(it){
   const r=it.r,K=NKIND[it.kind];
-  const t=new Date(it.at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-  const when=r.mode==='upc'
-    ? r.days.map(d=>`${fmtDate(d.date)} · ${(d.items||[]).map(i=>esc(i.clinic||'—')).join(', ')||'—'}`)
-    : r.sessions.map(s=>`${fmtDate(s.date)} · ${s.start||SLOT_DEF[s.slot].start}–${s.end||SLOT_DEF[s.slot].end}${s.sProduct?' · '+s.sProduct:''}`);
-  const head=`<div class="nhead2" style="background:${K.bg};border-bottom:1px solid ${K.bd};color:${K.ink}">
-      <span class="nic">${K.ic}</span>
-      <span class="grow"><b>${K.label}</b><small>${r.id} · ${r.area}${r.team==='BOTH'?' · ดูแลร่วม':''}</small></span>
+  const cts=[...new Set((r.sessions||[]).filter(s=>s.ctsId).map(s=>s.ctsId))];
+  return `<button class="rbar" data-rec="${r.id}">
+    <div class="rbar-h" style="background:${K.bg};border-bottom:1px solid ${K.bd};color:${K.ink}">
+      <span class="nic">${K.ic}</span><span>${K.label}</span><span class="grow"></span>
       ${r.mode==='upc'?'<span class="pill n">UPC TRIP</span>'
-        :prodList(r.product).length?prodTags(r.product):''}
-    </div>`;
-  const body=`<div class="nbody">
-      <div class="nclinic">${r.mode==='upc'?`ทริป UPC ${r.days.length} วัน`:esc(r.clinic||'ยังไม่ระบุคลินิก')}</div>
-      <div class="muted">${r.mode==='upc'
-        ? `${fmtDate(r.dateFrom)} – ${fmtDate(r.dateTo)} · ${r.days.reduce((n,d)=>n+d.items.length,0)} คลินิก · ผู้ขอ ${esc(r.requester||'—')}`
-        : `${r.module} · ${r.sessions.length} session${r.level?' · '+r.level:''} · ผู้ขอ ${esc(r.requester||'—')}`}</div>
-      <div class="nwhen">${when.map(w=>`<span>${w}</span>`).join('')}</div>
-      ${it.kind==='pending'
-        ? `<div class="muted" style="margin-top:8px">รอ ${esc(waitingFor(r))} พิจารณา${r.team==='BOTH'&&r.status!=='sm'?' (อนุมัติได้ทั้งสองคน)':''}</div>`
-        : it.kind==='cancelled'
-        ? `<div class="muted" style="margin-top:8px">ยกเลิกโดย ${esc(r.cancelledBy||'—')} — ลบออกจากปฏิทิน CTS แล้ว คิวว่างกลับคืนให้ Sales</div>`
-        : it.kind==='rejected'
-        ? `<div class="muted" style="margin-top:8px">คิวถูกคืนให้ CTS แล้ว — ติดต่อ Leader เพื่อจัดวันใหม่</div>`
-        : `<div class="nsess">${r.sessions.filter(s=>s.ctsId).map((s,i)=>`<span class="s" style="background:${pal(s.ctsId).c};color:${pal(s.ctsId).ci}">
-             ${face(s.ctsId,'xs')} ${r.mode==='upc'?fmtDate(s.date).split(' ').slice(1,3).join(' '):'S'+(i+1)} · ${byId(s.ctsId).nick}</span>`).join('')}</div>
-           <div class="muted" style="margin-top:8px">อนุมัติโดย ${r.approvedBy} · ลงคิวในปฏิทินให้อัตโนมัติแล้ว</div>`}
-      ${(r.missingAtApproval&&r.missingAtApproval.length)
-        ? `<div class="warn"><b>▲ รบกวนส่งข้อมูลเพิ่ม ${r.missingAtApproval.length} รายการ</b><br>${r.missingAtApproval.map(x=>'• '+x).join('<br>')}</div>`
-        : (it.kind==='pending'&&missingOf(r).length)
-        ? `<div class="warn"><b>ยังกรอกไม่ครบ ${missingOf(r).length} รายการ</b> — กด "แก้ไข" เพื่อเติมข้อมูล</div>`:''}
-      <div class="row" style="margin-top:11px;flex-wrap:wrap">
-        <button class="btn sm" data-${r.mode==='upc'?'uedit':'edit'}="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
-        ${it.kind==='approved'?`<button class="btn sm" data-mail="${r.id}">ข้อความสำหรับอีเมล</button>
-          <button class="btn sm" data-copy="${r.id}">⧉ คัดลอก</button>`:''}
-        <span class="muted" style="margin-left:auto;font-family:var(--mono);font-size:10.5px">${t}</span></div>
-      ${it.kind==='approved'?`<div class="copybox" id="mail_${r.id}" hidden>${esc(emailText(r))}</div>`:''}
-      ${trailHTML(r)}
-    </div>`;
-  return `<div class="ncard">${head}${body}</div>`;
+        :prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
+    </div>
+    <div class="rbar-b">
+      <div class="rbar-c">${r.mode==='upc'?`ทริป UPC ${(r.days||[]).length} วัน`:esc(r.clinic||'ยังไม่ระบุคลินิก')}</div>
+      <div class="rbar-t">${r.topic?esc(r.topic):'—'}</div>
+      <div class="rbar-s"><span>${r.id}</span><span>Module ${esc(r.module||'—')}</span>
+        <span>ผู้ขอ ${esc(r.requester||'—')}</span>
+        <span>CTS ${cts.length?cts.map(i=>byId(i).nick).join(', '):'—'}</span></div>
+    </div></button>`;
+}
+/* รายละเอียดเต็มของคำขอใน Record — ทุกช่องที่กรอก · Support Product · รูปเคส · Loop การอนุมัติ */
+function openRecord(id){
+  const it=state.feed.find(f=>f.r.id===id);if(!it)return;
+  const r=it.r,K=NKIND[it.kind];
+  const wait=it.kind==='pending'?`รอ ${esc(waitingFor(r))} พิจารณา${r.team==='BOTH'&&r.status!=='sm'?' (อนุมัติได้ทั้งสองคน)':''}`
+    :it.kind==='cancelled'?`ยกเลิกโดย ${esc(r.cancelledBy||'—')} — ลบออกจากปฏิทิน CTS แล้ว คิวว่างกลับคืนให้ Sales`
+    :it.kind==='rejected'?'คิวถูกคืนให้ CTS แล้ว — ติดต่อ Leader เพื่อจัดวันใหม่':'';
+  openSheet(`<div class="eyebrow">${r.id} · ${r.area}</div><h2>${esc(r.clinic||'คำขอเทรน')}</h2>`,
+  `<div class="card">
+    <div class="row"><span style="font-size:17px">${K.ic}</span>
+      <b style="color:${K.ink};font-size:15px">${K.label}</b><span class="grow"></span>
+      <span class="status ${r.status}">${ST_LABEL[r.status]||r.status}</span></div>
+    ${wait?`<div class="alertx" style="margin-top:8px">${wait}</div>`:''}
+    ${it.kind==='approved'?`<div class="muted" style="margin-top:8px">อนุมัติโดย ${esc(r.approvedBy||'—')} · ลงคิวในปฏิทินให้อัตโนมัติแล้ว</div>`:''}
+    ${supBox(r)}
+    ${it.kind==='approved'?`<button class="btn sm" data-mail="${r.id}" style="margin-top:11px">ข้อความสำหรับอีเมล</button>
+      <div class="copybox" id="mail_${r.id}" hidden>${esc(emailText(r))}</div>`:''}
+  </div>
+  ${reqCard(r,false)}
+  <div class="card"><h3>Loop การขออนุมัติ</h3>${trailHTML(r)}</div>
+  <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
+  const B=$('sheetBody');
+  bindCards(B);bindMail(B);
+  B.querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
+    const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'ข้อความสำหรับอีเมล':'ซ่อนข้อความ';}});
 }
 function renderFeed(){
   markFeedSeen();   // เปิดแท็บนี้ = อ่านแล้ว ป้ายบนไอคอนแอปจะถูกล้าง
@@ -3926,7 +4026,7 @@ function renderFeed(){
       <button class="fchip all" data-nf="rejected" aria-pressed="${f==='rejected'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ ไม่อนุมัติ (${n('rejected')})</button>
       <button class="fchip all" data-nf="cancelled" aria-pressed="${f==='cancelled'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ คิวยกเลิก (${n('cancelled')})</button>
     </div>
-    ${feed.length?`<div class="nfeed">${feed.map(notiCard).join('')}</div>`:
+    ${feed.length?`<div class="nfeed">${feed.map(notiBar).join('')}</div>`:
     '<div class="card"><div class="empty"><div class="big">✦</div>ไม่มีรายการในหมวดนี้</div></div>'}`);
   const an=$('askNoti');if(an)an.onclick=async()=>{
     try{
@@ -3942,8 +4042,7 @@ function renderFeed(){
   }
   const rc=$('recClr');if(rc)rc.onclick=()=>{state.recQ='';renderFeed();};
   view().querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{state.feedFilter=b.dataset.nf;renderFeed();});
-  view().querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
-    const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'ข้อความสำหรับอีเมล':'ซ่อนข้อความ';}});
+  view().querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>openRecord(b.dataset.rec));
   bindCards(view());
 }
 
