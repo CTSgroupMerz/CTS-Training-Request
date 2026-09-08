@@ -1,6 +1,6 @@
 # CTS Training Request — Supabase Migration (FINAL STATUS)
 
-> อัปเดต: 2026-09-08 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + Deploy GitHub Pages + SM Loop (อนุมัติ 4 ขั้น) ใช้งานจริงแล้ว**
+> อัปเดต: 2026-09-08 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + Deploy GitHub Pages + SM Loop (อนุมัติ 4 ขั้น) + UI/UX รอบเก็บรายละเอียด ใช้งานจริงแล้ว**
 
 ---
 
@@ -18,6 +18,7 @@
 | GitHub Pages | ✅ `https://ctsgroupmerz.github.io/CTS-Training-Request/` |
 | Push main | ✅ main ล่าสุด |
 | **SM Loop — อนุมัติ 4 ขั้น + Record** | ✅ เสร็จ 2026-09-08 (`a4c9ee4`, `e3f3eab`) |
+| **UI/UX รอบเก็บรายละเอียด (11 ข้อ)** | ✅ เสร็จ 2026-09-08 (`3459373`) — **ไม่มี SQL ต้องรัน** |
 
 ---
 
@@ -124,6 +125,31 @@
 ไม่ต้องสร้างตารางใหม่ และ `save()` ส่งขึ้นให้อัตโนมัติ
 **SQL ที่ต้องรัน:** `supabase/sm_loop.sql` (ขยาย check constraint ให้รับ `'sm'`, `'mgr'`) — รันแล้ว
 
+### ✅ เพิ่มเมื่อ 2026-09-08 (รอบ 2) — UI/UX เก็บรายละเอียด (`3459373`)
+
+**ไม่แตะ schema เลย — ไม่มีตาราง / คอลัมน์ / constraint / RLS ใหม่ · SQL ที่ต้องรัน: ไม่มี**
+
+- ป้ายสถานะ: `sm` = "รอ SM Approve" · `mgr` = "รอ CTM Approve"
+- **Record** เปลี่ยนเป็นแถบย่อ 1 คำขอ 1 แถบ (สถานะ + Product ที่หัว · คลินิก / หัวข้อ /
+  Module / ผู้ขอ / CTS ด้านล่าง) กดเข้าไปเห็นข้อมูลทุกช่อง + Support Product + รูปเคส
+  + Loop การอนุมัติ (`trail`) + ข้อความสำหรับอีเมล
+- ข้อความ "รออยู่ที่ ..." / คืนคิว / ยกเลิก เป็นแดงโทนอ่อน (`.alertx`)
+- **ปฏิทิน Sale** ตอนยังไม่เลือก Product → แสดงคิวเทรนของ Sale คนนั้น (เดือน/สัปดาห์)
+  พอเลือก Product กลับไปแสดงคิวว่างตามเงื่อนไขเดิมทุกอย่าง
+- ปฏิทิน CTS: หัวกล่องคิว `booked` = "Approved" เขียว · `pend`/`tbc` = แดง
+  + เครื่องหมายถูกเขียวหน้าคิวที่อนุมัติแล้ว · ป้าย TBC แดงขึ้นในมุมมองรายเดือนด้วย
+- หน้า "คำขอ" เพิ่มช่องค้นชื่อคลินิก / รหัส TR (ใช้ `recHit()` ตัวเดียวกับ Record)
+- **ฟอร์มคำขอ**: เลือกกี่ Product ก็มีช่อง "หัวข้อ" เท่านั้นช่อง เป็น dropdown ตาม Product
+  (Ultherapy 6 / Xeomin 6 / Belotero 8 / Radiesse 5 หัวข้อ) + ช่อง "รายละเอียดเพิ่มเติม"
+  ช่องเดียวท้ายสุด (ไม่บังคับ)
+- ข้อมูลคลินิก เพิ่ม **ประเภทคลินิก** Chain / Branch / Single / Hospital (บังคับ)
+- "ลิงก์ Google Map" → "สาขา/ลิงก์ Google Map" ทุกฟอร์ม
+
+**ที่เก็บข้อมูล:** `ptopic` (หัวข้อรายProduct) · `topicNote` · `clinicType`
+เก็บใน `requests.client` jsonb เหมือน `trail` — `save()` ส่งขึ้นอัตโนมัติ
+`topic` ยังเป็นข้อความรวมเหมือนเดิม → การ์ด / ปฏิทิน / อีเมล / ค้นหา อ่านได้เหมือนเดิมทั้งหมด
+คำขอเก่าที่หัวข้อเป็นข้อความอิสระ: กด "แก้ไข" แล้วระบบย้ายลงช่อง "รายละเอียดเพิ่มเติม" ให้เอง
+
 ### ยังต้องทำ (ให้ผู้ใช้ / เฟสถัดไป):
 0. **เปลี่ยนรหัสผ่าน SM 5 ตัว** — ตั้งไว้ตอนทดสอบ ควรเปลี่ยนก่อนใช้ระยะยาว
 0. ~~**งานกลาง MA ไม่แสดง (data gap)**~~ ✅ **แก้แล้ว** — seed 11 รายการจากแท็บ `_state` ของ sheet (version 376) เข้า `supabase/seed_ma_events.sql` + รันใน SQL Editor แล้ว (commit 649879c). ตาราง `events` มี 11 แถว (รวม MA Symposium 25/8). ตรวจแล้วว่า **สูตร/เงื่อนไขธุรกิจทั้งหมด (autoWindow/slotTime/freeIds/needsSenior/product gate/approval)** ยังอยู่ครบ (diff เก่า-ใหม่ = IDENTICAL); ที่ต่างคือ storage-layer เท่านั้น. render รองรับ multi-CTS สีรวมแล้ว (commit 75c40ca)
@@ -139,6 +165,7 @@
 
 ## 🔁 จุดกลับ (rollback)
 
+- `git checkout 52040af -- index.html` — ก่อน UI/UX รอบ 2
 - `git tag before-sm-loop` — ก่อนเริ่มงาน SM Loop
 - `backup-before-SM-20260908.html` — index.html ก่อนแก้
 - `supabase/sm_loop.sql` รันซ้ำได้ ไม่เสียหาย
