@@ -59,7 +59,7 @@
       entered by a CTS) instantly changes what Sales can book.
     · AUTO_RULE recalculates the free window when a job overruns
       (AM 10:00-13:00  ->  PM free 15:00-18:00; too little left -> "เวลาไม่พอ").
-    · CTS/Admin can override any window manually (🕑) and reset to auto.
+    · CTS/Admin can override any window manually (◷) and reset to auto.
     · Requests may be submitted incomplete; missing fields are listed on the
       card, at approval time, and at the bottom of the e-mail text.
     · Everything is editable after submission — including approved requests.
@@ -1924,7 +1924,7 @@ function pickBar(){
       <button class="btn ghost" id="btnClr">ล้าง</button>
       <button class="btn primary" id="btnCont" ${ok?'':'disabled'}>${state.draft?'กลับไปกรอกฟอร์ม':'สร้างคำขอ'}</button></div>
     ${prodGateOn()?`<div class="row" style="margin-top:9px;background:#EDE4FF;border:1px solid #C9B6F2;border-radius:12px;padding:8px 11px">
-      <label class="grow" style="font-size:12.5px;font-weight:700;color:#4A2F87">🔒 ล็อกหลายวันไว้ก่อน (คิว TBC)</label>
+      <label class="grow" style="font-size:12.5px;font-weight:700;color:#4A2F87">◈ ล็อกหลายวันไว้ก่อน (คิว TBC)</label>
       <input type="checkbox" id="tbcSw" ${state.tbcMode?'checked':''} style="width:21px;height:21px"></div>`:''}
     <div class="picked-list">${state.picks.map((p,i)=>`<div class="picked-item"><span class="idx">S${i+1}</span>
       ${p.ctsId?face(p.ctsId,'xs'):''}<span class="grow">${fmtDate(p.date)} · ${p.slot==='am'?'เช้า':'บ่าย'}${p.ctsId?' · '+byId(p.ctsId).nick:''}</span></div>`).join('')}</div></div>`;
@@ -1941,7 +1941,7 @@ function upcChip(o){
   return `<button class="evchip two" data-upc="${o.day.date}"
     style="--c:${pr?PRODHEX[pr]:'#E4E0F3'};--ci:${pr?pink(pr):'var(--brand-deep)'}">
     <span class="l1"><span class="cdot"></span><span class="sl">${first.start||'—'}–${first.end||'—'}</span>
-      <span class="who">${o.r.status==='approved'?'✓':'🕒'}</span></span>
+      <span class="who">${o.r.status==='approved'?'✓':'◷'}</span></span>
     <span class="etx">${esc(first.clinic||'ยังไม่ระบุคลินิก')}${items.length>1?` +${items.length-1}`:''}</span></button>`;
 }
 function upcMonthHTML(){
@@ -1965,7 +1965,7 @@ function upcMonthHTML(){
     <div class="legend"><span class="lr"><i style="background:#E4E0F3"></i>คิวเทรน UPC</span>
       <span class="lr"><i style="background:var(--ma-soft);box-shadow:inset 0 0 0 1px var(--ma-edge)"></i>งานกลาง MA</span>
       <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span>
-      <span class="lr">🕒 รออนุมัติ · ✓ อนุมัติแล้ว</span></div>`;
+      <span class="lr">◷ รออนุมัติ · ✓ อนุมัติแล้ว</span></div>`;
 }
 function upcWeekHTML(){
   const days=[];for(let i=0;i<7;i++){const d=new Date(state.weekStart);d.setDate(d.getDate()+i);days.push(d);}
@@ -2240,7 +2240,7 @@ function openJob(k,ekey){
     ${canSeeNames()&&j.selfId?`<button class="btn block" data-self="${j.selfId}" style="margin-top:11px">✎ แก้ไขคิวงานนี้</button>`:''}
     ${canSeeNames()&&r&&r.status==='approved'&&r.mode!=='upc'&&j.sIdx!==undefined
       ?`<button class="btn block" data-reqsess="${r.id}|${j.sIdx}" style="margin-top:11px">✎ แก้ไขคิวงานนี้ (หัวข้อ · เวลา · ผู้ร่วมงาน)</button>`:''}
-    ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">🕑 แก้เวลา / เวลาที่ว่าง</button>`:''}
+    ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">◷ แก้เวลา / เวลาที่ว่าง</button>`:''}
     ${canSeeNames()&&r&&r.status==='approved'?`<button class="btn bad block" data-cancelreq="${r.id}" style="margin-top:9px">✕ คิวยกเลิก — ลบออกจากปฏิทิน</button>`:''}
     ${upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc(upLabel(j))}</div>`:''}
   </div>${detail}
@@ -2263,8 +2263,8 @@ function openAvail(k,cid){
     let hint='';
     if(j)hint=`เวลาคิวจริง · ค่าเริ่มต้น ${d.start}–${d.end}`;
     else if(man)hint=`ปรับเอง — ระบบจะไม่คำนวณอัตโนมัติให้ช่องนี้`;
-    else if(w)hint=`⏱ คำนวณอัตโนมัติจากคิวก่อนหน้า (เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.)`;
-    else if(w===null)hint=`⏱ ต่อจากคิวก่อนหน้าแล้วเหลือเวลาไม่ถึง ${AUTO_RULE.minSessionMin/60} ชม. จึงปิดรับคิว — ปรับเองได้`;
+    else if(w)hint=`◷ คำนวณอัตโนมัติจากคิวก่อนหน้า (เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.)`;
+    else if(w===null)hint=`◷ ต่อจากคิวก่อนหน้าแล้วเหลือเวลาไม่ถึง ${AUTO_RULE.minSessionMin/60} ชม. จึงปิดรับคิว — ปรับเองได้`;
     else hint=`ค่าเริ่มต้น ${d.start}–${d.end}`;
     const val=st==='notime'?{start:d.start,end:d.end}:t;
     return `<div class="card" style="margin-bottom:10px">
@@ -2277,7 +2277,7 @@ function openAvail(k,cid){
           ${t24(`t_${sl}_e`,val.end)}</div></div>
       <div class="muted" style="margin-top:8px">${hint}</div>
       ${j?'':`<button class="btn ${st==='closed'?'ok':'bad'} block" data-close="${sl}" style="margin-top:10px">
-        ${st==='closed'?'↺ เปิดรับคิวช่วงนี้อีกครั้ง':'⛔ ปิดรับคิวช่วงนี้'}</button>`}
+        ${st==='closed'?'↺ เปิดรับคิวช่วงนี้อีกครั้ง':'⊘ ปิดรับคิวช่วงนี้'}</button>`}
     </div>`;};
   openSheet(`<div class="eyebrow">${fmtDate(k)}</div><h2>แก้เวลาของ ${c.nick}</h2>
     <div class="muted" style="padding:6px 0 2px">ระบบคำนวณเวลาว่างให้อัตโนมัติอยู่แล้ว — แก้ตรงนี้เมื่อต้องการกำหนดเอง</div>`,
@@ -2448,7 +2448,7 @@ function openDay(k){
           <button class="btn sm" id="dnAdd">＋ เพิ่มคิวงาน</button></div>`+timelineHTML(k)
       : evHtml+dayAnon(k)
         /* ในแท็บ "ปฏิทิน Sale" ของ CTS/Admin ต่อท้ายด้วยตารางรายคน เพื่อแก้เวลาว่าง/ปิดคิวได้ตรงนี้เลย */
-        +(salesView()?`<div class="note pl" style="margin-top:12px">ด้านล่างคือคิวรายคน — กด 🕑 เพื่อแก้เวลาที่ว่าง หรือปิดคิวช่วงนั้น</div>
+        +(salesView()?`<div class="note pl" style="margin-top:12px">ด้านล่างคือคิวรายคน — กด ◷ เพื่อแก้เวลาที่ว่าง หรือปิดคิวช่วงนั้น</div>
           <div style="margin-top:8px">${dayNamed(k)}</div>`:''))
     +`<button class="btn block" id="dnClose" style="margin-top:12px">ปิด</button>`);
   const B=$('sheetBody');
@@ -2495,8 +2495,8 @@ function dayNamed(k){
       const s=slotStatus(k,c.id,slot),ev=eventFor(k,c.id,slot),j=jobOf(k,c.id,slot)||{};
       const picked=state.picks.some(p=>p.date===k&&p.slot===slot&&p.ctsId===c.id);
       const t=slotTime(k,c.id,slot);
-      const txt={free:'✅ ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
-      const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด 🕑 เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
+      const txt={free:'✓ ว่าง',busy:'ติดงาน',pend:'รออนุมัติ',booked:'มีเทรน',tbc:'TBC',closed:'ปิดรับคิว',notime:'เวลาไม่พอ',event:ev?ev.type:'งานกลาง'}[s];
+      const sub=s==='closed'?'CTS ปิดรับคิวช่วงนี้เอง — กด ◷ เพื่อเปิดใหม่':s==='event'?esc(ev.title):s==='notime'?`ต่อจากคิวก่อนหน้า เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.`
         :(j.title?(leadText(j)?leadText(j)+' · ':'')+esc(j.title):'');
       const clickable=s==='free'||s==='busy'||s==='pend'||s==='booked'||s==='tbc';
       /* คิวที่ทับช่วงนี้ (ตามเวลาจริง) — ใช้เปิดรายละเอียดคิว */
@@ -2506,12 +2506,12 @@ function dayNamed(k){
         style="--c:${s==='busy'||s==='booked'||s==='pend'?pal(c.id).c:''};--ci:${s==='busy'||s==='booked'?pal(c.id).ci:''}"
         ${act}>
         <span class="lbl">${slot==='am'?'AM':'PM'} · ${s==='notime'?'—':timeLabel(j,t)}${
-          s==='free'?(t.auto?' ⏱ อัตโนมัติ':availOf(k,c.id,slot)?' ✎ แก้เอง':''):''}</span>
+          s==='free'?(t.auto?' ◷ อัตโนมัติ':availOf(k,c.id,slot)?' ✎ แก้เอง':''):''}</span>
         <span class="st">${picked?'✓ เลือกแล้ว':txt}</span>${sub?`<span class="sd">${sub}</span>`:''}</button>`;};
     return `<div class="cts-row" style="--c:${pal(c.id).c}">
       <div class="row">${face(c.id,'m')}<div class="grow"><div class="cts-name">${c.nick}<em>${c.name}</em></div></div>
       ${c.role!=='CTS'?`<span class="pill ${c.role==='Senior Leader'?'lead':'n'}">${c.role}</span>`:''}
-      <button class="btn sm" data-time="${k}|${c.id}" title="แก้เวลาที่ว่าง">🕑</button></div>
+      <button class="btn sm" data-time="${k}|${c.id}" title="แก้เวลาที่ว่าง">◷</button></div>
       <div class="slots">${cell('am')}${cell('pm')}</div></div>`;}).join('');
 }
 
@@ -2534,7 +2534,7 @@ function openEventDetail(id){
   </div>
   ${state.role==='admin'
     ?`<button class="btn block" id="evDetailEdit">✎ แก้ไขงานกลางนี้</button>
-     <button class="btn bad block" id="evDetailDel" style="margin-top:8px">🗑 ลบงานกลางนี้</button>`
+     <button class="btn bad block" id="evDetailDel" style="margin-top:8px">⊖ ลบงานกลางนี้</button>`
     :''}
   <button class="btn ghost block" onclick="document.getElementById('scrim').click()" style="margin-top:8px">ปิด</button>`);
   if(state.role==='admin'){
@@ -2650,7 +2650,7 @@ function openForm(){
       <span class="tl">ถึง</span>
       ${t24(`pt${i}e`,p.end||SLOT_DEF[p.slot].end,p.slot)}</div>
     ${(()=>{if(!p.ctsId)return '';const w=slotTime(p.date,p.ctsId,p.slot);
-      return w.auto?`<div class="muted" style="padding-left:6px;font-size:11.5px">⏱ ${byId(p.ctsId).nick} มีคิวก่อนหน้า — ว่างตั้งแต่ ${w.start} น. (เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.)</div>`:'';})()}
+      return w.auto?`<div class="muted" style="padding-left:6px;font-size:11.5px">◷ ${byId(p.ctsId).nick} มีคิวก่อนหน้า — ว่างตั้งแต่ ${w.start} น. (เผื่อพัก+เดินทาง ${AUTO_RULE.bufferMin/60} ชม.)</div>`:'';})()}
     ${need>1?`<div class="sdetail">
       <div class="chips">${PRODUCTS.map(pr=>`<button class="chip prodchip sm2" data-sp="${i}|${pr}"
         style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${p.sProduct===pr}">${pr}</button>`).join('')}</div>
@@ -2700,7 +2700,7 @@ function openForm(){
     <div class="note">หัวข้อที่มี <b class="req-star">*</b> ต้องกรอกก่อนถึงจะส่งได้ · ที่เหลือกรอกไม่ครบก็ส่งได้ ระบบจะสรุปรายการที่ขาดและขอตอนอนุมัติ</div>
     <div class="err" id="errBox" hidden></div>
     ${state.tbcMode?'':'<button class="btn primary block" id="btnSend" style="margin-top:14px">ส่งคำขอ</button>'}
-    <button class="btn ${state.tbcMode?'primary ':''}block" id="btnTbc" style="margin-top:${state.tbcMode?14:8}px">🔒 ล็อกวันไว้ก่อน (คิว TBC)</button>
+    <button class="btn ${state.tbcMode?'primary ':''}block" id="btnTbc" style="margin-top:${state.tbcMode?14:8}px">◈ ล็อกวันไว้ก่อน (คิว TBC)</button>
     <div class="note">คิว TBC = ยังไม่คอนเฟิร์มแพทย์/คลินิก · เลือกได้หลายวัน ระบบล็อกให้ ${TBC_DAYS} วัน แล้วค่อยกลับมากด "Confirm and Request"</div>
     <button class="btn ghost block" id="btnCancel" style="margin-top:8px">ยกเลิกคำขอนี้</button></div>`);
 
@@ -3089,7 +3089,7 @@ function reqCard(r,act){
       <span>${fmtDate(s.date)} · ${s.start||SLOT_DEF[s.slot].start}–${s.end||SLOT_DEF[s.slot].end}${s.ctsId&&showCts?' · <b style="font-family:var(--sans)">'+byId(s.ctsId).nick+'</b>':' · รอจัด CTS'}</span></div>`).join('')}</div>
     ${r.photos.length?`<div class="thumbs">${r.photos.map(p=>`<img src="${p.url}" alt="">`).join('')}</div>`:''}
     ${missBox(r)}
-    ${r.status==='tbc'?`<div class="tbcbar"><b>⚠️ คิว TBC — ล็อกไว้ ${r.sessions.length} วัน · เหลืออีก ${Math.max(0,tbcLeft(r))} วัน ก่อนปล่อยวันคืนระบบ</b><br>
+    ${r.status==='tbc'?`<div class="tbcbar"><b>▲ คิว TBC — ล็อกไว้ ${r.sessions.length} วัน · เหลืออีก ${Math.max(0,tbcLeft(r))} วัน ก่อนปล่อยวันคืนระบบ</b><br>
       ${r.tbcOk?'หัวหน้าตรวจแล้ว — อย่าลืมกด Confirm and Request เพื่อเลือกวันที่จะเอา'
         :'รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' ตรวจคิวก่อน ถึงจะกด Confirm and Request ได้'}</div>`:''}
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
@@ -3101,12 +3101,12 @@ function reqCard(r,act){
         r.tbcOk?'✎ แก้ CTS ของคิว TBC นี้':'✓ ตรวจคิว TBC · เปลี่ยน CTS รายวัน'}</button>`:''}
     <div class="row" style="margin-top:11px">
       <button class="btn grow" data-edit="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
-      ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">📋 คัดลอกสำหรับอีเมล</button>`:''}</div>
+      ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">⧉ คัดลอกสำหรับอีเมล</button>`:''}</div>
     ${act&&r.status!=='tbc'?`<div class="row" style="margin-top:12px">
       ${r.status==='mgr'?'':`<button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>`}
       <button class="btn ok grow" data-approve="${r.id}">${approveLabel(r)}</button></div>
       <button class="btn bad block" data-reject="${r.id}" style="margin-top:8px">ไม่อนุมัติ</button>`:''}
-    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
+    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">⊖ ลบคำขอนี้</button>`:''}
   </div></div>`;
 }
 /* ปุ่มอนุมัติบอกปลายทางของขั้นถัดไป — ไม่ให้หัวหน้าเข้าใจผิดว่ากดแล้วจบเลย */
@@ -3124,7 +3124,7 @@ function supList(r){
 function supBox(r){
   const L=supList(r);
   if(!L.length)return '<div class="note" style="margin-top:11px">ไม่มีการขอ Support Product</div>';
-  return `<div class="supbox"><b>⚠ ขอ Support Product สำหรับการเทรน</b>
+  return `<div class="supbox"><b>▲ ขอ Support Product สำหรับการเทรน</b>
     ${L.map(x=>`<div style="margin-top:5px"><span class="big">${esc(x.p||'ยังไม่ระบุ product')}</span>
       · <span class="big">${x.c||'?'}</span> เคส${r.mode==='upc'?` · ${esc(x.clinic||'—')}`:''}</div>`).join('')}
     ${r.photos&&r.photos.length?`<div class="muted" style="margin-top:5px">แนบรูปเคส ${r.photos.length} รูป</div>`:''}</div>`;
@@ -3320,11 +3320,11 @@ function upcCard(r,act){
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
     <div class="row" style="margin-top:11px">
       <button class="btn grow" data-uedit="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
-      ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">📋 คัดลอกสำหรับอีเมล</button>`:''}</div>
+      ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">⧉ คัดลอกสำหรับอีเมล</button>`:''}</div>
     ${act?`<div class="row" style="margin-top:9px"><button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>
       <button class="btn primary grow" data-approve="${r.id}">อนุมัติ</button></div>
       <button class="btn bad block" data-reject="${r.id}" style="margin-top:8px">ไม่อนุมัติ</button>`:''}
-    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
+    ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">⊖ ลบคำขอนี้</button>`:''}
   </div></div>`;
 }
 /* คิวที่อนุมัติแล้วโดนยกเลิกทีหลัง — เอาออกจากปฏิทิน CTS แล้วคืนช่องให้ Sales จองใหม่
@@ -3839,7 +3839,7 @@ function trailHTML(r){
     <span class="tact ${t.act}">${TRAIL_ACT[t.act]||t.act}</span><b>${esc(t.step||t.by||'—')}</b>
     <br><span class="muted">${fmtStamp(t.at)}</span>
     ${t.note?`<br><span class="tnote">“${esc(t.note)}”</span>`:''}</div>`).join('')}
-    ${APPROVAL_ST.includes(r.status)?`<div class="tstep muted">⏳ รออยู่ที่ ${esc(waitingFor(r))}</div>`:''}</div>`;
+    ${APPROVAL_ST.includes(r.status)?`<div class="tstep muted">◷ รออยู่ที่ ${esc(waitingFor(r))}</div>`:''}</div>`;
 }
 /* ใครเห็นอะไรใน Record — Sale เห็นของตัวเอง · SM ทั้งทีม · Senior Leader เฉพาะที่ตัวเองแตะ · Admin/Manager ทั้งหมด */
 function canSeeRecord(r){
@@ -3854,7 +3854,7 @@ function notify(r,kind){
   state.feed.unshift({r,kind,at:new Date()});
 }
 const NKIND={
-  pending :{ic:'🕒', label:'รออนุมัติ', bg:'var(--warn-soft)', bd:'var(--warn-edge)', ink:'#8A6C1B'},
+  pending :{ic:'◷', label:'รออนุมัติ', bg:'var(--warn-soft)', bd:'var(--warn-edge)', ink:'#8A6C1B'},
   approved:{ic:'✓',  label:'อนุมัติแล้ว', bg:'var(--ok-soft)',  bd:'var(--ok-edge)',  ink:'var(--ok)'},
   rejected:{ic:'✕',  label:'ไม่อนุมัติ', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
   cancelled:{ic:'✕', label:'คิวยกเลิก', bg:'var(--bad-soft)', bd:'var(--bad-edge)', ink:'var(--bad)'},
@@ -3887,13 +3887,13 @@ function notiCard(it){
              ${face(s.ctsId,'xs')} ${r.mode==='upc'?fmtDate(s.date).split(' ').slice(1,3).join(' '):'S'+(i+1)} · ${byId(s.ctsId).nick}</span>`).join('')}</div>
            <div class="muted" style="margin-top:8px">อนุมัติโดย ${r.approvedBy} · ลงคิวในปฏิทินให้อัตโนมัติแล้ว</div>`}
       ${(r.missingAtApproval&&r.missingAtApproval.length)
-        ? `<div class="warn"><b>⚠ รบกวนส่งข้อมูลเพิ่ม ${r.missingAtApproval.length} รายการ</b><br>${r.missingAtApproval.map(x=>'• '+x).join('<br>')}</div>`
+        ? `<div class="warn"><b>▲ รบกวนส่งข้อมูลเพิ่ม ${r.missingAtApproval.length} รายการ</b><br>${r.missingAtApproval.map(x=>'• '+x).join('<br>')}</div>`
         : (it.kind==='pending'&&missingOf(r).length)
         ? `<div class="warn"><b>ยังกรอกไม่ครบ ${missingOf(r).length} รายการ</b> — กด "แก้ไข" เพื่อเติมข้อมูล</div>`:''}
       <div class="row" style="margin-top:11px;flex-wrap:wrap">
         <button class="btn sm" data-${r.mode==='upc'?'uedit':'edit'}="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
-        ${it.kind==='approved'?`<button class="btn sm" data-mail="${r.id}">✉ ข้อความสำหรับอีเมล</button>
-          <button class="btn sm" data-copy="${r.id}">📋 คัดลอก</button>`:''}
+        ${it.kind==='approved'?`<button class="btn sm" data-mail="${r.id}">ข้อความสำหรับอีเมล</button>
+          <button class="btn sm" data-copy="${r.id}">⧉ คัดลอก</button>`:''}
         <span class="muted" style="margin-left:auto;font-family:var(--mono);font-size:10.5px">${t}</span></div>
       ${it.kind==='approved'?`<div class="copybox" id="mail_${r.id}" hidden>${esc(emailText(r))}</div>`:''}
       ${trailHTML(r)}
@@ -3917,11 +3917,11 @@ function renderFeed(){
     <div class="recsearch"><input id="recQ" type="search" placeholder="ค้นรหัสคำขอ (TR1041) หรือชื่อคลินิก" value="${esc(state.recQ||'')}">
       ${state.recQ?'<button class="btn sm" id="recClr">ล้าง</button>':''}</div>
     ${q?`<div class="note" style="margin-top:0">ผลการค้น "${esc(state.recQ)}" — พบ ${all.length} คำขอ</div>`:''}
-    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดป้ายตัวเลขบนไอคอนแอป</button>
+    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">✦ เปิดป้ายตัวเลขบนไอคอนแอป</button>
       <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · ตัวเลขจะขึ้นที่ไอคอนเหมือนแอปทั่วไป</div>`:''}
     <div class="filterbar">
       <button class="fchip all" data-nf="all" aria-pressed="${f==='all'}" style="--c:var(--brand-soft);--ci:var(--brand-deep)">ทั้งหมด (${all.length})</button>
-      <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">🕒 รออนุมัติ (${n('pending')})</button>
+      <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">◷ รออนุมัติ (${n('pending')})</button>
       <button class="fchip all" data-nf="approved" aria-pressed="${f==='approved'}" style="--c:var(--ok-soft);--ci:var(--ok)">✓ อนุมัติแล้ว (${n('approved')})</button>
       <button class="fchip all" data-nf="rejected" aria-pressed="${f==='rejected'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ ไม่อนุมัติ (${n('rejected')})</button>
       <button class="fchip all" data-nf="cancelled" aria-pressed="${f==='cancelled'}" style="--c:var(--bad-soft);--ci:var(--bad)">✕ คิวยกเลิก (${n('cancelled')})</button>
@@ -3943,7 +3943,7 @@ function renderFeed(){
   const rc=$('recClr');if(rc)rc.onclick=()=>{state.recQ='';renderFeed();};
   view().querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{state.feedFilter=b.dataset.nf;renderFeed();});
   view().querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
-    const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'✉ ข้อความสำหรับอีเมล':'✉ ซ่อนข้อความ';}});
+    const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'ข้อความสำหรับอีเมล':'ซ่อนข้อความ';}});
   bindCards(view());
 }
 
@@ -3984,7 +3984,7 @@ function openRules(){
     <li><b>เวลาว่างคำนวณอัตโนมัติ</b> — หลังจบคิวหนึ่ง ระบบเผื่อเวลาพักกลางวันและเดินทาง ${AUTO_RULE.bufferMin/60} ชม.
       แล้วเปิดคิวถัดไปยาว ${AUTO_RULE.sessionMin/60} ชม. (ไม่เกิน ${AUTO_RULE.dayEnd} น.)
       เช่น คิวเช้า 10:00–13:00 → บ่ายว่าง 15:00–18:00 · ถ้าเหลือเวลาไม่ถึง ${AUTO_RULE.minSessionMin/60} ชม. จะขึ้น "เวลาไม่พอ" และไม่รับคิว</li>
-    <li>CTS และ Admin ปรับเวลาเองทับค่าอัตโนมัติได้ที่ปุ่ม 🕑 ในหน้ารายวัน และกดคืนค่าอัตโนมัติได้ตลอด</li>
+    <li>CTS และ Admin ปรับเวลาเองทับค่าอัตโนมัติได้ที่ปุ่ม ◷ ในหน้ารายวัน และกดคืนค่าอัตโนมัติได้ตลอด</li>
     <li><b>CTS ลงคิวงานเองได้</b> — ปุ่ม "＋ เพิ่มคิวงาน" พิมพ์หัวข้อและเลือกเวลาเอง เลือกคนที่ไปด้วยกันได้หลายคน
       (สีจะรวมกันเป็นลายทางในปฏิทิน) คิวที่ลงจะไปตัดคิวว่างที่ Sales เห็นทันทีโดยอัตโนมัติ</li>
     <li>คิวว่างที่ Sales เห็นนับเฉพาะ 6 CTS: JUNE · POR · ATOM · SUI · POP · EYE — PAM, MILK (Senior Leader)
