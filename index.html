@@ -307,6 +307,11 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 .btn.primary:disabled{background:#CFC9E2;border-color:#CFC9E2;cursor:not-allowed}
 .btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
 .btn.ghost{background:transparent;box-shadow:none}
+.btn.badfill{background:var(--bad);border-color:var(--bad);color:#fff}
+.recsearch{display:flex;gap:8px;margin-bottom:12px}
+.recsearch input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:13px;padding:11px 14px;
+  font-family:inherit;font-size:14px;background:#fff}
+.recsearch input:focus{outline:none;border-color:var(--brand-deep)}
 .btn.bad{color:var(--bad);border-color:var(--bad-edge)}
 .btn.block{width:100%}
 .btn.sm{padding:7px 12px;font-size:13px;border-radius:11px}
@@ -656,6 +661,22 @@ textarea.in{min-height:76px;resize:vertical}
 .status.approved{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok-edge)}
 .status.rejected,.status.cancelled{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad-edge)}
 .status.tbc{background:#EDE4FF;color:#5B3E9E;border:1px solid #C9B6F2}
+.status.sm{background:#FBE7CF;color:#8A4A11;border:1px solid #E7BE8E}
+.status.mgr{background:#D6ECFB;color:#1B5E8A;border:1px solid #9CC9E7}
+/* กล่องเน้น Support Product — SM ต้องเห็นทันทีว่าคำขอนี้ขอของไปเทรนเท่าไหร่ */
+.supbox{margin-top:11px;border:2px solid #E88A3C;background:#FFF1E0;border-radius:12px;padding:10px 12px;color:#8A4A11}
+.supbox b{font-size:14px}
+.supbox .big{font-family:var(--mono);font-size:17px;font-weight:700;color:#C0521A}
+/* เส้นทางการอนุมัติใน Record — 1 บรรทัด = 1 ขั้นที่เกิดขึ้นจริง */
+.trail{margin-top:10px;border-left:2.5px solid var(--line);padding-left:11px;display:grid;gap:7px}
+.trail .tstep{font-size:12px;line-height:1.4}
+.trail .tstep b{font-family:var(--sans)}
+.trail .tact{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+  padding:1px 6px;border-radius:6px;margin-right:5px}
+.trail .tact.approved{background:var(--ok-soft);color:var(--ok)}
+.trail .tact.rejected{background:var(--bad-soft);color:var(--bad)}
+.trail .tact.request{background:#E5E0F5;color:#5F4FB0}
+.trail .tnote{color:var(--ink2);font-style:italic}
 .status.expired{background:#F2F1F6;color:var(--ink3);border:1px solid var(--line)}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
 /* กล่องแจ้งเตือนคิว TBC — สีแดง ให้ Sales เห็นชัดว่าเหลืออีกกี่วันก่อนปล่อยวันคืนระบบ */
@@ -833,6 +854,21 @@ const AREA_CFG={
   UPC     :{team:'BOTH',codes:['UPC1','UPC2','UPC3','UPC4','UPC5','UPC6']},
 };
 const AREA_LIST=Object.keys(AREA_CFG);
+/* ===== SM (Sales Manager) — 5 ทีมขาย =====
+   ทีมของ SM ไม่ใช่ทีม CTS (A/B) แต่เป็นกลุ่มพื้นที่ขายที่ SM คนนั้นดูแล
+   KA ไม่มีรหัสย่อยในระบบ (KAE1-4 เป็นพื้นที่) จึงใช้ชื่อพื้นที่เป็นรหัส Sale เลย */
+const SM_TEAMS={
+  Champion:{areas:['Champion'],color:'#F0C36D'},
+  Winner  :{areas:['Winner'],  color:'#8FD3C2'},
+  Victory :{areas:['Victory'], color:'#B9A6F0'},
+  KA      :{areas:['KAE1','KAE2','KAE3','KAE4'],color:'#F5A7B8'},
+  UPC     :{areas:['UPC'],     color:'#9DC5F0'},
+};
+const SM_LIST=Object.keys(SM_TEAMS);
+const smCodes=t=>SM_TEAMS[t].areas.flatMap(a=>AREA_CFG[a].codes.length?AREA_CFG[a].codes:[a]);
+const smOfArea=a=>SM_LIST.find(t=>SM_TEAMS[t].areas.includes(a));
+/* รหัส Sale เจ้าของคำขอ — พื้นที่ KAE ไม่มีรหัสย่อย ใช้ชื่อพื้นที่แทน */
+const saleCode=r=>r.requesterId||r.area||'—';
 const CTS=[
   {id:'parichat',  name:'Parichat T.',  nick:'PAM',  team:'A', role:'Senior Leader'},
   {id:'narakamon', name:'Narakamon K.', nick:'JUNE', team:'A', role:'Senior'},
@@ -901,14 +937,15 @@ const HOLIDAYS_SEED=[
 /* ========================= STATE ========================= */
 const TODAY=new Date();
 const state={
-  authed:false, role:null, me:null, area:null, salesId:null, teamView:'A',
+  authed:false, role:null, me:null, area:null, salesId:null, sm:null, teamView:'A',
   tab:'cal', view:'month', month:new Date(TODAY.getFullYear(),TODAY.getMonth(),1), weekStart:null,
   filter:new Set(),                        // empty = show all
   tfilter:new Set(),                       // กรองปฏิทินตามประเภทคิว (MA / KUD / Med School / MSC) · ว่าง = ดูทั้งหมด
   dash:null,                               // ช่วงเวลาที่เลือกดูใน Dashboard {from,to}
   sched:{}, avail:{}, skills:{}, selfEvents:[], seSeq:1, picks:[], draft:null, upcDraft:null, feedFilter:'all', requests:[], events:[], holidays:[], feed:[], seq:1041, evSeq:3,
   tbcMode:false,
-  loginRole:null, loginArea:null, loginCts:null, loginCode:null
+  recQ:'',
+  loginRole:null, loginArea:null, loginCts:null, loginCode:null, loginSm:null
 };
 const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const parse=k=>new Date(k+'T00:00:00');
@@ -929,12 +966,43 @@ const teamCTS=t=>t==='BOTH'?CTS.filter(c=>c.team!=='SUP'):CTS.filter(c=>c.team==
 const leadOf=t=>byId(TEAMS[t].lead);
 const leadsOf=t=>LEAD_IDS.map(byId);   // t ไม่ใช้แล้ว — หัวหน้าทั้งคู่ดูแลร่วมกันทุกคำขอ
 const isLead=()=>state.role==='cts'&&byId(state.me).role==='Senior Leader';
-/* ใครอนุมัติคำขอนี้ได้ */
-const canApprove=r=>state.role==='admin'||(state.role==='cts'&&LEAD_IDS.includes(state.me));
+/* ===== เส้นทางอนุมัติ: Sale -> SM -> CTS Senior Leader -> CTS Manager =====
+   sm      = รอ Sales Manager ของทีมนั้นพิจารณา (คำขอปกติที่ Sale ส่ง)
+   pending = SM ผ่านแล้ว รอ Senior Leader (PAM/MILK) จัด CTS และอนุมัติ
+   mgr     = Senior Leader ผ่านแล้ว รอ CTS Manager (BELLE) อนุมัติขั้นสุดท้าย
+   approved= ลงคิวจริงในปฏิทิน CTS
+   คิว TBC ข้าม SM ไป Senior Leader ก่อนตามเดิม (ล็อกวัน) แล้วค่อยเข้าเส้นทางนี้ตอน Sales ยืนยันวัน */
+const MGR_ID='belle';
+const isMgr=()=>state.role==='cts'&&state.me===MGR_ID;
+const APPROVAL_ST=['sm','pending','mgr','tbc'];
+/* ใครอนุมัติคำขอนี้ได้ — ขึ้นกับว่าคำขออยู่ขั้นไหน */
+function canApprove(r){
+  if(state.role==='admin')return true;                            // Admin ข้ามขั้นได้ (ของเดิม)
+  if(r.status==='sm')return state.role==='sm'&&smOfArea(r.area)===state.sm;
+  if(r.status==='pending'||r.status==='tbc')return state.role==='cts'&&LEAD_IDS.includes(state.me);
+  if(r.status==='mgr')return isMgr();
+  return false;
+}
+const ST_LABEL={sm:'รอ SM',pending:'รอ CTS Leader',mgr:'รอ Manager',
+  approved:'approved',tbc:'TBC',rejected:'rejected',cancelled:'cancelled',expired:'expired'};
+/* ชื่อขั้นของคนที่กำลังใช้งาน — ใช้เป็นหลักฐานใน trail */
+const myStep=()=>state.role==='sm'?'SM '+state.sm
+  :state.role==='sales'?'Sale '+(state.salesId||'')
+  :state.role==='admin'?'Admin'
+  :isMgr()?'CTS Manager':isLead()?'CTS Senior Leader':'CTS';
+/* หลักฐานทุกขั้นของคำขอ — เก็บใน r.trail ซึ่งไปกับ requests.client (jsonb) อัตโนมัติ */
+function logTrail(r,act,note){
+  (r.trail||(r.trail=[])).push({at:new Date().toISOString(),by:whoAmI(),step:myStep(),act,note:note||''});
+}
+/* ผู้ที่ต้องพิจารณาขั้นถัดไป — ใช้บอก Sales ว่าคำขอค้างอยู่ที่ใคร */
+const waitingFor=r=>r.status==='sm'?'SM '+(smOfArea(r.area)||r.area)
+  :r.status==='pending'||r.status==='tbc'?leadsOf(r.team).map(l=>l.nick).join(' / ')
+  :r.status==='mgr'?byId(MGR_ID).nick+' (CTS Manager)':'';
 /* ใครเห็นคำขอนี้ได้ — Sales เห็นเฉพาะของตัวเอง · CTS เห็นของทีมตัวเอง + UPC ทั้งหมด */
 function canSeeReq(r){
   if(state.role==='admin')return true;
   if(state.role==='sales')return r.requesterId===state.salesId;
+  if(state.role==='sm')return smOfArea(r.area)===state.sm;   /* SM เห็นทั้งทีมตัวเอง ไม่เห็นทีมอื่น */
   return true;   // CTS เห็นทุกคำขอ — ถูกจัดให้ไปเทรนได้ทุกคน ไม่ผูกทีมแล้ว
 }
 const myRequests=()=>state.requests.filter(canSeeReq);
@@ -1043,7 +1111,7 @@ const fmtT=t=>`${t.start}–${t.end}`;
 /* ป้ายเวลาที่แสดง — คิวทั้งวันไม่ต้องโชว์ช่วงเวลา */
 const timeLabel=(j,t)=>(j&&j.allDay)?'ทั้งวัน':fmtT(t);
 /* ใครกำลังใช้งานอยู่ — ใช้บันทึกว่าคิวนี้ถูกแก้ล่าสุดโดยใคร */
-const whoAmI=()=>state.role==='cts'?byId(state.me).nick:state.role==='admin'?'Admin':(state.salesId||'Sales');
+const whoAmI=()=>state.role==='cts'?byId(state.me).nick:state.role==='admin'?'Admin':state.role==='sm'?'SM '+state.sm:(state.salesId||'Sales');
 const stampNow=o=>{o.upBy=whoAmI();o.upAt=new Date().toISOString();return o;};
 /* id ใหม่ — เลขวิ่งไว้ให้เรียงและอ่านง่ายเหมือนเดิม ตัวอักษร 2 ตัวท้ายไว้กันชน
    จำเป็นเพราะแต่ละเครื่องเดินเลขของตัวเองไปก่อน กว่าจะรู้ว่าอีกเครื่องใช้เลขไหนก็ตอนบันทึกแล้ว
@@ -1184,7 +1252,7 @@ function renderLogin(){
   const areaOpts=['A','B','BOTH'].map(t=>`<optgroup label="ดูแลโดย ${TEAMS[t].label}">
     ${TEAMS[t].areas.map(a=>`<option value="${a}" ${state.loginArea===a?'selected':''}>${a}</option>`).join('')}</optgroup>`).join('');
   const codes=state.loginArea?AREA_CFG[state.loginArea].codes:[];
-  const ready=r==='admin'||(r==='sales'&&state.loginArea&&(!codes.length||state.loginCode))||(r==='cts'&&state.loginCts);
+  const ready=r==='admin'||(r==='sales'&&state.loginArea&&(!codes.length||state.loginCode))||(r==='cts'&&state.loginCts)||(r==='sm'&&state.loginSm);
   setHTML(root,`<div class="login"><div class="login-card">
     <img class="mzlogo" src="${LOGO_DARK}" alt="Merz Aesthetics">
     <h1>Training Request</h1>
@@ -1198,6 +1266,9 @@ function renderLogin(){
         <button class="rolebtn" data-r="cts" aria-pressed="${r==='cts'}">
           <span class="ric" style="background:#DBCDF0;color:#5B3E9E">✚</span>
           <span><b>CTS</b><small>เห็นตารางงานทั้งทีม แยกสีรายคน</small></span></button>
+        <button class="rolebtn" data-r="sm" aria-pressed="${r==='sm'}">
+          <span class="ric" style="background:#FBDCC0;color:#8A4A11">◆</span>
+          <span><b>Sale Manager</b><small>อนุมัติคำขอและดูตารางเทรนของทีมตัวเอง</small></span></button>
         <button class="rolebtn" data-r="admin" aria-pressed="${r==='admin'}">
           <span class="ric" style="background:#C6DEF1;color:#245F94">⚙</span>
           <span><b>Admin</b><small>เห็นทุกทีม และลงงานกลาง MA</small></span></button>
@@ -1210,6 +1281,10 @@ function renderLogin(){
         : 'พื้นที่นี้ดูแลโดย '+TEAMS[teamOfArea(state.loginArea)].label}</div>`:''}
       ${codes.length?`<div class="llabel" style="margin-top:16px">รหัสของคุณในทีม ${state.loginArea}</div>
         <div class="codegrid">${codes.map(cd=>`<button class="codebtn" data-code="${cd}" aria-pressed="${state.loginCode===cd}">${cd}</button>`).join('')}</div>`:''}</div>`:''}
+
+    ${r==='sm'?`<div class="lgroup"><div class="llabel">คุณเป็น SM ของทีมไหน</div>
+      <div class="codegrid">${SM_LIST.map(t=>`<button class="codebtn" data-sm="${t}" aria-pressed="${state.loginSm===t}">${t}</button>`).join('')}</div>
+      ${state.loginSm?`<div class="note pl">ทีม ${state.loginSm} — รหัส Sale ที่ดูแล: ${smCodes(state.loginSm).join(' · ')}</div>`:''}</div>`:''}
 
     ${r==='cts'?`<div class="lgroup"><div class="llabel">เลือกชื่อของคุณ</div>
       <div style="margin-bottom:14px;text-align:center">
@@ -1240,6 +1315,7 @@ function renderLogin(){
   const la=$('lArea');if(la)la.onchange=e=>{state.loginArea=e.target.value;state.loginCode=null;renderLogin();};
   root.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>{state.loginCode=b.dataset.code;renderLogin();});
   root.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{state.loginCts=b.dataset.c;renderLogin();});
+  root.querySelectorAll('[data-sm]').forEach(b=>b.onclick=()=>{state.loginSm=b.dataset.sm;renderLogin();});
   const pw=$('lPw');if(pw)pw.onkeydown=e=>{if(e.key==='Enter')$('lGo').click();};
   $('lGo').onclick=async()=>{
     const btn=$('lGo'),err=$('lErr');
@@ -1251,15 +1327,15 @@ function renderLogin(){
     enter();
   };
 }
-/* CTS กับ Admin ต้องใช้รหัส · Sales เข้าได้เลย */
-const needPw=r=>r==='cts'||r==='admin';
+/* CTS · Admin · SM ต้องใช้รหัส (SM กด Approve ได้จริง) · Sales เข้าได้เลย */
+const needPw=r=>r==='cts'||r==='admin'||r==='sm';
 
 /* ===== เข้าสู่ระบบด้วย Supabase Auth =====
    CTS / Admin = ผู้ใช้รายคน (อีเมล + รหัสผ่านของตัวเอง) · Sales ยังเข้าได้เลยแบบไม่ต้องล็อกอิน (anon)
    อีเมลผูกกับ member_id ตายตัว — ถ้าเปลี่ยนอีเมลใน Supabase (Authentication → Users) ให้แก้ที่ EMAIL_OF จุดเดียว */
 const EMAIL_DOMAIN='@ctsgroup.merz.com';
 const EMAIL_OF=mid=>mid+EMAIL_DOMAIN;
-const loginMember=role=>role==='admin'?'admin':state.loginCts;
+const loginMember=role=>role==='admin'?'admin':role==='sm'?'sm-'+state.loginSm.toLowerCase():state.loginCts;
 let authErr='';                              // ข้อความจริงจาก Supabase — เอาไปแสดงบนหน้า login ให้แก้ถูกจุด
 async function signIn(role,pwv){
   if(!SB)return true;                        // ไม่มี Supabase = โหมดออฟไลน์ในเครื่อง ไม่ต้องมีรหัส
@@ -1280,9 +1356,10 @@ function enter(){
   state.role=state.loginRole;state.authed=true;
   if(state.role==='sales'){state.area=state.loginArea;state.salesId=state.loginCode||state.loginArea;state.view='month';}
   if(state.role==='cts'){state.me=state.loginCts;state.teamView=byId(state.me).team;state.view='week';}
+  if(state.role==='sm'){state.sm=state.loginSm;state.view='month';}
   state.tab='cal';state.filter=new Set();state.tfilter=new Set();state.dash=null;
   try{localStorage.setItem('cts-login',JSON.stringify({...auth,
-    loginRole:state.loginRole,loginArea:state.loginArea,loginCts:state.loginCts,loginCode:state.loginCode}));}catch(e){}
+    loginRole:state.loginRole,loginArea:state.loginArea,loginCts:state.loginCts,loginCode:state.loginCode,loginSm:state.loginSm}));}catch(e){}
   render();
 }
 
@@ -1291,7 +1368,7 @@ function enter(){
 async function restoreLogin(){
   let s=null;try{s=JSON.parse(localStorage.getItem('cts-login')||'null');}catch(e){}
   if(!s)return renderLogin();
-  Object.assign(state,{loginRole:s.loginRole,loginArea:s.loginArea,loginCts:s.loginCts,loginCode:s.loginCode});
+  Object.assign(state,{loginRole:s.loginRole,loginArea:s.loginArea,loginCts:s.loginCts,loginCode:s.loginCode,loginSm:s.loginSm});
   if(!SB){auth={role:s.role};return enter();}          // โหมดออฟไลน์ — ไม่มีอะไรให้ตรวจ
   if(needPw(s.role)){
     const {data}=await SB.auth.getSession();
@@ -1307,24 +1384,29 @@ function logout(){
   if(SB)SB.auth.signOut().catch(()=>{});
   auth={role:null};loaded=false;lastSaved='';
   try{localStorage.removeItem('cts-login');}catch(e){}
-  Object.assign(state,{authed:false,role:null,me:null,area:null,salesId:null,picks:[],draft:null,
-  loginRole:null,loginArea:null,loginCts:null,loginCode:null,filter:new Set(),tfilter:new Set(),dash:null});renderLogin();}
+  Object.assign(state,{authed:false,role:null,me:null,area:null,salesId:null,sm:null,picks:[],draft:null,
+  loginRole:null,loginArea:null,loginCts:null,loginCode:null,loginSm:null,filter:new Set(),tfilter:new Set(),dash:null});renderLogin();}
 
 /* ========================= SHELL ========================= */
 /* s = ชื่อสั้นสำหรับแถบล่างบนมือถือ · c/ci = สีประจำแท็บ ใช้ตอนแท็บถูกเลือก */
 const TABS=[
-  {k:'cal',  ic:'▦',t:'ปฏิทิน',      s:'ปฏิทิน', c:'#EFEAFB',ci:'#5F4FB0'},
-  {k:'sale', ic:'◷',t:'ปฏิทิน Sale', s:'Sale',   c:'#DDF1E6',ci:'#1D7A57', cts:1},
-  {k:'dash', ic:'↗',t:'Dashboard',   s:'Dash',   c:'#D3EFEA',ci:'#0E6B62', cts:1},
-  {k:'skill',ic:'◆',t:'Skills CTS',  s:'Skills', c:'#FBEED2',ci:'#8A6A11', admin:1},
-  {k:'req',  ic:'▤',t:'คำขอ',        s:'คำขอ',   c:'#DAE8F8',ci:'#245F94'},
-  {k:'app',  ic:'✓',t:'อนุมัติ',      s:'อนุมัติ', c:'#DCF3E4',ci:'#2C7A3E'},
-  {k:'feed', ic:'✦',t:'แจ้งเตือน',    s:'เตือน',  c:'#FBE0EE',ci:'#9C3A6E'},
+  {k:'cal',  ic:'▦',t:'ปฏิทิน',      s:'ปฏิทิน', c:'#EFEAFB',ci:'#5F4FB0', for:['sales','cts','admin','sm']},
+  {k:'sale', ic:'◷',t:'ปฏิทิน Sale', s:'Sale',   c:'#DDF1E6',ci:'#1D7A57', for:['cts','admin']},
+  {k:'dash', ic:'↗',t:'Dashboard',   s:'Dash',   c:'#D3EFEA',ci:'#0E6B62', for:['sales','cts','admin','sm']},
+  {k:'skill',ic:'◆',t:'Skills CTS',  s:'Skills', c:'#FBEED2',ci:'#8A6A11', for:['admin']},
+  {k:'req',  ic:'▤',t:'คำขอ',        s:'คำขอ',   c:'#DAE8F8',ci:'#245F94', for:['sales','cts','admin']},
+  {k:'app',  ic:'✓',t:'อนุมัติ',      s:'อนุมัติ', c:'#DCF3E4',ci:'#2C7A3E', for:['cts','admin','sm'], smT:'คำขออนุมัติ', smS:'คำขอ'},
+  {k:'feed', ic:'✦',t:'Record',      s:'Record', c:'#FBE0EE',ci:'#9C3A6E', for:['sales','cts','admin','sm']},
 ];
-const tabsFor=()=>TABS.filter(t=>(!t.cts||state.role==='cts'||state.role==='admin')&&(!t.admin||state.role==='admin'));
+/* SM เรียงแท็บตามที่ใช้จริง: ปฏิทิน → คำขออนุมัติ → Dashboard → Record */
+const SM_TABS=['cal','app','dash','feed'];
+const tabsFor=()=>{const t=TABS.filter(x=>x.for.includes(state.role));
+  return state.role==='sm'?SM_TABS.map(k=>t.find(x=>x.k===k)):t;};
+const tabT=t=>(state.role==='sm'&&t.smT)||t.t;
+const tabS=t=>(state.role==='sm'&&t.smS)||t.s||t.t;
 /* อยู่ในแท็บ "ปฏิทิน Sale" = ดูแบบเดียวกับที่ Sales เห็น (ซ่อนชื่อ นับคิวว่าง) แต่ยังแก้เวลาว่างได้ */
 const salesView=()=>state.tab==='sale'&&(state.role==='cts'||state.role==='admin');
-function pendingCount(){return state.requests.filter(r=>(r.status==='pending'||r.status==='tbc')&&canApprove(r)).length;}
+function pendingCount(){return state.requests.filter(r=>APPROVAL_ST.includes(r.status)&&canApprove(r)).length;}
 /* ===== ป้ายตัวเลขแดงบนไอคอนแอป (Badging API) =====
    ต้องติดตั้งเป็นแอปในหน้าจอโฮมก่อน · iOS ต้องกดอนุญาตแจ้งเตือนด้วย (ปุ่มในแท็บแจ้งเตือน)
    ตัวเลขอัปเดตตอนเปิดแอป หรือสลับกลับมาที่แอป — ยังไม่มี push ตอนแอปปิดสนิท
@@ -1333,7 +1415,7 @@ const feedSeen=()=>{try{return +localStorage.getItem('cts-feed-seen')||0;}catch(
 const markFeedSeen=()=>{try{localStorage.setItem('cts-feed-seen',Date.now());}catch(e){}};
 function badgeCount(){
   if(!state.authed)return 0;
-  if(isLead()||state.role==='admin')return pendingCount();          // หัวหน้า/Admin = จำนวนที่ต้องอนุมัติ
+  if(isLead()||isMgr()||state.role==='sm'||state.role==='admin')return pendingCount();   // คนที่ต้องอนุมัติ = จำนวนที่ค้างอยู่ที่ตัวเอง
   const seen=feedSeen();
   return state.feed.filter(i=>canSeeReq(i.r)&&new Date(i.at).getTime()>seen).length;
 }
@@ -1345,6 +1427,8 @@ function syncBadge(){
 function userChip(){
   if(state.role==='sales')return `<button class="uchip" id="uOut"><span class="uic">◍</span>
     <span class="grow"><span class="nm">${state.salesId} · ${state.area}</span><span class="sb">Sales · ดูแลโดย ${TEAMS[activeTeam()].label}</span></span><span class="muted">↪</span></button>`;
+  if(state.role==='sm')return `<button class="uchip" id="uOut"><span class="uic" style="background:${SM_TEAMS[state.sm].color};color:#3A2A10">◆</span>
+    <span class="grow"><span class="nm">SM ${state.sm}</span><span class="sb">Sales Manager · ดูแล ${smCodes(state.sm).join(' ')}</span></span><span class="muted">↪</span></button>`;
   if(state.role==='cts')return `<button class="uchip" id="uOut"><img src="${FACES[state.me]}" alt="" style="box-shadow:0 0 0 2.5px ${pal(state.me).c}">
     <span class="grow"><span class="nm">${byId(state.me).nick} — ${byId(state.me).name}</span>
     <span class="sb">${byId(state.me).role} · ${TEAMS[activeTeam()].label}</span></span><span class="muted">↪</span></button>`;
@@ -1353,15 +1437,15 @@ function userChip(){
 }
 function render(){
   if(!state.authed){syncBadge();return renderLogin();}
-  const pend=pendingCount(),showB=pend&&(isLead()||state.role==='admin');
+  const pend=pendingCount(),showB=pend&&(isLead()||isMgr()||state.role==='sm'||state.role==='admin');
   const tabs=tabsFor();
   const nav=tabs.map(t=>`<button class="navitem" data-tab="${t.k}" aria-selected="${state.tab===t.k}"
-    style="--tc:${t.c};--tci:${t.ci}"><span class="ic">${t.ic}</span>${t.t}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
+    style="--tc:${t.c};--tci:${t.ci}"><span class="ic">${t.ic}</span>${tabT(t)}${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
   /* จำนวนแท็บไม่เท่ากันในแต่ละ role (Sales 4 · CTS 6 · Admin 7) — แถบล่างต้องแบ่งช่องตามจริง
      ไม่งั้นแท็บท้ายๆ (แจ้งเตือน) ตกขอบจอ · แท็บเยอะใช้ชื่อสั้นและย่อขนาดลง */
   const bnav=tabs.map(t=>`<button data-tab="${t.k}" aria-selected="${state.tab===t.k}" style="--tc:${t.c};--tci:${t.ci}">
-    <span class="ic">${t.ic}</span><span class="lb">${t.s||t.t}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
-  const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:'Admin · ทุกทีม';
+    <span class="ic">${t.ic}</span><span class="lb">${tabS(t)}</span>${t.k==='app'&&showB?`<span class="cnt">${pend}</span>`:''}</button>`).join('');
+  const sub=state.role==='sales'?`${state.salesId} · ${state.area}`:state.role==='cts'?`${byId(state.me).nick} · ${TEAMS[activeTeam()].label}`:state.role==='sm'?`SM ${state.sm}`:'Admin · ทุกทีม';
 
   setHTML(root,`<div class="shell">
     <aside class="side">
@@ -1386,7 +1470,10 @@ function render(){
   ['sideRules','tRules'].forEach(i=>{const e=$(i);if(e)e.onclick=openRules;});
   ['sideSync','tSync'].forEach(i=>{const e=$(i);if(e)e.onclick=refresh;});
   const se=$('sideEv');if(se)se.onclick=()=>openEventForm();
-  ({cal:renderCal,sale:renderCal,dash:renderDash,skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
+  (state.role==='sm'
+    ? {cal:renderSMCal,app:renderApprovals,dash:renderSMDash,feed:renderFeed}
+    : {cal:renderCal,sale:renderCal,dash:state.role==='sales'?renderSMDash:renderDash,
+       skill:renderSkills,req:renderReqs,app:renderApprovals,feed:renderFeed})[state.tab]();
   syncBadge();     // เรียกหลังเรนเดอร์แท็บ — เปิดแท็บแจ้งเตือนแล้วป้ายบนไอคอนต้องหายไปเลย
   save();          // ทุกการแก้ข้อมูลจบที่ render() — บันทึกจุดเดียวพอ (save() เช็คเองว่าข้อมูลเปลี่ยนจริงไหม)
 }
@@ -1656,6 +1743,96 @@ function monthHTML(){
   }
   return `<div class="dow">${THDOW.map((x,i)=>`<span class="${i===0?'sun':''}">${x}</span>`).join('')}</div>
     <div class="mgrid wk">${rows}</div>${legend()}`;
+}
+
+/* ========================= SM CALENDAR =========================
+   ปฏิทินของ Sales Manager — คิวเทรนของทีมตัวเองทั้งทีม แยกตามรหัส Sale
+   สี: เขียว = Confirmed · แดง = TBC · เหลือง = รอ CTS ยืนยัน · น้ำเงินประ = งานกลาง MA · พื้นแดง = วันหยุด
+   งานกลาง MA และวันหยุดอ่านจาก state.events / state.holidays ชุดเดียวกับปฏิทิน CTS
+   Admin แก้ที่ไหน SM เห็นตรงนั้น (โหลดใหม่ทุก 30 วิ) */
+const SM_STAT=r=>r.status==='approved'?'ok':r.status==='tbc'?'tbc':'wait';
+const SM_STYLE={ok :'background:#DCF3E4;color:#1B6B37;border:1px solid #93CFA8',
+                tbc:'background:#FBDCDC;color:#9B2C2C;border:1px solid #E9A2A2',
+                wait:'background:#FDF1CC;color:#7A5B0B;border:1px solid #E5C978'};
+function smEntries(k){
+  const out=[];
+  state.requests.forEach(r=>{
+    if(!canSeeReq(r)||r.status==='rejected'||r.status==='cancelled')return;
+    (r.sessions||[]).forEach((sn,i)=>{if(sn.date===k)out.push({r,s:sn,i,code:saleCode(r)});});
+  });
+  return out.sort((a,b)=>String(a.s.start||'').localeCompare(String(b.s.start||'')));
+}
+const smTime=e=>e.s.start||SLOT_DEF[e.s.slot==='day'?'am':(e.s.slot||'am')].start;
+const smChip=(e,one)=>`<button class="evchip ${one?'one':'two'}" data-smreq="${e.r.id}" style="${SM_STYLE[SM_STAT(e.r)]}"
+  title="${esc(e.code+' · '+(e.r.clinic||e.r.id)+' · '+e.r.status)}">${one
+    ? `<b>${e.code}</b> ${esc(e.r.clinic||e.r.id)}`
+    : `<span class="l1"><span class="sl">${smTime(e)}</span><span class="who">${e.code}</span></span>
+       <span class="etx">${esc(e.r.clinic||e.r.id)}</span>`}</button>`;
+
+function smMonthHTML(){
+  const y=state.month.getFullYear(),mo=state.month.getMonth();
+  const start=new Date(y,mo,1).getDay(),last=new Date(y,mo+1,0).getDate();
+  const one=NARROW(),cap=one?4:3,cells=[];
+  for(let i=0;i<start;i++)cells.push('<div class="mcell pad"></div>');
+  for(let d=1;d<=last;d++){
+    const dt=new Date(y,mo,d),k=key(dt),hol=holidayOf(k);
+    const chips=dayEvents(k).map(e=>`<span class="evchip ma${one?' one':''}" data-ev="${e.id}">${one?'':'MA · '}${esc(e.title)}</span>`)
+      .concat(smEntries(k).map(e=>smChip(e,one)));
+    cells.push(`<div class="mcell${isWeekend(dt)?' wknd':''}${hol?' hol':''}${k===key(TODAY)?' today':''}" data-smd="${k}" role="button" tabindex="0">
+      <span class="dn"><b>${d}</b></span>
+      ${chips.slice(0,cap).join('')}${chips.length>cap?`<span class="evmore">+${chips.length-cap}</span>`:''}
+      ${hol?`<span class="holname">${esc(hol.name)}</span>`:''}</div>`);
+  }
+  while(cells.length%7)cells.push('<div class="mcell pad"></div>');
+  return `<div class="dow">${THDOW.map((x,i)=>`<span class="${i===0?'sun':''}">${x}</span>`).join('')}</div>
+    <div class="mgrid">${cells.join('')}</div>`;
+}
+function smWeekHTML(){
+  const days=[];for(let i=0;i<7;i++){const d=new Date(state.weekStart);d.setDate(d.getDate()+i);days.push(d);}
+  const gt=NARROW()?`68px repeat(7,minmax(62px,1fr))`:`160px repeat(7,minmax(88px,1fr))`;
+  const head=`<div class="wrow whead" style="--gt:${gt}"><div class="wperson"><span class="qlbl">รหัส Sale</span></div>
+    ${days.map(d=>`<div class="wdate${key(d)===key(TODAY)?' td':''}${holidayOf(key(d))?' holh':''}">
+      <div class="d">${d.getDate()}</div><div class="m">${THDOW[d.getDay()]} · ${ENMON[d.getMonth()]}</div></div>`).join('')}</div>`;
+  const rows=smCodes(state.sm).map(code=>`<div class="wrow" style="--gt:${gt}">
+    <div class="wperson"><span><span class="nk">${code}</span><span class="nm">${state.sm}</span></span></div>
+    ${days.map(d=>{const k=key(d),list=smEntries(k).filter(e=>e.code===code);
+      return `<div class="wcell${holidayOf(k)?' holc2':''}">${list.length
+        ? list.map(e=>smChip(e,true)).join('')
+        : '<span class="muted" style="font-size:11px">—</span>'}</div>`;}).join('')}</div>`).join('');
+  /* งานกลาง MA และวันหยุดไม่ผูกกับรหัส Sale คนไหน — รวมไว้แถวล่างสุด */
+  const ma=`<div class="wrow" style="--gt:${gt}"><div class="wperson"><span><span class="nk">MA</span><span class="nm">งานกลาง · วันหยุด</span></span></div>
+    ${days.map(d=>{const k=key(d),h=holidayOf(k);
+      return `<div class="wcell${h?' holc2':''}">${h?`<span class="evchip one" style="background:var(--hol-bg);color:var(--hol-ink)">${esc(h.name)}</span>`:''}${
+        dayEvents(k).map(e=>`<span class="evchip ma one" data-ev="${e.id}">${esc(e.title)}</span>`).join('')||(h?'':'<span class="muted" style="font-size:11px">—</span>')}</div>`;}).join('')}</div>`;
+  return `<div class="wscroll"><div class="wgrid">${head}${rows}${ma}</div></div>`;
+}
+function renderSMCal(){
+  const seg=`<div class="seg">
+    <button data-v="week" aria-selected="${state.view==='week'}">สัปดาห์</button>
+    <button data-v="month" aria-selected="${state.view==='month'}">เดือน</button></div>`;
+  const period=state.view==='month'
+    ? `<div class="period">${THMON[state.month.getMonth()]} ${state.month.getFullYear()+543}
+        <span>${ENMON[state.month.getMonth()]} ${state.month.getFullYear()}</span></div>`
+    : (()=>{const a=state.weekStart,b=new Date(a);b.setDate(a.getDate()+6);
+        return `<div class="period">${a.getDate()} ${THMON[a.getMonth()]} – ${b.getDate()} ${THMON[b.getMonth()]}
+          <span>WEEK OF ${ENMON[a.getMonth()]} ${a.getDate()}, ${a.getFullYear()}</span></div>`;})();
+  setHTML(view(),`<h1 class="pt">ตารางเทรนทีม ${state.sm}</h1>
+    <p class="psub">คิวเทรนของ ${smCodes(state.sm).join(' · ')} — งานกลาง MA และวันหยุดตรงกับปฏิทิน CTS</p>
+    <div class="calbar">${seg}${period}
+      <div class="navbtns"><button id="pv">‹</button><button class="wide" id="tdy">วันนี้</button><button id="nx">›</button></div></div>
+    <div class="calshell">${state.view==='month'?smMonthHTML():smWeekHTML()}</div>
+    <div class="legend">
+      <span class="lr"><i style="background:#DCF3E4;box-shadow:inset 0 0 0 1px #93CFA8"></i>Confirmed</span>
+      <span class="lr"><i style="background:#FDF1CC;box-shadow:inset 0 0 0 1px #E5C978"></i>รอ CTS ยืนยัน</span>
+      <span class="lr"><i style="background:#FBDCDC;box-shadow:inset 0 0 0 1px #E9A2A2"></i>TBC</span>
+      <span class="lr"><i style="background:var(--ma-soft);box-shadow:inset 0 0 0 1px var(--ma-edge)"></i>งานกลาง MA</span>
+      <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span></div>`);
+  view().querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{state.view=b.dataset.v;renderSMCal();});
+  $('pv').onclick=()=>{shift(-1);renderSMCal();};
+  $('nx').onclick=()=>{shift(1);renderSMCal();};
+  $('tdy').onclick=()=>{state.month=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);state.weekStart=mondayOf(TODAY);renderSMCal();};
+  view().querySelectorAll('[data-smreq]').forEach(b=>b.onclick=()=>openSMReq(b.dataset.smreq));
+  view().querySelectorAll('[data-ev]').forEach(b=>b.onclick=()=>openEventDetail(b.dataset.ev));
 }
 
 /* ---- week ---- */
@@ -2812,9 +2989,10 @@ function convertTBC(id){
       r.sessions.forEach(sn=>{if(sn.ctsId)setJob(sn.date,sn.ctsId,sn.slot,
         {kind:'pend',title:r.clinic||'คำขอ '+r.id,product:prodMain(r.product),reqId:r.id,
          start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end});});
-      r.status='pending';r.tbc=false;r.note='เปลี่ยนจากคิว TBC เป็นคำขอแล้ว';r.created=new Date();
+      r.status=state.role==='sales'?'sm':'pending';r.tbc=false;r.note='เปลี่ยนจากคิว TBC เป็นคำขอแล้ว';r.created=new Date();
+      logTrail(r,'request','ยืนยันวันจริงจากคิว TBC');
       notify(r,'pending');closeSheet();render();
-      toast('ส่งคำขอแล้ว — รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' อนุมัติ');};
+      toast('ส่งคำขอแล้ว — รอ '+waitingFor(r)+' อนุมัติ');};
   };
   draw();
 }
@@ -2861,7 +3039,8 @@ function submit(){
 
   const team=activeTeam();
   const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
-    status:'pending',created:new Date(),sessions:state.picks.map(p=>({...p})),
+    status:state.role==='sales'?'sm':'pending',   /* Sale ส่ง -> SM พิจารณาก่อน · CTS/Admin สร้างเอง -> เข้าหัวหน้าตามเดิม */
+    created:new Date(),sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,clinic:d.clinic,map:d.map,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
@@ -2873,11 +3052,12 @@ function submit(){
     if(s.ctsId)setJob(s.date,s.ctsId,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
       start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
   });
+  logTrail(req,'request');
   state.requests.unshift(req);notify(req,'pending');
   state.draft=null;state.picks=[];closeSheet();goTab('req');
   const miss=missingOf(req).length;
   toast(miss?`ส่งคำขอแล้ว — ยังขาด ${miss} ข้อมูล ส่งตามได้`
-    :'ส่งคำขอแล้ว — รอ '+leadsOf(team).map(l=>l.nick).join(' / ')+' อนุมัติ');
+    :'ส่งคำขอแล้ว — รอ '+waitingFor(req)+' อนุมัติ');
 }
 
 /* ========================= CARDS ========================= */
@@ -2893,7 +3073,7 @@ function reqCard(r,act){
   return `<div class="req"><div class="req-strip" style="--pc:${prodMain(r.product)?PRODHEX[prodMain(r.product)]:'#DDD'}"></div><div class="req-in">
     <div class="req-top"><div><div class="req-id">${r.id} · ${r.area} · ${TEAMS[r.team].label}</div>
       <div class="req-clinic">${r.clinic?esc(r.clinic):'<span style="color:var(--ink3)">ยังไม่ระบุคลินิก</span>'}</div></div>
-      <span class="status ${r.status}">${r.status}</span></div>
+      <span class="status ${r.status}">${ST_LABEL[r.status]||r.status}</span></div>
     <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
       ${prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
       <span class="pill n">${r.module} · ${r.sessions.length} session</span>
@@ -2922,11 +3102,100 @@ function reqCard(r,act){
     <div class="row" style="margin-top:11px">
       <button class="btn grow" data-edit="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
       ${r.status==='approved'?`<button class="btn grow" data-copy="${r.id}">📋 คัดลอกสำหรับอีเมล</button>`:''}</div>
-    ${act&&r.status!=='tbc'?`<div class="row" style="margin-top:12px"><button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>
-      <button class="btn primary grow" data-approve="${r.id}">อนุมัติ</button></div>
+    ${act&&r.status!=='tbc'?`<div class="row" style="margin-top:12px">
+      ${r.status==='mgr'?'':`<button class="btn grow" data-assign="${r.id}">จัด / เปลี่ยน CTS</button>`}
+      <button class="btn ok grow" data-approve="${r.id}">${approveLabel(r)}</button></div>
       <button class="btn bad block" data-reject="${r.id}" style="margin-top:8px">ไม่อนุมัติ</button>`:''}
     ${state.role==='cts'?`<button class="btn bad block" data-del="${r.id}" style="margin-top:8px">🗑 ลบคำขอนี้</button>`:''}
   </div></div>`;
+}
+/* ปุ่มอนุมัติบอกปลายทางของขั้นถัดไป — ไม่ให้หัวหน้าเข้าใจผิดว่ากดแล้วจบเลย */
+const approveLabel=r=>r.status==='mgr'?'✓ อนุมัติขั้นสุดท้าย'
+  :r.status==='pending'&&state.role!=='admin'?`✓ อนุมัติ · ส่งต่อ ${byId(MGR_ID).nick}`:'✓ อนุมัติ';
+
+/* ===== หน้าจอฝั่ง SM ===== */
+/* Support Product = ของที่ขอเบิกไปใช้เทรนจริง (hands-on) — หัวใจที่ SM ต้องพิจารณา */
+function supList(r){
+  if(r.mode!=='upc')return r.handsOn?[{p:r.hoProduct,c:r.hoCases,clinic:r.clinic}]:[];
+  const out=[];
+  (r.days||[]).forEach(d=>(d.items||[]).forEach(i=>{if(i.handsOn)out.push({p:i.hoProduct,c:i.hoCases,clinic:i.clinic});}));
+  return out;
+}
+function supBox(r){
+  const L=supList(r);
+  if(!L.length)return '<div class="note" style="margin-top:11px">ไม่มีการขอ Support Product</div>';
+  return `<div class="supbox"><b>⚠ ขอ Support Product สำหรับการเทรน</b>
+    ${L.map(x=>`<div style="margin-top:5px"><span class="big">${esc(x.p||'ยังไม่ระบุ product')}</span>
+      · <span class="big">${x.c||'?'}</span> เคส${r.mode==='upc'?` · ${esc(x.clinic||'—')}`:''}</div>`).join('')}
+    ${r.photos&&r.photos.length?`<div class="muted" style="margin-top:5px">แนบรูปเคส ${r.photos.length} รูป</div>`:''}</div>`;
+}
+function smReqCard(r,act){
+  const when=r.mode==='upc'
+    ? (r.days||[]).map(d=>`${fmtDate(d.date)} · ${(d.items||[]).map(i=>esc(i.clinic||'—')).join(', ')||'—'}`)
+    : (r.sessions||[]).map((sn,i)=>`S${i+1} · ${fmtDate(sn.date)} · ${sn.start||SLOT_DEF[sn.slot==='day'?'am':sn.slot].start}–${sn.end||SLOT_DEF[sn.slot==='day'?'pm':sn.slot].end}`);
+  return `<div class="req"><div class="req-strip" style="--pc:${prodMain(r.product)?PRODHEX[prodMain(r.product)]:'#DDD'}"></div><div class="req-in">
+    <div class="req-top"><div><div class="req-id">${r.id} · ${saleCode(r)} · ทีม ${smOfArea(r.area)||r.area}</div>
+      <div class="req-clinic">${r.clinic?esc(r.clinic):'<span style="color:var(--ink3)">ยังไม่ระบุคลินิก</span>'}</div></div>
+      <span class="status ${r.status}">${ST_LABEL[r.status]||r.status}</span></div>
+    <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
+      ${prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
+      <span class="pill n">${r.module||'—'} · ${(r.sessions||[]).length} session</span>
+      ${r.level?`<span class="pill n">${r.level}</span>`:''}</div>
+    <dl class="kv">
+      <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):gapv()}</dd>
+      <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':gapv()}${r.exp?' · '+esc(String(r.exp).split('—')[0]):''}</dd>
+      <dt>สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>
+      <dt>ผู้ขอ</dt><dd>${esc(r.requester||'—')} · ${saleCode(r)}</dd></dl>
+    ${supBox(r)}
+    <div class="sess">${when.map(w=>`<div class="s"><span>${w}</span></div>`).join('')}</div>
+    ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
+    ${act?`<div class="row" style="margin-top:12px">
+      <button class="btn ok grow" data-smok="${r.id}">✓ Approve</button>
+      <button class="btn badfill grow" data-smno="${r.id}">✕ Reject</button></div>`:''}
+  </div></div>`;
+}
+/* SM กด Approve / Reject — มีช่องคอมเมนต์สั้นๆ ติดไปกับหลักฐานทุกครั้ง */
+function smDecide(id,ok){
+  const r=state.requests.find(x=>x.id===id);
+  if(!r)return;
+  openSheet(`<div class="eyebrow">${r.id} · ${saleCode(r)}</div><h2>${ok?'อนุมัติคำขอนี้':'ไม่อนุมัติคำขอนี้'}</h2>`,
+  `<div class="card">
+    <div class="muted">${esc(r.clinic||'—')} · ${r.module||'—'} · ${(r.sessions||[]).length} session</div>
+    ${supBox(r)}
+    <label class="f" style="margin-top:12px">คอมเมนต์ถึงทีม (ไม่ใส่ก็ได้)</label>
+    <textarea class="in" id="smNote" rows="3" placeholder="${ok?'เช่น อนุมัติ support ตามที่ขอ':'เช่น ขอลดจำนวนเคส หรือเลื่อนวัน'}"></textarea>
+    <button class="btn ${ok?'ok':'badfill'} block" id="smGo" style="margin-top:12px">${ok?'✓ Approve':'✕ Reject'}</button>
+    <button class="btn ghost block" id="smNo" style="margin-top:8px">ยกเลิก</button></div>`);
+  $('smNo').onclick=closeSheet;
+  $('smGo').onclick=()=>{
+    const note=($('smNote').value||'').trim();
+    const leads=leadsOf(r.team).map(l=>l.nick).join(' / ');
+    if(ok){
+      logTrail(r,'approved',note);
+      r.status='pending';
+      r.note=`SM ${state.sm} อนุมัติแล้ว${note?' — '+note:''} · รอ ${leads} จัด CTS`;
+      notify(r,'pending');closeSheet();render();toast('อนุมัติแล้ว — ส่งต่อ '+leads);
+    }else{
+      logTrail(r,'rejected',note);
+      r.status='rejected';
+      r.note=`SM ${state.sm} ไม่อนุมัติ${note?' — '+note:''}`;
+      /* คืนช่องที่จองไว้ให้ CTS ทันที ไม่งั้นคิวค้างทั้งที่คำขอตกไปแล้ว */
+      if(r.mode==='upc')clearUPC(r);
+      else (r.sessions||[]).forEach(sn=>reqWho(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,null)));
+      notify(r,'rejected');closeSheet();render();toast('ไม่อนุมัติ — คืนคิวให้ CTS แล้ว');
+    }};
+}
+/* กดชิปในปฏิทิน SM = เปิดดูรายละเอียดคำขอนั้น (อนุมัติได้เลยถ้าอยู่ขั้นของ SM) */
+function openSMReq(id){
+  const r=state.requests.find(x=>x.id===id);
+  if(!r)return;
+  openSheet(`<div class="eyebrow">${r.id} · ${saleCode(r)}</div><h2>${esc(r.clinic||'คำขอเทรน')}</h2>`,
+    smReqCard(r,canApprove(r)));
+  bindSM($('sheetBody'));
+}
+function bindSM(scope){
+  scope.querySelectorAll('[data-smok]').forEach(b=>b.onclick=()=>{closeSheet();smDecide(b.dataset.smok,true);});
+  scope.querySelectorAll('[data-smno]').forEach(b=>b.onclick=()=>{closeSheet();smDecide(b.dataset.smno,false);});
 }
 
 /* แก้ไข / เพิ่มข้อมูลของคำขอที่ส่งไปแล้ว — ทำได้ทั้งตอน pending และ approved
@@ -3185,6 +3454,107 @@ const DASH_PRESETS=[
   ['3 เดือนล่าสุด',()=>{const d=new Date();return [new Date(d.getFullYear(),d.getMonth()-2,1),new Date(d.getFullYear(),d.getMonth()+1,0)];}],
   ['ปีนี้',        ()=>{const d=new Date();return [new Date(d.getFullYear(),0,1),new Date(d.getFullYear(),11,31)];}],
 ];
+/* ===== Dashboard ฝั่งขาย (SM ทั้งทีม · Sale เฉพาะรหัสตัวเอง) =====
+   นับจาก "คำขอ" ไม่ใช่คิวในปฏิทิน CTS — มิติที่ฝั่งขายสนใจคือ รหัส Sale · คลินิก · product ที่ support
+   1 คำขอ = 1 Training (คำขอเดียวมีหลาย session ในคลินิกเดียวกัน นับเป็นครั้งเดียว)
+   คำขอที่ถูกปฏิเสธ/ยกเลิก ไม่นับ · เข้าช่วงเวลาถ้ามี session อยู่ในช่วงที่เลือก */
+function saleRows(codes){
+  const R=dashRange();
+  if(!R.from||!R.to||R.to<R.from)return [];
+  const inR=d=>d>=R.from&&d<=R.to;
+  return state.requests.filter(r=>codes.includes(saleCode(r))
+      &&r.status!=='rejected'&&r.status!=='cancelled'
+      &&(r.sessions||[]).some(sn=>inR(sn.date)))
+    .map(r=>({r,code:saleCode(r),clinic:String(r.clinic||'—').trim(),
+      fams:[...new Set(prodList(r.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))],
+      sup:supList(r),
+      date:(r.sessions||[]).map(sn=>sn.date).sort()[0]}));
+}
+/* รวมจำนวนเคส Support Product ต่อ product — ไม่ระบุจำนวนนับเป็น 0 เคส แต่ยังนับเป็น 1 คำขอ */
+function supTotals(rows){
+  const m={};
+  rows.forEach(x=>x.sup.forEach(sp=>{
+    const p=sp.p||'ยังไม่ระบุ product';
+    (m[p]||(m[p]={cases:0,reqs:0})).cases+=(+sp.c||0);
+    m[p].reqs++;
+  }));
+  return Object.entries(m).sort((a,b)=>b[1].cases-a[1].cases);
+}
+function clinicGroups(rows){
+  const m={};
+  rows.forEach(x=>{(m[x.clinic]||(m[x.clinic]=[])).push(x);});
+  return Object.entries(m).sort((a,b)=>b[1].length-a[1].length);
+}
+function renderSMDash(){
+  const isSale=state.role==='sales';
+  const team=isSale?(smOfArea(state.area)||state.area):state.sm;
+  const codes=isSale?[state.salesId]:smCodes(team);
+  const ka=team==='KA';                     /* KA เทรนซ้ำเป็นเรื่องปกติ — เปลี่ยนหัวข้อเป็นสรุปราย Account */
+  const R=dashRange(),rows=saleRows(codes),cols=DASH_PRODUCTS;
+  const nFam=(list,p)=>list.filter(x=>x.fams.includes(p)).length;
+  const byCode=c=>rows.filter(x=>x.code===c);
+  const sup=supTotals(rows);
+  const groups=clinicGroups(rows);
+  const repeat=ka?groups:groups.filter(g=>g[1].length>1);
+
+  const totCard=`<div class="dcard sum">
+    <div class="dhead"><span class="dic">Σ</span>
+      <span class="grow"><b>${isSale?'คำขอของ '+state.salesId:'รวมทีม '+team}</b><em>${isSale?'ทีม '+team:codes.length+' รหัส'}</em></span>
+      <span class="dtot"><b>${rows.length}</b><small>training</small></span></div>
+    <div class="dprods">${cols.map(p=>`<span class="dp on" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
+      <b>${nFam(rows,p)}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
+
+  const codeCards=isSale?'':codes.map(c=>{const L=byCode(c);
+    return `<div class="dcard" style="--c:${SM_TEAMS[team]?SM_TEAMS[team].color:'#EEE'};--ci:#5A4A2A">
+      <div class="dhead"><span class="dic">${c}</span>
+        <span class="grow"><b>${c}</b><em>ทีม ${team}</em></span>
+        <span class="dtot"><b>${L.length}</b><small>training</small></span></div>
+      <div class="dprods">${cols.map(p=>{const v=nFam(L,p);
+        return `<span class="dp${v?' on':''}" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
+          <b>${v}</b><small>${esc(p)}</small></span>`;}).join('')}</div></div>`;}).join('');
+
+  const supCard=`<div class="card"><div class="eyebrow">Support Product ${isSale?'ของคุณ':'รวมทั้งทีม '+team}</div>
+    ${sup.length?sup.map(([p,v])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line2)">
+        <span class="tag" style="background:${PRODHEX[p]||'#DDD'};color:${pink(p)}">${esc(p)}</span>
+        <span class="grow"></span>
+        <span style="font-family:var(--mono);font-weight:700">${v.cases}</span><span class="muted">เคส · ${v.reqs} คำขอ</span></div>`).join('')
+      :'<div class="muted" style="padding:8px 0">ไม่มีการขอ Support Product ในช่วงนี้</div>'}</div>`;
+
+  const repCard=`<div class="card">
+    <div class="eyebrow">${ka?`Training ราย Account (ทีม KA)`:'Clinics with Repeat Training Requests'}</div>
+    <div class="muted" style="margin:4px 0 10px">${ka
+      ? 'ทีม KA เทรนซ้ำใน Account เดิมเป็นเรื่องปกติ — แสดงทุก Account พร้อม product ที่เทรนและที่ support'
+      : 'คลินิกที่ขอเทรนมากกว่า 1 ครั้งในช่วงที่เลือก'}</div>
+    ${repeat.length?repeat.map(([clinic,L])=>{
+      const fams=[...new Set(L.flatMap(x=>x.fams))];
+      const sp=supTotals(L);
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--line2)">
+        <div class="row"><b style="font-size:14px">${esc(clinic)}</b><span class="grow"></span>
+          <span class="pill n">${L.length} training</span></div>
+        <div class="row" style="gap:5px;margin-top:6px;flex-wrap:wrap">
+          ${fams.length?fams.map(p=>`<span class="tag" style="background:${PRODHEX[p]||'#DDD'};color:${pink(p)}">${esc(p)}</span>`).join(''):'<span class="muted">ยังไม่ระบุ product</span>'}</div>
+        ${sp.length?`<div class="muted" style="margin-top:5px">Support: ${sp.map(([p,v])=>esc(p)+' '+v.cases+' เคส').join(' · ')}</div>`:''}
+        ${isSale?'':`<div class="muted" style="margin-top:3px">รหัส: ${[...new Set(L.map(x=>x.code))].join(' · ')}</div>`}</div>`;}).join('')
+      :`<div class="muted" style="padding:8px 0">${ka?'ยังไม่มีคำขอในช่วงนี้':'ยังไม่มีคลินิกที่ขอเทรนซ้ำในช่วงนี้'}</div>`}</div>`;
+
+  setHTML(view(),`<h1 class="pt">Dashboard</h1>
+    <p class="psub">${isSale?`สรุปการเทรนของ ${state.salesId}`:`สรุปการเทรนของทีม ${team} — ${codes.join(' · ')}`}</p>
+    <div class="card">
+      <div class="eyebrow">ช่วงเวลาที่ดู</div>
+      <div class="chips" style="margin:9px 0 12px">
+        ${DASH_PRESETS.map((p,i)=>`<button class="chip" data-dp="${i}">${p[0]}</button>`).join('')}</div>
+      <div class="formgrid">
+        <label class="f">ตั้งแต่<input class="in" type="date" id="dFrom" value="${R.from||''}"></label>
+        <label class="f">ถึง<input class="in" type="date" id="dTo" value="${R.to||''}"></label></div></div>
+    <div class="dgrid">${totCard}${codeCards}</div>
+    ${supCard}
+    ${repCard}`);
+  const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderSMDash();};
+  view().querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>set(...DASH_PRESETS[+b.dataset.dp][1]()));
+  $('dFrom').onchange=e=>{state.dash={...dashRange(),from:e.target.value};renderSMDash();};
+  $('dTo').onchange=e=>{state.dash={...dashRange(),to:e.target.value};renderSMDash();};
+}
+
 function renderDash(){
   const R=dashRange(),rows=trainRows();
   const cts=CTS.filter(c=>rows.some(x=>x.cid===c.id));
@@ -3254,16 +3624,21 @@ function renderReqs(){
   bindCards(view());
 }
 function renderApprovals(){
-  if(!(isLead()||state.role==='admin')){
+  const sm=state.role==='sm';
+  if(!(sm||isLead()||isMgr()||state.role==='admin')){
     setHTML(view(),`<h1 class="pt">การอนุมัติ</h1>
-      <div class="card"><div class="empty"><div class="big">✓</div>เฉพาะ Senior Leader<br>
-      <span class="muted">${state.role==='sales'?'คำขอของคุณจะถูกส่งให้ Senior Leader ของทีมที่ดูแลพื้นที่คุณพิจารณา':'เฉพาะ Senior Leader ของทีมเท่านั้นที่อนุมัติได้'}</span></div></div>`);return;}
-  const list=state.requests.filter(r=>(r.status==='pending'||r.status==='tbc')&&canApprove(r));
-  setHTML(view(),`<h1 class="pt">รออนุมัติ (${list.length})</h1>
-    <p class="psub">${state.role==='admin'?'ทุกทีม':`${TEAMS[byId(state.me).team].label} และ UPC · ${byId(state.me).name}`}</p>
-    ${list.length?`<div class="reqgrid">${list.map(r=>reqCard(r,true)).join('')}</div>`:
+      <div class="card"><div class="empty"><div class="big">✓</div>เฉพาะผู้มีสิทธิ์อนุมัติ<br>
+      <span class="muted">${state.role==='sales'?'คำขอของคุณจะถูกส่งให้ SM ของทีมคุณพิจารณาก่อน แล้วจึงส่งต่อ CTS':'เฉพาะ SM · Senior Leader · CTS Manager เท่านั้นที่อนุมัติได้'}</span></div></div>`);return;}
+  const list=state.requests.filter(r=>APPROVAL_ST.includes(r.status)&&canApprove(r));
+  const scope=sm?`ทีม ${state.sm} · ${smCodes(state.sm).join(' ')}`
+    :state.role==='admin'?'ทุกทีม'
+    :isMgr()?'อนุมัติขั้นสุดท้าย · ทุกทีม'
+    :`${TEAMS[byId(state.me).team].label} และ UPC · ${byId(state.me).name}`;
+  setHTML(view(),`<h1 class="pt">${sm?'คำขออนุมัติ':'รออนุมัติ'} (${list.length})</h1>
+    <p class="psub">${scope}</p>
+    ${list.length?`<div class="reqgrid">${list.map(r=>sm?smReqCard(r,true):reqCard(r,true)).join('')}</div>`:
     '<div class="card"><div class="empty"><div class="big">✓</div>ไม่มีคำขอค้าง<br><span class="muted">คำขอใหม่จะมาแสดงที่นี่</span></div></div>'}`);
-  bindCards(view());
+  bindCards(view());bindSM(view());
 }
 function assign(id){
   const r=state.requests.find(x=>x.id===id);
@@ -3311,11 +3686,21 @@ function assign(id){
 }
 function approve(id){
   const r=state.requests.find(x=>x.id===id);
+  if(!r||!canApprove(r))return toast('คำขอนี้ยังไม่ถึงขั้นของคุณ');
   if(r.status==='tbc')return toast('คิว TBC ยังอนุมัติไม่ได้ — รอ Sales กด "Confirm and Request" ก่อน');
+  if(r.status==='sm')return smDecide(id,true);     /* ขั้น SM มีช่องคอมเมนต์ของตัวเอง */
   if(r.sessions.some(s=>!s.ctsId))return toast('ต้องจัด CTS ให้ครบทุก session ก่อนอนุมัติ');
   const m=missingOf(r);
   if(m.length&&!r._ack)return confirmMissing(r,m);
   r.sessions.forEach(stampNow);
+  /* Senior Leader อนุมัติ = จัด CTS เสร็จ ส่งต่อ CTS Manager กดขั้นสุดท้าย (Admin ข้ามได้) */
+  if(r.status==='pending'&&state.role!=='admin'){
+    r.status='mgr';logTrail(r,'approved');
+    r.note='Senior Leader อนุมัติแล้ว — รอ '+byId(MGR_ID).nick+' อนุมัติขั้นสุดท้าย';
+    notify(r,'pending');render();
+    return toast('อนุมัติแล้ว — ส่งต่อ '+byId(MGR_ID).nick+' อนุมัติขั้นสุดท้าย');
+  }
+  logTrail(r,'approved');
   r.status='approved';r.approvedBy=(state.role==='cts'?byId(state.me).nick:'Admin');r.approvedAt=new Date();r.missingAtApproval=missingOf(r);
   if(r.mode==='upc')bookUPC(r);
   else r.sessions.forEach(s=>setJob(s.date,s.ctsId,s.slot,{kind:'booked',title:s.sProduct||r.clinic||'Training',
@@ -3334,7 +3719,11 @@ function confirmMissing(r,m){
   $('noMiss').onclick=closeSheet;
 }
 function reject(id){
-  const r=state.requests.find(x=>x.id===id);r.status='rejected';
+  const r=state.requests.find(x=>x.id===id);
+  if(!r||!canApprove(r))return toast('คำขอนี้ยังไม่ถึงขั้นของคุณ');
+  if(r.status==='sm')return smDecide(id,false);
+  logTrail(r,'rejected');
+  r.status='rejected';
   if(r.mode==='upc')clearUPC(r);
   else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
   notify(r,'rejected');render();toast('ไม่อนุมัติ — คืนคิวให้ CTS แล้ว');
@@ -3438,6 +3827,28 @@ function fallbackCopy(txt,done){
 
 /* ========================= NOTIFICATIONS ========================= */
 /* แจ้งเตือน — 1 คำขอ = 1 การ์ด อัปเดตสถานะทับของเดิม ไม่สะสมซ้ำ */
+/* ===== หลักฐานการอนุมัติ (Record) ===== */
+const TRAIL_ACT={request:'Requested',approved:'Approved',rejected:'Rejected'};
+const fmtStamp=iso=>{const d=new Date(iso);return isNaN(d)?'—'
+  :d.toLocaleString('th-TH',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})+' น.';};
+/* เส้นทางทั้งหมดของคำขอ: ใครทำอะไร เมื่อไหร่ พร้อมคอมเมนต์ — ใช้อ้างอิงย้อนหลังได้ */
+function trailHTML(r){
+  const T=r.trail||[];
+  if(!T.length)return `<div class="note" style="margin-top:10px">คำขอนี้ยังไม่มีบันทึกขั้นตอน (สร้างก่อนเปิดระบบ Record)</div>`;
+  return `<div class="trail">${T.map(t=>`<div class="tstep">
+    <span class="tact ${t.act}">${TRAIL_ACT[t.act]||t.act}</span><b>${esc(t.step||t.by||'—')}</b>
+    <br><span class="muted">${fmtStamp(t.at)}</span>
+    ${t.note?`<br><span class="tnote">“${esc(t.note)}”</span>`:''}</div>`).join('')}
+    ${APPROVAL_ST.includes(r.status)?`<div class="tstep muted">⏳ รออยู่ที่ ${esc(waitingFor(r))}</div>`:''}</div>`;
+}
+/* ใครเห็นอะไรใน Record — Sale เห็นของตัวเอง · SM ทั้งทีม · Senior Leader เฉพาะที่ตัวเองแตะ · Admin/Manager ทั้งหมด */
+function canSeeRecord(r){
+  if(state.role==='admin'||isMgr())return true;
+  if(state.role==='cts'&&isLead())return canApprove(r)||(r.trail||[]).some(t=>t.by===whoAmI());
+  return canSeeReq(r);
+}
+const recHit=(r,q)=>!q||[r.id,r.clinic,r.requester,saleCode(r),r.topic].some(v=>String(v||'').toLowerCase().includes(q));
+
 function notify(r,kind){
   state.feed=state.feed.filter(f=>f.r.id!==r.id);
   state.feed.unshift({r,kind,at:new Date()});
@@ -3467,7 +3878,7 @@ function notiCard(it){
         : `${r.module} · ${r.sessions.length} session${r.level?' · '+r.level:''} · ผู้ขอ ${esc(r.requester||'—')}`}</div>
       <div class="nwhen">${when.map(w=>`<span>${w}</span>`).join('')}</div>
       ${it.kind==='pending'
-        ? `<div class="muted" style="margin-top:8px">รอ ${leadsOf(r.team).map(l=>l.nick).join(' หรือ ')} พิจารณา${r.team==='BOTH'?' (อนุมัติได้ทั้งสองคน)':''}</div>`
+        ? `<div class="muted" style="margin-top:8px">รอ ${esc(waitingFor(r))} พิจารณา${r.team==='BOTH'&&r.status!=='sm'?' (อนุมัติได้ทั้งสองคน)':''}</div>`
         : it.kind==='cancelled'
         ? `<div class="muted" style="margin-top:8px">ยกเลิกโดย ${esc(r.cancelledBy||'—')} — ลบออกจากปฏิทิน CTS แล้ว คิวว่างกลับคืนให้ Sales</div>`
         : it.kind==='rejected'
@@ -3485,20 +3896,27 @@ function notiCard(it){
           <button class="btn sm" data-copy="${r.id}">📋 คัดลอก</button>`:''}
         <span class="muted" style="margin-left:auto;font-family:var(--mono);font-size:10.5px">${t}</span></div>
       ${it.kind==='approved'?`<div class="copybox" id="mail_${r.id}" hidden>${esc(emailText(r))}</div>`:''}
+      ${trailHTML(r)}
     </div>`;
   return `<div class="ncard">${head}${body}</div>`;
 }
 function renderFeed(){
   markFeedSeen();   // เปิดแท็บนี้ = อ่านแล้ว ป้ายบนไอคอนแอปจะถูกล้าง
-  const all=state.feed.filter(i=>canSeeReq(i.r));
+  const q=(state.recQ||'').trim().toLowerCase();
+  const all=state.feed.filter(i=>canSeeRecord(i.r)&&recHit(i.r,q));
   const noti=typeof Notification!=='undefined'&&Notification.permission!=='granted';
   const f=state.feedFilter||'all';
   const feed=f==='all'?all:all.filter(i=>i.kind===f);
   const n=k=>all.filter(i=>i.kind===k).length;
   const scope=state.role==='sales'?`เฉพาะคำขอของ ${state.salesId}`
-    :state.role==='cts'?`${TEAMS[byId(state.me).team].label} และ UPC`:'ทุกทีม';
-  setHTML(view(),`<h1 class="pt">แจ้งเตือน</h1>
-    <p class="psub">1 คำขอ = 1 การ์ด อัปเดตสถานะล่าสุดเสมอ — ${scope}</p>
+    :state.role==='sm'?`ทั้งทีม ${state.sm} · ${smCodes(state.sm).join(' ')}`
+    :state.role==='cts'?(isMgr()?'ทุกทีม (CTS Manager)':isLead()?'คำขอที่ผ่านมือคุณ':`${TEAMS[byId(state.me).team].label} และ UPC`)
+    :'ทุกทีม';
+  setHTML(view(),`<h1 class="pt">Record</h1>
+    <p class="psub">บันทึกคำขอและเส้นทางการอนุมัติทั้งหมด ค้นย้อนหลังได้ — ${scope}</p>
+    <div class="recsearch"><input id="recQ" type="search" placeholder="ค้นรหัสคำขอ (TR1041) หรือชื่อคลินิก" value="${esc(state.recQ||'')}">
+      ${state.recQ?'<button class="btn sm" id="recClr">ล้าง</button>':''}</div>
+    ${q?`<div class="note" style="margin-top:0">ผลการค้น "${esc(state.recQ)}" — พบ ${all.length} คำขอ</div>`:''}
     ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">🔔 เปิดป้ายตัวเลขบนไอคอนแอป</button>
       <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · ตัวเลขจะขึ้นที่ไอคอนเหมือนแอปทั่วไป</div>`:''}
     <div class="filterbar">
@@ -3517,6 +3935,12 @@ function renderFeed(){
         :'ยังไม่ได้อนุญาต — เปิดได้ที่ตั้งค่าแจ้งเตือนของเครื่อง');
     }catch(e){toast('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับป้ายบนไอคอนแอป');}
     render();};
+  const rq=$('recQ');
+  if(rq){
+    /* ค้นแบบพิมพ์ไปเห็นไป — เก็บตำแหน่งเคอร์เซอร์ไว้ ไม่งั้นโฟกัสหลุดทุกตัวอักษร */
+    rq.oninput=()=>{state.recQ=rq.value;renderFeed();const e=$('recQ');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}};
+  }
+  const rc=$('recClr');if(rc)rc.onclick=()=>{state.recQ='';renderFeed();};
   view().querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{state.feedFilter=b.dataset.nf;renderFeed();});
   view().querySelectorAll('[data-mail]').forEach(b=>b.onclick=()=>{
     const el=$('mail_'+b.dataset.mail);if(el){el.hidden=!el.hidden;b.textContent=el.hidden?'✉ ข้อความสำหรับอีเมล':'✉ ซ่อนข้อความ';}});
@@ -3610,7 +4034,7 @@ let hasClientCol=true;   // ตาราง requests มีคอลัมน์
    เก็บรวมไว้ในคอลัมน์ jsonb `client` — คอลัมน์จริงยังเป็นตัวหลักสำหรับ query / report / RLS
    ต้องเพิ่มคอลัมน์ก่อนใช้:  alter table public.requests add column if not exists client jsonb;
    (ยังไม่เพิ่มก็ใช้งานได้ ระบบจะข้ามไปเอง แต่ฟิลด์เสริมจะไม่ถูกบันทึก) */
-const DB_STATUS=['pending','approved','tbc','rejected','cancelled'];   // ตรงกับ check constraint ใน schema.sql
+const DB_STATUS=['pending','approved','tbc','rejected','cancelled','sm','mgr'];   // ตรงกับ check constraint (supabase/sm_loop.sql)
 /* คีย์ที่มีคอลัมน์ของตัวเองแล้ว — ที่เหลือทั้งหมด (รวม sessions/days/status ดิบ) ตกไปอยู่ใน client */
 const COL_KEYS=['id','mode','module','level','product','topic','clinic','map','doctors','exp',
                 'handsOn','hoProduct','hoCases','requester','created','updatedAt'];
@@ -3659,7 +4083,7 @@ function fromRow(x){
 }
 
 /* แจ้งเตือน = สรุปสถานะล่าสุดของแต่ละคำขอ (1 คำขอ = 1 การ์ด เหมือนที่ notify() ทำ) */
-const FEED_KIND={pending:'pending',tbc:'pending',approved:'approved',rejected:'rejected',cancelled:'cancelled',expired:'cancelled'};
+const FEED_KIND={pending:'pending',sm:'pending',mgr:'pending',tbc:'pending',approved:'approved',rejected:'rejected',cancelled:'cancelled',expired:'cancelled'};
 const rebuildFeed=()=>{state.feed=state.requests
   .map(r=>({r,kind:FEED_KIND[r.status]||'pending',at:r.updatedAt||r.created||new Date()}))
   .sort((a,b)=>new Date(b.at)-new Date(a.at));};
@@ -3949,6 +4373,17 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible'||!state.authed||!loaded||saving)return;
   load().then(ok=>{if(ok)render();});
 });
+
+/* ===== ซิงก์อัตโนมัติทุก 30 วิ =====
+   Admin แก้วันหยุด / งานกลาง MA หรือมีคำขอเข้ามาใหม่ -> ทุกหน้าจอที่เปิดอยู่เห็นตรงกันโดยไม่ต้องกด ⟳
+   ข้ามรอบเมื่อกำลังบันทึก หรือมีหน้าต่างซ้อนเปิดอยู่ (load() สร้าง state.requests ใหม่ทั้งก้อน
+   ของที่ค้างอยู่ในฟอร์มจะชี้ไปที่ object เก่าและหายไป)
+   ponytail: polling ธรรมดาพอสำหรับทีมสิบกว่าคน — ถ้าคนใช้พร้อมกันเยอะขึ้นค่อยย้ายไป Supabase Realtime */
+const sheetOpen=()=>{const el=$('sheet');return !!el&&el.classList.contains('on');};
+setInterval(()=>{
+  if(!SB||!state.authed||!loaded||saving||sheetOpen()||document.visibilityState!=='visible')return;
+  load().then(ok=>{if(ok)render();});
+},30000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});   // ไม่ทำงานตอนเปิดไฟล์ตรงๆ (file://) — ปกติ
 
