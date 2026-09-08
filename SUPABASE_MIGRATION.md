@@ -1,6 +1,6 @@
 # CTS Training Request — Supabase Migration (FINAL STATUS)
 
-> อัปเดต: 2026-09-08 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + Deploy GitHub Pages + SM Loop (อนุมัติ 4 ขั้น) + UI/UX รอบเก็บรายละเอียด ใช้งานจริงแล้ว**
+> อัปเดต: 2026-09-09 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + Deploy GitHub Pages + SM Loop (อนุมัติ 4 ขั้น) + UI/UX รอบเก็บรายละเอียด + Dashboard "Training Pulse" ใช้งานจริงแล้ว**
 
 ---
 
@@ -19,6 +19,7 @@
 | Push main | ✅ main ล่าสุด |
 | **SM Loop — อนุมัติ 4 ขั้น + Record** | ✅ เสร็จ 2026-09-08 (`a4c9ee4`, `e3f3eab`) |
 | **UI/UX รอบเก็บรายละเอียด (11 ข้อ)** | ✅ เสร็จ 2026-09-08 (`3459373`) — **ไม่มี SQL ต้องรัน** |
+| **Training Pulse Dashboard + Hands-on ราย Product** | ✅ เสร็จ 2026-09-09 (`9677b86`) — **ไม่มี SQL ต้องรัน** |
 
 ---
 
@@ -150,6 +151,39 @@
 `topic` ยังเป็นข้อความรวมเหมือนเดิม → การ์ด / ปฏิทิน / อีเมล / ค้นหา อ่านได้เหมือนเดิมทั้งหมด
 คำขอเก่าที่หัวข้อเป็นข้อความอิสระ: กด "แก้ไข" แล้วระบบย้ายลงช่อง "รายละเอียดเพิ่มเติม" ให้เอง
 
+### ✅ เพิ่มเมื่อ 2026-09-09 — Training Pulse Dashboard (`9677b86`)
+
+**ไม่แตะ schema เลย — ไม่มีตาราง / คอลัมน์ / constraint / RLS ใหม่ · SQL ที่ต้องรัน: ไม่มี**
+
+- **Dashboard ฝั่ง CTS/Admin** (`renderDash`) เขียนใหม่ตามไฟล์ตัวอย่าง `ตัวอย่าง dashboard/`
+  แต่กินข้อมูลสดจากปฏิทิน CTS แทน CSV — **ไม่มี Connect Data / อัปโหลดไฟล์**
+  1 แถว = 1 คิวที่ระบุ Product · เติมคลินิก / ประเภทคลินิก / จำนวนแพทย์
+  จากคำขอที่ผูกอยู่ (`reqId`) หรือคิวที่ CTS ลงเอง (`selfId`)
+  Panel: filter bar (ช่วงวัน · Quick Range · CTS · PS Team · Product) · KPI 5 ใบ ·
+  Cumulative YTD (ปีงบ ก.ค.–มิ.ย.) · Training Volume by Product (Monthly/Weekly) ·
+  Product Ratio · By CTS + picker · By PS Team · Clinics with Repeat Training Requests
+  (toggle Single/Branch/Hospital · ตัด Chain เสมอ)
+  ธีมกรมท่า-ทอง scope ไว้ใน `.tp` เฉพาะแท็บนี้ · ไม่ใช้ emoji ใช้ glyph ชุดเดียวกับแอป
+  **Dashboard ฝั่ง Sale/SM (`renderSMDash`) คงของเดิมไว้ทั้งหมด**
+- **Chart.js** โหลดจาก CDN (jsDelivr pinned 4.4.1) ตอนเปิดแท็บ Dashboard ครั้งแรกเท่านั้น
+  ไม่ inline เข้าไฟล์ · ออฟไลน์ = กราฟไม่ขึ้น แต่ KPI / ตาราง / DNA bar ยังใช้ได้
+- **Hands-on แยกราย product 4 ตระกูล** (Ultherapy / Xeomin / Belotero / Radiesse)
+  แต่ละตัวมีช่องจำนวนเคส + รายละเอียด → `supList()` คืน 1 รายการต่อ product
+  ทำให้ Dashboard นับเคส Support Product แยก product ได้จริง
+  (เดิม group ตามข้อความอิสระเช่น "Radiesse 1.5cc x2" เลยแยกไม่ออก)
+- **คิวที่ CTS ลงเอง** — เลือก Product แล้วต้องกรอกข้อมูลชุดเดียวกับคำขอของ Sales
+  (Module / หัวข้อรายProduct / ชื่อคลินิก / ประเภทคลินิก / จำนวนแพทย์ / Hands-on)
+  ไม่เลือก Product = ฟอร์มเดิมทุกอย่าง → ข้อมูลที่ Dashboard ต้องใช้จึงครบทั้ง 2 ทาง
+- **bug fix**: `tpAllRows` ไม่ใช้ `dateRange()` เพราะฟังก์ชันนั้นมี guard จำกัด 45 วัน
+  เปลี่ยนเป็นเก็บวันจาก `requests.sessions` + `selfEvents` + `state.sched` โดยตรง
+
+**ที่เก็บข้อมูล:** `r.ho` → `requests.client` (jsonb) ·
+selfEvent (`module`/`level`/`ptopic`/`topicNote`/`clinic`/`clinicType`/`map`/`doctors`/`exp`/`handsOn`/`ho`)
+→ `events.client` (jsonb) ผ่าน `evRow()` — ทั้งหมด `save()` ส่งขึ้นอัตโนมัติ
+
+**ยังไม่ได้พอร์ตมา:** Export JPG 1920×1080 (4 หน้า) ของไฟล์ตัวอย่าง —
+เป็นโค้ดวาด canvas เอง ~500 บรรทัด แยกเป็นงานรอบหน้า
+
 ### ยังต้องทำ (ให้ผู้ใช้ / เฟสถัดไป):
 0. **เปลี่ยนรหัสผ่าน SM 5 ตัว** — ตั้งไว้ตอนทดสอบ ควรเปลี่ยนก่อนใช้ระยะยาว
 0. ~~**งานกลาง MA ไม่แสดง (data gap)**~~ ✅ **แก้แล้ว** — seed 11 รายการจากแท็บ `_state` ของ sheet (version 376) เข้า `supabase/seed_ma_events.sql` + รันใน SQL Editor แล้ว (commit 649879c). ตาราง `events` มี 11 แถว (รวม MA Symposium 25/8). ตรวจแล้วว่า **สูตร/เงื่อนไขธุรกิจทั้งหมด (autoWindow/slotTime/freeIds/needsSenior/product gate/approval)** ยังอยู่ครบ (diff เก่า-ใหม่ = IDENTICAL); ที่ต่างคือ storage-layer เท่านั้น. render รองรับ multi-CTS สีรวมแล้ว (commit 75c40ca)
@@ -165,6 +199,7 @@
 
 ## 🔁 จุดกลับ (rollback)
 
+- `git checkout 61be02d -- index.html` — ก่อน Training Pulse Dashboard
 - `git checkout 52040af -- index.html` — ก่อน UI/UX รอบ 2
 - `git tag before-sm-loop` — ก่อนเริ่มงาน SM Loop
 - `backup-before-SM-20260908.html` — index.html ก่อนแก้
