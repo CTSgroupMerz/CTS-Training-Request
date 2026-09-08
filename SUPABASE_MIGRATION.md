@@ -1,6 +1,6 @@
 # CTS Training Request — Supabase Migration (FINAL STATUS)
 
-> อัปเดต: 2026-09-03 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + บั๊กคิวแก้ + Deploy GitHub Pages**
+> อัปเดต: 2026-09-08 — **ทุกเฟสเสร็จ + QA ผ่าน + RLS เปิด + Deploy GitHub Pages + SM Loop (อนุมัติ 4 ขั้น) ใช้งานจริงแล้ว**
 
 ---
 
@@ -17,6 +17,7 @@
 | cache-bust (กันเปิดเวอร์ชันเก่า) | ✅ v2 deploy |
 | GitHub Pages | ✅ `https://ctsgroupmerz.github.io/CTS-Training-Request/` |
 | Push main | ✅ main ล่าสุด |
+| **SM Loop — อนุมัติ 4 ขั้น + Record** | ✅ เสร็จ 2026-09-08 (`a4c9ee4`, `e3f3eab`) |
 
 ---
 
@@ -92,7 +93,39 @@
 
 ### วันนี้เสร็จแล้ว: ✅ push + cache-bust + GitHub Pages
 
+### ✅ เพิ่มเมื่อ 2026-09-08 — SM Loop (Sales Manager)
+
+**เส้นทางอนุมัติใหม่:** `Sale → SM → CTS Senior Leader (PAM/MILK) → CTS Manager (BELLE)`
+คิว TBC ยังไป Senior Leader ก่อนตามเดิม (ล็อกวัน) แล้วเข้าเส้นทางนี้ตอน Sales ยืนยันวัน
+
+| สถานะคำขอ | ความหมาย |
+|---|---|
+| `sm` | รอ SM ของทีมนั้นพิจารณา (คำขอปกติที่ Sale ส่ง) — **สถานะใหม่** |
+| `pending` | SM ผ่านแล้ว รอ Senior Leader จัด CTS + อนุมัติ (ความหมายเดิม) |
+| `mgr` | Senior Leader ผ่านแล้ว รอ BELLE อนุมัติขั้นสุดท้าย — **สถานะใหม่** |
+| `approved` | ลงคิวจริงในปฏิทิน CTS |
+
+- **role `sm`** — login "Sale Manager" 5 ทีม (Champion / Winner / Victory / KA / UPC)
+  ต้องใส่รหัสผ่าน · email = `sm-<ทีมตัวเล็ก>@ctsgroup.merz.com` · KA ใช้ KAE1-4 เป็นรหัส Sale
+- **4 แท็บของ SM** — ปฏิทิน (แยกตามรหัส Sale, เขียว=Confirmed แดง=TBC เหลือง=รอ CTS,
+  งานกลาง MA + วันหยุดชุดเดียวกับ CTS) · คำขออนุมัติ (เน้น Support Product + Approve/Reject + คอมเมนต์)
+  · Dashboard · Record
+- **Record** (เดิม "แจ้งเตือน" — เปลี่ยนชื่อทุก role) — ค้นด้วยรหัสคำขอหรือชื่อคลินิก
+  + เส้นทางอนุมัติครบทุกขั้น (ใคร/ขั้นไหน/เมื่อไหร่/คอมเมนต์)
+  ขอบเขต: Sale=ของตัวเอง · SM=ทั้งทีม · Senior Leader=ที่ผ่านมือตัวเอง · Manager/Admin=ทั้งหมด
+- **Dashboard ฝั่งขาย** — SM เห็นรวมทีม + ราย Sale by product + Support Product รวม
+  + Clinics with Repeat Training Requests (ทีม KA เปลี่ยนเป็นสรุปราย Account)
+  · Sale เห็นของตัวเอง (แท็บ "อนุมัติ" ของ Sale เปลี่ยนเป็น Dashboard)
+- **ซิงก์อัตโนมัติทุก 30 วิ** — Admin แก้วันหยุด/งานกลาง แล้วทุกจอเห็นตรงกัน
+  (ข้ามรอบเมื่อกำลังบันทึก หรือมีหน้าต่างซ้อนเปิดอยู่)
+- **ไอคอน** — เปลี่ยน emoji สีทั้งหมดเป็น glyph ชุดเดียวกับแอป (◷ ◈ ⊘ ⊖ ⧉ ✦ ▲ ✓)
+
+**ที่เก็บข้อมูล:** `trail` (หลักฐานทุกขั้น) เก็บใน `requests.client` jsonb ที่มีอยู่แล้ว —
+ไม่ต้องสร้างตารางใหม่ และ `save()` ส่งขึ้นให้อัตโนมัติ
+**SQL ที่ต้องรัน:** `supabase/sm_loop.sql` (ขยาย check constraint ให้รับ `'sm'`, `'mgr'`) — รันแล้ว
+
 ### ยังต้องทำ (ให้ผู้ใช้ / เฟสถัดไป):
+0. **เปลี่ยนรหัสผ่าน SM 5 ตัว** — ตั้งไว้ตอนทดสอบ ควรเปลี่ยนก่อนใช้ระยะยาว
 0. ~~**งานกลาง MA ไม่แสดง (data gap)**~~ ✅ **แก้แล้ว** — seed 11 รายการจากแท็บ `_state` ของ sheet (version 376) เข้า `supabase/seed_ma_events.sql` + รันใน SQL Editor แล้ว (commit 649879c). ตาราง `events` มี 11 แถว (รวม MA Symposium 25/8). ตรวจแล้วว่า **สูตร/เงื่อนไขธุรกิจทั้งหมด (autoWindow/slotTime/freeIds/needsSenior/product gate/approval)** ยังอยู่ครบ (diff เก่า-ใหม่ = IDENTICAL); ที่ต่างคือ storage-layer เท่านั้น. render รองรับ multi-CTS สีรวมแล้ว (commit 75c40ca)
 1. **เปลี่ยน email จริงของ 10 users** (placeholder `@ctsgroup.merz.com` → email จริง) — ต้องแก้ `EMAIL_OF` ใน index.html + Supabase Auth (Authentication → Users)
 2. **ตั้ง/แจก password** ให้ทีม 10 คน (ตอนนี้ตั้งเอง/แจกเองได้)
@@ -104,4 +137,12 @@
 
 ---
 
-*ย้าย GAS → Supabase เสร็จ + deploy + Push บน GitHub Pages — พร้อมใช้งานจริง (เหลืองาน user-facing ข้างบน)*
+## 🔁 จุดกลับ (rollback)
+
+- `git tag before-sm-loop` — ก่อนเริ่มงาน SM Loop
+- `backup-before-SM-20260908.html` — index.html ก่อนแก้
+- `supabase/sm_loop.sql` รันซ้ำได้ ไม่เสียหาย
+
+---
+
+*ย้าย GAS → Supabase เสร็จ + SM Loop (อนุมัติ 4 ขั้น) + Record + Dashboard ฝั่งขาย — ใช้งานจริงบน GitHub Pages แล้ว (เหลืองาน user-facing ข้างบน)*
