@@ -681,6 +681,104 @@ textarea.in{min-height:76px;resize:vertical}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
 /* กล่องแจ้งเตือนคิว TBC — สีแดง ให้ Sales เห็นชัดว่าเหลืออีกกี่วันก่อนปล่อยวันคืนระบบ */
 /* ป้าย TBC สีแดงหน้าชื่องาน — หัวหน้าเห็นทันทีว่าคิวนี้ยังไม่คอนเฟิร์ม */
+.horow{display:grid;grid-template-columns:104px 92px minmax(0,1fr);gap:7px;align-items:center;margin-top:8px}
+.horow .tag{justify-self:start}
+@media(max-width:520px){.horow{grid-template-columns:1fr 1fr;gap:6px}.horow .tag{grid-column:1/-1}}
+/* ===== Dashboard · Training Pulse (โทนกรมท่า-ทอง เฉพาะแท็บนี้) ===== */
+.tp{--tp-bg:#0D1B2A;--tp-surface:#13263D;--tp-ink:#F0E6C8;--tp-soft:#B8A87A;--tp-line:#1E3A58;
+  --tp-gold:#C9A84C;--tp-gold2:#D4AF6E;
+  background:var(--tp-bg);color:var(--tp-ink);border-radius:18px;padding:16px;
+  font-family:var(--sans);margin:-4px 0 10px}
+.tp h1,.tp h2{font-family:var(--sans)}
+.tp-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border-bottom:2px solid var(--tp-gold);padding-bottom:13px;margin-bottom:16px}
+.tp-brand{display:flex;align-items:center;gap:11px}
+.tp-mark{width:38px;height:38px;border-radius:11px;background:rgba(201,168,76,.22);color:var(--tp-gold);
+  display:flex;align-items:center;justify-content:center;font-size:19px}
+.tp-brand h1{margin:0;font-size:19px;font-weight:800;letter-spacing:-.01em}
+.tp-brand span{font-size:11.5px;color:var(--tp-soft);font-weight:600}
+.tp-live{font-size:11.5px;font-weight:700;color:var(--tp-gold);background:rgba(201,168,76,.15);
+  border:1px solid rgba(201,168,76,.4);border-radius:999px;padding:6px 13px}
+.tp .filterbar{background:var(--tp-surface);border:1px solid var(--tp-line);border-radius:16px;
+  padding:14px 16px;display:flex;gap:13px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+.tp .filter-group{display:flex;flex-direction:column;gap:5px;min-width:140px}
+.tp .filter-group label{font-size:11px;font-weight:700;color:var(--tp-soft);text-transform:uppercase;letter-spacing:.04em}
+.tp .filter-group select,.tp .filter-group input[type=date]{padding:8px 10px;border-radius:10px;
+  border:1.5px solid var(--tp-line);background:var(--tp-bg);color:var(--tp-ink);font-size:13px;font-family:var(--sans)}
+.tp .filter-group select:focus,.tp .filter-group input:focus{outline:none;border-color:var(--tp-gold)}
+.tp .quickrange{display:flex;gap:5px;flex-wrap:wrap}
+.tp .chip{border:1.5px solid var(--tp-line);background:var(--tp-bg);color:var(--tp-soft);
+  padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)}
+.tp .chip.active{background:var(--tp-gold);color:#0D1B2A;border-color:var(--tp-gold)}
+.tp .filter-spacer{flex:1}
+.tp .reset-link{font-size:12.5px;color:#E8C870;font-weight:700;cursor:pointer;background:none;border:none;font-family:var(--sans)}
+.tp .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.tp .kpi-card{background:var(--tp-surface);border:1px solid var(--tp-line);border-radius:16px;
+  padding:16px;position:relative;overflow:hidden}
+.tp .kpi-card.accent::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--bar-color,var(--tp-gold))}
+.tp .kpi-label{font-size:11px;font-weight:700;color:var(--tp-soft);text-transform:uppercase;letter-spacing:.04em}
+.tp .kpi-value{font-size:29px;font-weight:800;margin-top:5px;line-height:1}
+.tp .kpi-sub{font-size:11.5px;color:var(--tp-soft);margin-top:5px}
+.tp .panel{background:var(--tp-surface);border:1px solid var(--tp-line);border-radius:16px;
+  padding:18px 20px;margin-bottom:18px}
+.tp .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:13px}
+.tp .panel-head h2{font-size:20px;font-weight:800;margin:0;color:var(--tp-gold);line-height:1.25}
+.tp .panel-head .sub{font-size:11.5px;color:var(--tp-soft);margin-top:2px}
+.tp .tag{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;
+  background:rgba(201,168,76,.15);color:var(--tp-gold)}
+.tp .tp-ytd{display:flex;gap:18px;flex-wrap:wrap}
+.tp .tp-ytd div{display:flex;flex-direction:column}
+.tp .tp-ytd span{font-size:10.5px;color:var(--tp-soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.tp .tp-ytd b{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
+.tp .view-toggle{display:flex;gap:5px;flex-wrap:wrap}
+.tp canvas{max-width:100%}
+.tp .dna-bar-wrap{width:100%;background:var(--tp-line);border-radius:6px;overflow:hidden;height:26px}
+.tp .dna-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;min-width:4px}
+.tp .dna-seg{height:100%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;color:rgba(0,0,0,.75);min-width:0}
+.tp .dna-legend{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;font-size:12.5px;
+  color:var(--tp-soft);margin-top:12px}
+.tp .dna-legend span{display:inline-flex;align-items:center;gap:6px}
+.tp .dna-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.tp .rank-row{display:grid;grid-template-columns:24px 86px 1fr 62px;align-items:center;gap:9px;
+  padding:8px 0;border-bottom:1px solid var(--tp-line)}
+.tp .rank-idx{font-size:13px;font-weight:800}
+.tp .rank-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp .rank-total{font-size:19px;font-weight:800;color:var(--tp-gold);background:rgba(201,168,76,.18);
+  border:1px solid rgba(201,168,76,.45);border-radius:7px;padding:3px 0;text-align:center;line-height:1.15}
+.tp .cts-av{display:flex;flex-direction:column;align-items:center;gap:3px;width:86px}
+.tp .cts-av img{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:top center;
+  border:2.5px solid var(--tp-gold);background:var(--tp-line)}
+.tp .cts-av span{font-size:10.5px;font-weight:800;color:var(--tp-gold);text-align:center;line-height:1.15}
+.tp .cts-picker{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:14px;
+  padding-bottom:12px;border-bottom:1px solid var(--tp-line)}
+.tp .picker-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--tp-soft)}
+.tp .chip-all{border-style:dashed}
+.tp .tp-legend{display:flex;gap:13px;flex-wrap:wrap;margin-top:11px;padding-top:10px;
+  border-top:1px solid var(--tp-line);font-size:12px;color:var(--tp-soft)}
+.tp .tp-legend span{display:inline-flex;align-items:center;gap:6px}
+.tp .tp-legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
+.tp .date-range-badge{display:inline-flex;background:#1E3A55;color:#9EB3C8;font-size:11px;
+  font-weight:700;padding:3px 10px;border-radius:4px;margin-bottom:9px}
+.tp .tp-scroll{overflow-x:auto}
+.tp table.clinic-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
+.tp table.clinic-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--tp-soft);font-weight:700;padding:8px 9px;border-bottom:2px solid var(--tp-gold)}
+.tp table.clinic-table td{padding:10px 9px;border-bottom:1px solid var(--tp-line);vertical-align:middle}
+.tp .repeat-badge{display:inline-flex;background:rgba(201,168,76,.15);color:#E8C870;font-weight:800;
+  font-size:11.5px;padding:4px 10px;border-radius:999px}
+.tp .clinic-name{font-weight:800}
+.tp .clinic-meta{font-size:11.5px;color:var(--tp-soft);margin-top:4px}
+.tp .mini-dna{width:120px}
+.tp .type-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;
+  background:rgba(201,168,76,.15);color:var(--tp-gold);margin-left:6px}
+.tp .tp-empty{padding:24px;text-align:center;color:var(--tp-soft);font-size:13px}
+.tp .tp-note{margin-top:10px;font-size:12px;color:var(--tp-soft);text-align:center}
+.tp .tp-foot{text-align:center;font-size:11.5px;color:var(--tp-soft);padding:6px 0 2px}
+@media(max-width:980px){.tp .kpi-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.tp{padding:12px}.tp .kpi-grid{grid-template-columns:1fr 1fr}
+  .tp .rank-row{grid-template-columns:20px 70px 1fr 54px}
+  .tp .cts-av{width:70px}.tp .cts-av img{width:36px;height:36px}}
 .alertx{color:var(--bad);font-weight:600}
 .st-ok{color:var(--ok);font-weight:800}
 .st-wait{color:var(--bad);font-weight:800}
@@ -930,6 +1028,21 @@ const TOPICS={
 };
 const topicsOf=p=>TOPICS[String(p).split(' ')[0]]||[];
 const CLINIC_TYPES=['Chain','Branch','Single','Hospital'];
+/* Hands-on แยกราย product 4 ตระกูล — เก็บที่ .ho แล้วสรุปกลับเป็น hoProduct/hoCases (คอลัมน์เดิมของตาราง)
+   Dashboard จึงนับเคส support แยก product ได้ตรงๆ ไม่ต้องเดาจากข้อความอิสระ */
+const HO_FAMS=['Ultherapy','Xeomin','Belotero','Radiesse'];
+const hoRows=(o,pfx)=>HO_FAMS.map(p=>`<div class="horow">
+    <span class="tag" style="background:${FAMHEX[p]};color:${FAMINK[p]}">${p}</span>
+    <input class="in" type="number" min="0" id="${pfx}c_${p}" value="${esc(((o||{})[p]||{}).cases||'')}" placeholder="จำนวนเคส">
+    <input class="in" id="${pfx}d_${p}" value="${esc(((o||{})[p]||{}).detail||'')}" placeholder="รายละเอียด เช่น 1.5cc x2">
+  </div>`).join('');
+const hoGrab=pfx=>{const o={};HO_FAMS.forEach(p=>{
+    const c=$(pfx+'c_'+p),d=$(pfx+'d_'+p);
+    const cv=c?String(c.value).trim():'',dv=d?String(d.value).trim():'';
+    if(cv||dv)o[p]={cases:cv,detail:dv};});return o;};
+const hoSum=o=>HO_FAMS.filter(p=>(o||{})[p])
+  .map(p=>`${p} ${o[p].cases||'?'} เคส${o[p].detail?' ('+o[p].detail+')':''}`).join(' · ');
+const hoTotal=o=>HO_FAMS.reduce((n,p)=>n+(+((o||{})[p]||{}).cases||0),0);
 /* Product ที่เทรนได้ — สียึดตามตระกูล (Belotero 5 ตัวสีชมพูเหมือนกัน, Radiesse 2 ตัวสีฟ้า)
    ชื่อเก่า 4 ตัว (Belotero/Radiesse เฉยๆ) ยังอยู่ในตาราง เพื่อให้คำขอเก่าที่บันทึกไว้แล้วแสดงผลได้ปกติ */
 const PRODUCTS=['Ultherapy','Xeomin',
@@ -2183,6 +2296,46 @@ function openSelfEntry(date,editId,keep){
     <label class="f">ใครไปงานนี้บ้าง <span>· เลือกได้หลายคน สีจะรวมกันในปฏิทิน</span></label>
     <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-att="${c.id}" aria-pressed="${D.attendees.includes(c.id)}"
       style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${c.nick}</button>`).join('')}</div>
+  </div>
+  ${D.product.length?`
+  <div class="note ma" style="margin:0 0 12px">เลือก Product แล้ว — กรอกรายละเอียดการเทรนให้ครบเหมือนคำขอของ Sales
+    เพื่อให้ Dashboard นับ training และ Support Product ได้ตรงกัน</div>
+  <div class="card"><h3>1 · Module Training <b class="req-star">*</b></h3>
+    <div class="chips">${Object.keys(MODULES).map(m=>`<button class="chip" data-sem="${m}" aria-pressed="${D.module===m}">${m}</button>`).join('')}</div>
+    <label class="f">ระดับเนื้อหาการเทรน</label>
+    <select class="in" id="sqLevel"><option value="">— เลือกระดับ —</option>
+      ${LEVELS.map(l=>`<option ${D.level===l?'selected':''}>${l}</option>`).join('')}</select></div>
+
+  <div class="card"><h3>2 · Product และหัวข้อ <b class="req-star">*</b></h3>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${prodTags(D.product)}</div>
+    ${D.product.map(p=>`
+      <label class="f">หัวข้อ · ${esc(p)} <b class="req-star">*</b></label>
+      <select class="in" data-sqtp="${esc(p)}"><option value="">— เลือกหัวข้อ —</option>
+        ${topicsOf(p).map(t=>`<option ${((D.ptopic||{})[p])===t?'selected':''}>${t}</option>`).join('')}</select>`).join('')}
+    <label class="f">รายละเอียดเพิ่มเติม <span>· ไม่บังคับ</span></label>
+    <textarea class="in" id="sqNote" placeholder="รายละเอียดการเทรนอื่นๆ ที่อยากแจ้งเพิ่ม">${esc(D.topicNote||'')}</textarea></div>
+
+  <div class="card"><h3>3 · ข้อมูลคลินิก</h3><div class="formgrid">
+    <div class="full"><label class="f">ชื่อคลินิก <b class="req-star">*</b></label>
+      <input class="in" id="sqClinic" value="${esc(D.clinic||'')}" placeholder="เช่น Bloom Clinic ทองหล่อ"></div>
+    <div class="full"><label class="f">ประเภทคลินิก <b class="req-star">*</b></label>
+      <select class="in" id="sqCType"><option value="">— เลือกประเภท —</option>
+        ${CLINIC_TYPES.map(t=>`<option ${D.clinicType===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="full"><label class="f">สาขา/ลิงก์ Google Map</label>
+      <input class="in" id="sqMap" value="${esc(D.map||'')}" placeholder="https://maps.app.goo.gl/..."></div>
+    <div><label class="f">จำนวนแพทย์ที่เข้าเทรน <b class="req-star">*</b></label>
+      <input class="in" id="sqDoc" type="number" min="1" value="${esc(D.doctors||'')}" placeholder="เช่น 3"></div>
+    <div><label class="f">ประสบการณ์และ hands skills</label>
+      <select class="in" id="sqExp"><option value="">— เลือก —</option>
+        ${EXP.map(e=>`<option ${D.exp===e?'selected':''}>${e}</option>`).join('')}</select></div>
+    </div></div>
+
+  <div class="card"><h3>4 · Hands-on</h3>
+    <div class="row"><label class="grow" style="font-size:14px;font-weight:700">มีเคส hands-on</label>
+      <input type="checkbox" id="sqHO" ${D.handsOn?'checked':''} style="width:22px;height:22px"></div>
+    ${D.handsOn?`<div class="muted" style="margin-top:6px">กรอกเฉพาะ product ที่ขอ support — ที่ไม่ได้ขอปล่อยว่างไว้</div>
+      ${hoRows(D.ho,'sqHO_')}`:''}</div>`:''}
+  <div class="card">
     <div class="note pl">คิวนี้จะไปตัดคิวว่างที่ Sales เห็นให้อัตโนมัติ (PAM · MILK · BELLE ไม่ถูกนับเป็นคิวว่างอยู่แล้ว)</div>
     <div class="err" id="seErr" hidden></div>
     <button class="btn primary block" id="seSave" style="margin-top:13px">${ev?'บันทึกการแก้ไข':'เพิ่มลงปฏิทิน'}</button>
@@ -2192,7 +2345,18 @@ function openSelfEntry(date,editId,keep){
   const B=$('sheetBody');
   const grab=()=>{D.title=$('seTitle').value;D.detail=$('seDetail').value;D.date=$('seDate').value;
     const a=$('seStart'),b2=$('seEnd');if(a)D.start=a.value;if(b2)D.end=b2.value;
-    const de=$('seDateEnd');D.dateEnd=D.multi&&de?de.value:'';};
+    const de=$('seDateEnd');D.dateEnd=D.multi&&de?de.value:'';
+    /* ส่วนที่เด้งมาตอนเลือก Product — เก็บเหมือนคำขอของ Sales เพื่อให้ Dashboard นับได้ตรงกัน */
+    if($('sqClinic')){
+      D.ptopic=D.ptopic||{};
+      B.querySelectorAll('[data-sqtp]').forEach(s=>{D.ptopic[s.dataset.sqtp]=s.value;});
+      D.topicNote=$('sqNote').value;D.level=$('sqLevel').value;
+      D.clinic=$('sqClinic').value;D.clinicType=$('sqCType').value;D.map=$('sqMap').value;
+      D.doctors=$('sqDoc').value;D.exp=$('sqExp').value;
+      D.topic=[D.product.map(p=>(D.ptopic[p]||'').trim()?p+': '+D.ptopic[p]:'').filter(Boolean).join(' · '),
+               (D.topicNote||'').trim()].filter(Boolean).join(' — ');
+      if(D.handsOn){D.ho=hoGrab('sqHO_');D.hoProduct=hoSum(D.ho);D.hoCases=hoTotal(D.ho)||'';}
+    }};
   B.querySelectorAll('[data-sep]').forEach(b=>b.onclick=()=>{grab();const l=D.product,i=l.indexOf(b.dataset.sep);
     i>=0?l.splice(i,1):l.push(b.dataset.sep);openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-stt]').forEach(b=>b.onclick=()=>{grab();const l=D.topics||(D.topics=[]),i=l.indexOf(b.dataset.stt);
@@ -2200,6 +2364,9 @@ function openSelfEntry(date,editId,keep){
   B.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>{grab();const id=b.dataset.att;
     const ix=D.attendees.indexOf(id);ix>=0?D.attendees.splice(ix,1):D.attendees.push(id);
     openSelfEntry(D.date,editId,D);});
+  B.querySelectorAll('[data-sem]').forEach(b=>b.onclick=()=>{grab();
+    D.module=D.module===b.dataset.sem?null:b.dataset.sem;openSelfEntry(D.date,editId,D);});
+  const sho=$('sqHO');if(sho)sho.onchange=e=>{grab();D.handsOn=e.target.checked;openSelfEntry(D.date,editId,D);};
   $('seAllDay').onchange=e=>{grab();D.allDay=e.target.checked;openSelfEntry(D.date,editId,D);};
   $('seMulti').onchange=e=>{grab();D.multi=e.target.checked;if(D.multi&&!D.dateEnd)D.dateEnd=D.date;
     openSelfEntry(D.date,editId,D);};
@@ -2216,6 +2383,17 @@ function openSelfEntry(date,editId,keep){
       e.hidden=false;e.textContent='กรอกหัวข้อ วันที่ เวลาให้ถูกต้อง และเลือกคนอย่างน้อย 1 คน';return;}
     if(D.allDay){D.start=SLOT_DEF.am.start;D.end=SLOT_DEF.pm.end;}
     if(D.multi&&D.dateEnd&&D.dateEnd<D.date){e.hidden=false;e.textContent='วันสิ้นสุดต้องไม่ก่อนวันเริ่ม';return;}
+    /* เลือก Product = ถือเป็นคิวเทรน ต้องมีข้อมูลครบเท่าคำขอของ Sales */
+    if(D.product.length){
+      const need=[];
+      if(!D.module)need.push('Module Training');
+      D.product.forEach(p=>{if(!String((D.ptopic||{})[p]||'').trim())need.push('หัวข้อของ '+p);});
+      if(!String(D.clinic||'').trim())need.push('ชื่อคลินิก');
+      if(!String(D.clinicType||'').trim())need.push('ประเภทคลินิก');
+      if(!(+D.doctors>0))need.push('จำนวนแพทย์');
+      if(D.handsOn&&!hoTotal(D.ho))need.push('จำนวนเคส hands-on อย่างน้อย 1 product');
+      if(need.length){e.hidden=false;e.textContent='เลือก Product แล้วต้องกรอกเพิ่ม: '+need.join(' · ');return;}
+    }
     if(!D.multi)D.dateEnd='';
     if(ev){Object.assign(ev,D);stampNow(ev);syncSelf(ev);}
     else{const nv=stampNow({...D,id:newId('SE',state.seSeq++)});state.selfEvents.push(nv);syncSelf(nv);}
@@ -2675,8 +2853,7 @@ function missingOf(r){
   if(!r.exp)m.push('ประสบการณ์และ hands skills');
   if(!String(r.requester||'').trim())m.push('ชื่อผู้ขอ');
   if(r.handsOn){
-    if(!String(r.hoProduct||'').trim())m.push('Product ที่ support (hands-on)');
-    if(!(+r.hoCases>0))m.push('จำนวนเคส hands-on');
+    if(!hoTotal(r.ho)&&!String(r.hoProduct||'').trim())m.push('เคส hands-on — กรอกจำนวนอย่างน้อย 1 product');
     if(!r.photos.length)m.push('รูปเคสก่อนเทรน');
   }
   return m;
@@ -2745,9 +2922,10 @@ function openForm(){
   <div class="card"><h3>4 · Hands-on</h3>
     <div class="row"><label class="grow" style="font-size:14px;font-weight:700">มีเคส hands-on</label>
       <input type="checkbox" id="fHO" ${d.handsOn?'checked':''} style="width:22px;height:22px"></div>
-    <div ${d.handsOn?'':'hidden'}><div class="formgrid">
-      <div><label class="f">Product ที่ support</label><input class="in" id="fHOP" value="${esc(d.hoProduct)}" placeholder="เช่น Radiesse 1.5cc x2"></div>
-      <div><label class="f">จำนวนเคส</label><input class="in" id="fHOC" type="number" min="1" value="${esc(d.hoCases)}"></div>
+    <div ${d.handsOn?'':'hidden'}>
+      <div class="muted" style="margin-top:6px">กรอกเฉพาะ product ที่ขอ support — ที่ไม่ได้ขอปล่อยว่างไว้</div>
+      ${hoRows(d.ho,'fHO_')}
+      <div class="formgrid" style="margin-top:12px">
       <div class="full"><label class="f">รูปเคสก่อนเทรน <span>· ยังไม่มีก็ส่งตามได้</span></label>
         <input type="file" id="fPhoto" accept="image/*" multiple>
         <div class="thumbs">${d.photos.map(p=>`<img src="${p.url}" alt="">`).join('')}</div></div></div></div></div>
@@ -2773,7 +2951,8 @@ function openForm(){
     d.topic=[prodList(d.product).map(p=>(d.ptopic[p]||'').trim()?p+': '+d.ptopic[p]:'').filter(Boolean).join(' · '),
              (d.topicNote||'').trim()].filter(Boolean).join(' — ');
     d.clinic=v('fClinic');d.clinicType=v('fCType');d.map=v('fMap');d.doctors=v('fDoc');d.level=v('fLevel');
-    d.exp=v('fExp');d.hoProduct=v('fHOP');d.hoCases=v('fHOC');d.requester=v('fReq');
+    d.exp=v('fExp');d.requester=v('fReq');
+    if(d.handsOn){d.ho=hoGrab('fHO_');d.hoProduct=hoSum(d.ho);d.hoCases=hoTotal(d.ho)||'';}
     state.picks.forEach((p,i)=>{const a=$('pt'+i+'s'),b2=$('pt'+i+'e'),tp=$('sp'+i+'t');
       if(a&&a.value)p.start=a.value; if(b2&&b2.value)p.end=b2.value;
       if(tp)p.sTopic=tp.value;});};
@@ -3080,7 +3259,7 @@ function submitTBC(){
     sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,ptopic:d.ptopic,topicNote:d.topicNote,
     clinic:d.clinic,clinicType:d.clinicType,map:d.map,
-    doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
+    doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,ho:d.ho,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
   req.sessions.forEach(sn=>{
     if(!sn.ctsId){const f=bookablePool().find(c=>freeIds(sn.date,sn.slot).includes(c.id));if(f)sn.ctsId=f.id;}
@@ -3113,7 +3292,7 @@ function submit(){
     created:new Date(),sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,ptopic:d.ptopic,topicNote:d.topicNote,
     clinic:d.clinic,clinicType:d.clinicType,map:d.map,
-    doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
+    doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,ho:d.ho,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
   // anonymous picks (Sales) get a tentative CTS so the slot is truly held; the Leader can change it
   req.sessions.forEach(s=>{
@@ -3188,7 +3367,13 @@ const approveLabel=r=>r.status==='mgr'?'✓ อนุมัติขั้นส
 /* ===== หน้าจอฝั่ง SM ===== */
 /* Support Product = ของที่ขอเบิกไปใช้เทรนจริง (hands-on) — หัวใจที่ SM ต้องพิจารณา */
 function supList(r){
-  if(r.mode!=='upc')return r.handsOn?[{p:r.hoProduct,c:r.hoCases,clinic:r.clinic}]:[];
+  if(r.mode!=='upc'){
+    if(!r.handsOn)return [];
+    /* แยกราย product ถ้ากรอกแบบใหม่ · คำขอเก่าที่เป็นข้อความอิสระยังคืนเป็นรายการเดียวเหมือนเดิม */
+    const H=r.ho||{},fam=HO_FAMS.filter(p=>H[p]);
+    return fam.length?fam.map(p=>({p,c:H[p].cases,detail:H[p].detail||'',clinic:r.clinic}))
+                     :[{p:r.hoProduct,c:r.hoCases,clinic:r.clinic}];
+  }
   const out=[];
   (r.days||[]).forEach(d=>(d.items||[]).forEach(i=>{if(i.handsOn)out.push({p:i.hoProduct,c:i.hoCases,clinic:i.clinic});}));
   return out;
@@ -3198,7 +3383,7 @@ function supBox(r){
   if(!L.length)return '<div class="note" style="margin-top:11px">ไม่มีการขอ Support Product</div>';
   return `<div class="supbox"><b>▲ ขอ Support Product สำหรับการเทรน</b>
     ${L.map(x=>`<div style="margin-top:5px"><span class="big">${esc(x.p||'ยังไม่ระบุ product')}</span>
-      · <span class="big">${x.c||'?'}</span> เคส${r.mode==='upc'?` · ${esc(x.clinic||'—')}`:''}</div>`).join('')}
+      · <span class="big">${x.c||'?'}</span> เคส${x.detail?' · '+esc(x.detail):''}${r.mode==='upc'?` · ${esc(x.clinic||'—')}`:''}</div>`).join('')}
     ${r.photos&&r.photos.length?`<div class="muted" style="margin-top:5px">แนบรูปเคส ${r.photos.length} รูป</div>`:''}</div>`;
 }
 function smReqCard(r,act){
@@ -3307,9 +3492,10 @@ function openEdit(id){
   <div class="card"><h3>Hands-on</h3>
     <div class="row"><label class="grow" style="font-size:14px;font-weight:700">มีเคส hands-on</label>
       <input type="checkbox" id="eHO" ${r.handsOn?'checked':''} style="width:22px;height:22px"></div>
-    <div ${r.handsOn?'':'hidden'}><div class="formgrid">
-      <div><label class="f">Product ที่ support</label><input class="in" id="eHOP" value="${esc(r.hoProduct)}"></div>
-      <div><label class="f">จำนวนเคส</label><input class="in" id="eHOC" type="number" min="1" value="${esc(r.hoCases)}"></div>
+    <div ${r.handsOn?'':'hidden'}>
+      <div class="muted" style="margin-top:6px">กรอกเฉพาะ product ที่ขอ support — ที่ไม่ได้ขอปล่อยว่างไว้</div>
+      ${hoRows(r.ho,'eHO_')}
+      <div class="formgrid" style="margin-top:12px">
       <div class="full"><label class="f">รูปเคสก่อนเทรน <span>· เพิ่มทีหลังได้</span></label>
         <input type="file" id="ePhoto" accept="image/*" multiple>
         <div class="thumbs">${r.photos.map(ph=>`<img src="${ph.url}" alt="">`).join('')}</div></div></div></div></div>
@@ -3344,7 +3530,8 @@ function openEdit(id){
     r.topic=[prodList(r.product).map(p=>(r.ptopic[p]||'').trim()?p+': '+r.ptopic[p]:'').filter(Boolean).join(' · '),
              (r.topicNote||'').trim()].filter(Boolean).join(' — ');
     r.level=v('eLevel');r.clinic=v('eClinic');r.clinicType=v('eCType');r.map=v('eMap');
-    r.doctors=v('eDoc');r.exp=v('eExp');r.hoProduct=v('eHOP');r.hoCases=v('eHOC');r.requester=v('eReq');
+    r.doctors=v('eDoc');r.exp=v('eExp');r.requester=v('eReq');
+    if(r.handsOn){r.ho=hoGrab('eHO_');r.hoProduct=hoSum(r.ho);r.hoCases=hoTotal(r.ho)||'';}
     r.sessions.forEach((sn,i)=>{const a=$('es'+i+'s'),b2=$('es'+i+'e'),dt=$('es'+i+'d'),tp=$('es'+i+'t');
       if(a&&a.value)sn.start=a.value; if(b2&&b2.value)sn.end=b2.value;
       if(tp)sn.sTopic=tp.value;
@@ -3643,63 +3830,324 @@ function renderSMDash(){
   $('dTo').onchange=e=>{state.dash={...dashRange(),to:e.target.value};renderSMDash();};
 }
 
+/* ========================= DASHBOARD · TRAINING PULSE =========================
+   หน้าตาตามไฟล์ "ตัวอย่าง dashboard" (Training Pulse) แต่กินข้อมูลสดในแอปแทน CSV
+   1 แถว = 1 คิวเทรนในปฏิทิน CTS ที่มี product · เติมคลินิก/ประเภท/จำนวนแพทย์
+   จากคำขอที่ผูกอยู่ (reqId) หรือคิวที่ CTS ลงเอง (selfId) */
+const TP_PRODUCTS=['Ultherapy','Xeomin','Belotero','Radiesse'];
+const TP_COLOR={Ultherapy:'#FFD961',Xeomin:'#7C9CEC',Belotero:'#FF9FC6',Radiesse:'#8FE2FF'};
+const tpState=()=>state.pulse||(state.pulse={from:'',to:'',range:'all',cts:'',team:'',product:'',
+  pick:null,gran:'month',ctype:'all'});
+/* Chart.js โหลดตอนเปิดแท็บ Dashboard ครั้งแรกเท่านั้น — ไม่ถ่วงเวลาเปิดแอป */
+let _tpChartP=null;
+const tpLoadChart=()=>_tpChartP||(_tpChartP=new Promise((res,rej)=>{
+  if(window.Chart)return res();
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+  s.onload=()=>res();s.onerror=()=>rej(new Error('offline'));
+  document.head.appendChild(s);}));
+
+/* ปีงบ ก.ค.–มิ.ย. — คำนวณจากวันนี้ ไม่ fix ปีไว้ในโค้ด */
+function tpFYKeys(){
+  const d=new Date(),y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1,out=[];
+  for(let i=0;i<12;i++){const m=(6+i)%12+1;out.push(`${m>=7?y:y+1}-${String(m).padStart(2,'0')}`);}
+  return out;
+}
+const TP_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const tpMonLabel=k=>TP_MON[+k.split('-')[1]-1]+" '"+k.slice(2,4);
+const tpWeekLabel=k=>{const d=parse(k);return d.getDate()+'/'+(d.getMonth()+1);};
+
+/* ทุกคิวเทรนที่มี product — ไม่กรองช่วงวัน (ตัวกรองทำทีหลังใน tpRows) */
+function tpAllRows(){
+  const out=[],pool=CTS.map(c=>c.id),days=new Set();
+  /* เก็บเฉพาะวันที่มีข้อมูลจริง — dateRange() จำกัดที่ 45 วัน ใช้ไล่ทั้งปีไม่ได้ */
+  state.requests.forEach(r=>{if(r.status!=='rejected'&&r.status!=='cancelled')
+    (r.sessions||[]).forEach(s=>{if(s.date)days.add(s.date);});});
+  state.selfEvents.forEach(ev=>{
+    let d=parse(ev.date);const e=parse(ev.dateEnd||ev.date);let g=0;
+    while(d<=e&&g++<90){days.add(key(d));d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);}});
+  Object.keys(state.sched||{}).forEach(k=>days.add(k));
+  [...days].sort().forEach(k=>{
+    dayEntries(k,pool).filter(e=>e.job&&e.who.length).forEach(e=>{
+      const products=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>TP_PRODUCTS.includes(p)))];
+      if(!products.length)return;
+      const j=e.job;
+      const r=j.reqId?state.requests.find(x=>x.id===j.reqId):null;
+      const sv=j.selfId?state.selfEvents.find(x=>x.id===j.selfId):null;
+      const src=r||sv||{};
+      const cid=ownerOf(e),c=byId(cid);
+      const area=r?r.area:'';
+      out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
+        team:area?(smOfArea(area)||area):'—',area:area||'—',
+        clinic:String(src.clinic||j.title||'—').trim()||'—',
+        clinicType:src.clinicType||'',
+        doctors:+src.doctors||0,products,uid:k+'|'+e.key});
+    });
+  });
+  return out;
+}
+/* ตัวกรองด้านบน — ช่วงวัน + CTS + ทีม + product */
+function tpRows(all){
+  const S=tpState();
+  const from=S.from?parse(S.from):null,to=S.to?parse(S.to):null;
+  return all.filter(r=>
+    (!from||r.d>=from)&&(!to||r.d<=to)
+    &&(!S.cts||r.cts===S.cts)&&(!S.team||r.team===S.team)
+    &&(!S.product||r.products.includes(S.product)));
+}
+const tpCounts=rows=>{const c={Ultherapy:0,Xeomin:0,Belotero:0,Radiesse:0};
+  rows.forEach(r=>r.products.forEach(p=>{if(c[p]!==undefined)c[p]++;}));return c;};
+/* คลินิกเครือ (Chain) ไม่นับเป็น repeat — เครือขอเทรนหลายสาขาเป็นเรื่องปกติ */
+const tpRepeatRows=(rows,useToggle)=>rows.filter(r=>{
+  if(r.clinicType==='Chain')return false;
+  if(!useToggle||tpState().ctype==='all')return true;
+  return r.clinicType===tpState().ctype;});
+function tpRepeatCount(rows){const c={};
+  tpRepeatRows(rows,false).forEach(r=>{c[r.clinic]=(c[r.clinic]||0)+1;});
+  return Object.values(c).filter(n=>n>1).length;}
+
+const tpDna=(c,maxTotal)=>{
+  const tot=TP_PRODUCTS.reduce((n,p)=>n+c[p],0);
+  if(!tot)return '<div class="dna-bar-wrap"><div class="dna-bar" style="width:0"></div></div>';
+  const w=maxTotal?Math.round(tot/maxTotal*100):100;
+  return `<div class="dna-bar-wrap"><div class="dna-bar" style="width:${w}%">${
+    TP_PRODUCTS.map(p=>{const s=c[p]/tot*100;
+      return s<=0?'':`<div class="dna-seg" style="width:${s}%;background:${TP_COLOR[p]}" title="${p}: ${c[p]}">${
+        s>=10?c[p]:''}</div>`;}).join('')}</div></div>`;
+};
+const tpDateBadge=rows=>{
+  const ds=rows.map(r=>r.d).filter(Boolean);
+  if(!ds.length)return '';
+  const a=new Date(Math.min(...ds)),b=new Date(Math.max(...ds));
+  const f=d=>fmtDate(key(d));
+  return `<div class="date-range-badge">${a.toDateString()===b.toDateString()?f(a):f(a)+' – '+f(b)}</div>`;
+};
+
 function renderDash(){
-  const R=dashRange(),rows=trainRows();
-  const cts=CTS.filter(c=>rows.some(x=>x.cid===c.id));
-  const cols=DASH_PRODUCTS;    // 4 ตระกูลเท่านั้น — SKU ย่อยถูกรวมมาแล้วตอนนับ
-  /* ponytail: นับด้วยการวนซ้ำตรงๆ — ข้อมูลระดับหลักร้อยแถว ไม่ต้องทำ index
-     ตัวเลขราย product = จำนวน "วัน" ที่มีคิวของตระกูลนั้น — วันเดียวกันหลาย SKU หรือหลายคิว นับเป็น 1
-     คนละวันนับแยก เช่น Belotero 3 วันในเดือนนั้น = 3 */
-  const days=list=>new Set(list.map(x=>x.cid+'|'+x.date)).size;
-  const n=(cid,p)=>days(rows.filter(x=>x.cid===cid&&x.fams.includes(p)));
-  const nAll=p=>days(rows.filter(x=>x.fams.includes(p)));
-  const qOf=cid=>rows.filter(x=>x.cid===cid).length;
-  const totQ=new Set(rows.map(x=>x.uid)).size;
-  const top=cols.map(p=>[p,nAll(p)]).sort((a,b)=>b[1]-a[1])[0];
+  const S=tpState(),all=tpAllRows(),rows=tpRows(all);
+  const ctsRows=S.pick?rows.filter(r=>S.pick.includes(r.cts)):rows;
+  const nick=[...new Set(all.map(r=>r.cts))].sort();
+  const teams=[...new Set(all.map(r=>r.team))].filter(t=>t!=='—').sort();
+  const K=tpCounts(rows),tot=TP_PRODUCTS.reduce((n,p)=>n+K[p],0);
+  const rc=tpCounts(ctsRows),rct=TP_PRODUCTS.reduce((n,p)=>n+rc[p],0);
+  const kpi=[
+    ['Total Trainings',tot,rows.length+' training visits','#C9A84C'],
+    ['Total Doctors',rows.reduce((s,r)=>s+r.doctors,0),'Accumulated in period','#D4AF6E'],
+    ['Clinics Trained',new Set(rows.map(r=>r.clinic)).size,'Unique clinics','#C9A84C'],
+    ['Repeat Clinics',tpRepeatCount(rows),'Requested >1 (excl. Chain)','#E8C870'],
+    ['Active CTS',new Set(rows.map(r=>r.cts)).size,'CTS with trainings','#7C9CEC'],
+  ];
+  const RANGES=[[7,'7 Days'],[30,'30 Days'],[90,'3 Months'],[365,'YTD'],['all','All Time']];
+  const opt=(v,sel)=>'<option '+(sel===v?'selected':'')+'>'+esc(v)+'</option>';
+  const chip=(on,attr,val,txt)=>'<button class="chip'+(on?' active':'')+'" data-'+attr+'="'+esc(val)+'">'+txt+'</button>';
 
-  /* การ์ดรายคน — รูป CTS + จำนวนคิวของแต่ละ product */
-  const cards=cts.map(c=>`<div class="dcard" style="--c:${pal(c.id).c};--ci:${pal(c.id).ci}">
-    <div class="dhead"><img src="${FACES[c.id]||''}" alt="">
-      <span class="grow"><b>${c.nick}</b><em>${esc(c.name)} · ${TEAMS[c.team]?TEAMS[c.team].label:c.team}</em></span>
-      <span class="dtot"><b>${qOf(c.id)}</b><small>คิว</small></span></div>
-    <div class="dprods">${cols.map(p=>{const v=n(c.id,p);
-      return `<span class="dp${v?' on':''}" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
-        <b>${v}</b><small>${esc(p)}</small></span>`;}).join('')}</div></div>`).join('');
-  const totCard=`<div class="dcard sum">
-    <div class="dhead"><span class="dic">Σ</span>
-      <span class="grow"><b>รวมทุกคน</b><em>${cts.length} คน</em></span>
-      <span class="dtot"><b>${totQ}</b><small>คิว</small></span></div>
-    <div class="dprods">${cols.map(p=>`<span class="dp on" style="--pc:${PRODHEX[p]||'#EEE'};--pi:${pink(p)}">
-      <b>${nAll(p)}</b><small>${esc(p)}</small></span>`).join('')}</div></div>`;
+  setHTML(view(),`<div class="tp">
+    <div class="tp-top"><div class="tp-brand"><div class="tp-mark">▤</div>
+      <div><h1>Training Pulse</h1><span>Merz Aesthetics Thailand · Clinical Training</span></div></div>
+      <span class="tp-live">ข้อมูลสดจากปฏิทิน CTS · ${all.length} คิวเทรน</span></div>
 
-  setHTML(view(),`<h1 class="pt">Dashboard</h1>
-    <p class="psub">สรุปคิวในปฏิทิน CTS แยกรายคน — ใครมีคิวของ Product ไหนไปกี่คิว</p>
-    <div class="card">
-      <div class="eyebrow">ช่วงเวลาที่ดู</div>
-      <div class="chips" style="margin:9px 0 12px">
-        ${DASH_PRESETS.map((p,i)=>`<button class="chip" data-dp="${i}">${p[0]}</button>`).join('')}</div>
-      <div class="formgrid">
-        <div><label class="f" style="margin-top:0">ตั้งแต่วันที่</label><input class="in" id="dFrom" type="date" lang="en-GB" value="${R.from}"></div>
-        <div><label class="f" style="margin-top:0">ถึงวันที่</label><input class="in" id="dTo" type="date" lang="en-GB" value="${R.to}"></div>
-      </div>
-      <div class="muted" style="margin-top:10px">${fmtDate(R.from)} – ${fmtDate(R.to)}</div>
-    </div>
-    <div class="tiles">
-      <div class="tile"><span class="tn">${totQ}</span><span class="tl">คิวในปฏิทิน</span></div>
-      <div class="tile"><span class="tn">${cts.length}</span><span class="tl">CTS ที่มีคิว</span></div>
-      <div class="tile"><span class="tn">${top?top[1]:0}</span><span class="tl">${top?esc(top[0]):'—'}<br><span class="muted" style="font-size:10.5px">Product ที่มีคิวมากสุด</span></span></div>
-    </div>
-    ${cts.length?`<div class="dgrid">${cards}${totCard}</div>
-      <div class="muted" style="margin:0 0 14px">นับจากคิวที่ขึ้นในปฏิทิน CTS ทั้งหมด · คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว คนที่ไปด้วยไม่นับ ·
-        <b>ตัวเลขราย Product = จำนวนวันที่มีคิวของตระกูลนั้น</b> — SKU ย่อยรวมเป็นตระกูลเดียว (Belotero Revive / Soft / Balance → Belotero)
-        วันเดียวกันมีหลาย SKU หรือหลายคิวของตระกูลเดียวกันนับเป็น 1 · คนละวันนับแยก เช่น มีคิว Belotero 3 วันในเดือนนั้น = 3 ·
-        ตัวเลขมุมขวาบน = จำนวนคิวจริงในปฏิทิน จึงไม่เท่ากับผลรวมราย Product ได้</div>`
-    :'<div class="card"><div class="empty"><div class="big">↗</div>ยังไม่มีคิวในปฏิทินช่วงนี้<br><span class="muted">ลองขยายช่วงเวลาที่เลือก</span></div></div>'}`);
+    <div class="filterbar">
+      <div class="filter-group"><label>From</label><input type="date" lang="en-GB" id="tpFrom" value="${S.from}"></div>
+      <div class="filter-group"><label>To</label><input type="date" lang="en-GB" id="tpTo" value="${S.to}"></div>
+      <div class="filter-group"><label>Quick Range</label><div class="quickrange">
+        ${RANGES.map(function(x){return chip(S.range==x[0],'tpr',String(x[0]),x[1]);}).join('')}</div></div>
+      <div class="filter-group"><label>CTS</label><select id="tpCts"><option value="">All</option>
+        ${nick.map(function(n){return opt(n,S.cts);}).join('')}</select></div>
+      <div class="filter-group"><label>PS Team</label><select id="tpTeam"><option value="">All Teams</option>
+        ${teams.map(function(t){return opt(t,S.team);}).join('')}</select></div>
+      <div class="filter-group"><label>Product</label><select id="tpProd"><option value="">All Products</option>
+        ${TP_PRODUCTS.map(function(p){return opt(p,S.product);}).join('')}</select></div>
+      <div class="filter-spacer"></div><button class="reset-link" id="tpReset">ล้างตัวกรอง</button></div>
 
-  const set=(a,b)=>{state.dash={from:key(a),to:key(b)};renderDash();};
-  view().querySelectorAll('[data-dp]').forEach(b=>b.onclick=()=>set(...DASH_PRESETS[+b.dataset.dp][1]()));
-  $('dFrom').onchange=e=>{state.dash={...R,from:e.target.value};renderDash();};
-  $('dTo').onchange=e=>{state.dash={...R,to:e.target.value};renderDash();};
+    <div class="kpi-grid">${kpi.map(function(x){return '<div class="kpi-card accent" style="--bar-color:'+x[3]+'">'
+      +'<div class="kpi-label">'+x[0]+'</div><div class="kpi-value">'+x[1].toLocaleString()+'</div>'
+      +'<div class="kpi-sub">'+x[2]+'</div></div>';}).join('')}</div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>Total Cumulative Training YTD</h2>
+        <div class="sub">Monthly cumulative training — ปีงบ ก.ค.–มิ.ย.</div></div>
+      <div class="tp-ytd">
+        <div><span>Training</span><b>${tot.toLocaleString()}</b></div>
+        <div><span>Clinic</span><b>${new Set(rows.map(function(r){return r.clinic;})).size}</b></div>
+        <div><span>Doctor</span><b>${rows.reduce(function(s,r){return s+r.doctors;},0)}</b></div></div></div>
+      <canvas id="tpCumul" height="110"></canvas></div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>Training Volume by Product</h2>
+        <div class="sub">${tpDateBadge(rows)||'นับ product ที่ต่างกันต่อ 1 คิวเทรน'}</div></div>
+      <div class="view-toggle">${chip(S.gran==='month','tpg','month','Monthly')}${chip(S.gran==='week','tpg','week','Weekly')}</div></div>
+      <canvas id="tpTrend" height="120"></canvas></div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>Product Ratio</h2>
+        <div class="sub">${S.pick?'เฉพาะ '+S.pick.map(esc).join(', '):'Ultherapy : Xeomin : Belotero : Radiesse — ทุกคน'}</div></div></div>
+      <div style="height:260px"><canvas id="tpRatio"></canvas></div>
+      <div class="dna-legend">${TP_PRODUCTS.map(function(p){
+        return '<span><span class="dna-dot" style="background:'+TP_COLOR[p]+'"></span>'+p+' — '+rc[p]
+          +' ('+(rct?Math.round(rc[p]/rct*100):0)+'%)</span>';}).join('')}</div></div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>By CTS (Individual)</h2><div class="sub">เรียงตามจำนวน training — แถบคือสัดส่วน product ของคนนั้น</div></div>
+      <span class="tag">${new Set(ctsRows.map(function(r){return r.cts;})).size} people</span></div>
+      <div class="cts-picker"><span class="picker-label">CTS</span>
+        <button class="chip chip-all${S.pick?'':' active'}" data-tppick="all">ทุกคน</button>
+        ${nick.map(function(n){return chip(!!(S.pick&&S.pick.includes(n)),'tppick',n,esc(n));}).join('')}</div>
+      ${tpRankHTML(ctsRows,'cts')}</div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>By PS Team</h2><div class="sub">เรียงตามจำนวน training</div></div>
+      <span class="tag">${new Set(rows.map(function(r){return r.team;})).size} teams</span></div>
+      ${tpRankHTML(rows,'team')}</div>
+
+    <div class="panel"><div class="panel-head"><div>
+        <h2>Clinics with Repeat Training Requests</h2>
+        <div class="sub">คลินิกที่ขอเทรนมากกว่า 1 ครั้งในช่วงที่เลือก — ไม่นับคลินิกประเภท Chain</div></div>
+      <div class="view-toggle">${['all','Single','Branch','Hospital'].map(function(t){
+        return chip(S.ctype===t,'tpct',t,t==='all'?'All (excl. Chain)':t);}).join('')}</div></div>
+      ${tpRepeatHTML(rows)}</div>
+
+    <div class="tp-foot">Training Pulse · นับจากคิวในปฏิทิน CTS ที่ระบุ Product — คิวที่ไปหลายคนนับให้เจ้าของคิวคนเดียว</div>
+  </div>`);
+
+  const set=o=>{Object.assign(S,o);renderDash();};
+  $('tpFrom').onchange=e=>set({from:e.target.value,range:''});
+  $('tpTo').onchange=e=>set({to:e.target.value,range:''});
+  $('tpCts').onchange=e=>set({cts:e.target.value});
+  $('tpTeam').onchange=e=>set({team:e.target.value});
+  $('tpProd').onchange=e=>set({product:e.target.value});
+  $('tpReset').onclick=()=>{state.pulse=null;renderDash();};
+  view().querySelectorAll('[data-tpr]').forEach(b=>b.onclick=()=>{
+    const v=b.dataset.tpr;
+    if(v==='all')return set({range:'all',from:'',to:''});
+    const t=new Date(TODAY),f=new Date(TODAY);f.setDate(f.getDate()-(+v));
+    set({range:+v,from:key(f),to:key(t)});});
+  view().querySelectorAll('[data-tpg]').forEach(b=>b.onclick=()=>set({gran:b.dataset.tpg}));
+  view().querySelectorAll('[data-tpct]').forEach(b=>b.onclick=()=>set({ctype:b.dataset.tpct}));
+  view().querySelectorAll('[data-tppick]').forEach(b=>b.onclick=()=>{
+    const n=b.dataset.tppick;
+    if(n==='all')return set({pick:null});
+    const cur=S.pick?S.pick.slice():[],i=cur.indexOf(n);
+    i>=0?cur.splice(i,1):cur.push(n);
+    set({pick:cur.length?cur:null});});
+
+  tpLoadChart().then(()=>tpDraw(rows,ctsRows)).catch(()=>{
+    const c=$('tpCumul');
+    if(c&&c.parentElement)c.parentElement.insertAdjacentHTML('beforeend',
+      '<div class="tp-note">โหลดกราฟไม่ได้ (ออฟไลน์) — ตัวเลขและตารางด้านล่างยังใช้ได้ตามปกติ</div>');
+  });
+}
+
+function tpRankHTML(rows,field){
+  const g={};
+  rows.forEach(r=>{const k=r[field]||'—';
+    if(!g[k])g[k]={Ultherapy:0,Xeomin:0,Belotero:0,Radiesse:0,total:0};
+    r.products.forEach(p=>{if(g[k][p]!==undefined){g[k][p]++;g[k].total++;}});});
+  const sorted=Object.entries(g).sort((a,b)=>b[1].total-a[1].total);
+  if(!sorted.length)return '<div class="tp-empty">ไม่มีข้อมูลในช่วงที่เลือก</div>';
+  const max=sorted[0][1].total,isCts=field==='cts';
+  const medal=i=>i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--tp-soft)';
+  const body=sorted.map(function(row,i){
+    const n=row[0],c=row[1];
+    const cid=isCts?(CTS.find(x=>x.nick===n)||{}).id:null;
+    const nameHTML=isCts
+      ? '<div class="cts-av"><img src="'+((cid&&FACES[cid])||'')+'" alt=""><span>'+esc(n)+'</span></div>'
+      : '<div class="rank-name" title="'+esc(n)+'">'+esc(n)+'</div>';
+    return '<div class="rank-row"><div class="rank-idx" style="color:'+medal(i)+'">'+(i+1)+'</div>'
+      +nameHTML+'<div>'+tpDna(c,max)+'</div><div class="rank-total">'+c.total+'</div></div>';
+  }).join('');
+  const legend='<div class="tp-legend">'+TP_PRODUCTS.map(function(p){
+    return '<span><i style="background:'+TP_COLOR[p]+'"></i>'+p+'</span>';}).join('')+'</div>';
+  return tpDateBadge(rows)+body+legend;
+}
+function tpRepeatHTML(rows){
+  const g={};
+  tpRepeatRows(rows,true).forEach(r=>{
+    if(!g[r.clinic])g[r.clinic]={visits:0,products:{Ultherapy:0,Xeomin:0,Belotero:0,Radiesse:0},
+      cts:new Set(),last:null,ctype:r.clinicType};
+    const x=g[r.clinic];x.visits++;
+    r.products.forEach(p=>{if(x.products[p]!==undefined)x.products[p]++;});
+    x.cts.add(r.cts);
+    if(!x.last||r.date>x.last)x.last=r.date;});
+  const rep=Object.entries(g).filter(e=>e[1].visits>1).sort((a,b)=>b[1].visits-a[1].visits);
+  if(!rep.length)return '<div class="tp-empty">ไม่มีคลินิกที่ขอเทรนซ้ำในช่วงนี้</div>';
+  const body=rep.map(function(e){
+    const c=e[0],x=e[1];
+    const mix=TP_PRODUCTS.filter(p=>x.products[p]>0).map(p=>p+' x'+x.products[p]).join(' · ');
+    return '<tr><td><div class="clinic-name">'+esc(c)
+      +(x.ctype?'<span class="type-badge">'+esc(x.ctype)+'</span>':'')+'</div></td>'
+      +'<td><span class="repeat-badge">'+x.visits+'x</span></td>'
+      +'<td><div class="mini-dna">'+tpDna(x.products)+'</div>'
+      +'<div class="clinic-meta">'+mix+'</div></td>'
+      +'<td class="clinic-meta">'+([...x.cts].join(', ')||'—')+'</td>'
+      +'<td class="clinic-meta">'+(x.last?fmtDate(x.last):'—')+'</td></tr>';}).join('');
+  return '<div class="tp-scroll"><table class="clinic-table"><thead><tr>'
+    +'<th>Clinic</th><th>Visits</th><th>Product mix</th><th>CTS</th><th>Last visit</th>'
+    +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+
+/* ===== กราฟ 3 ตัว (Chart.js) ===== */
+let tpCharts=[];
+function tpDraw(rows,ctsRows){
+  tpCharts.forEach(c=>{try{c.destroy();}catch(e){}});tpCharts=[];
+  const S=tpState(),grid='#1E3A58',ink='#B8A87A';
+  const mk=(id,cfg)=>{const el=$(id);if(!el)return;tpCharts.push(new Chart(el,cfg));};
+
+  /* 1) cumulative ตามปีงบ — เส้นทึบถึงเดือนล่าสุดที่มีข้อมูล ที่เหลือเส้นประ */
+  const keys=tpFYKeys(),bucket={};
+  rows.forEach(r=>{const k=r.date.slice(0,7);bucket[k]=(bucket[k]||0)+r.products.length;});
+  const monthly=keys.map(k=>bucket[k]||0);
+  let run=0;const cum=monthly.map(v=>run+=v);
+  let last=-1;monthly.forEach((v,i)=>{if(v>0)last=i;});
+  mk('tpCumul',{type:'line',data:{labels:keys.map(tpMonLabel),datasets:[
+    {label:'Cumulative',data:cum.map((v,i)=>i<=last?v:null),borderColor:'#C9A84C',
+     backgroundColor:'rgba(201,168,76,0.08)',borderWidth:2.5,fill:true,tension:.35,
+     pointRadius:monthly.map((v,i)=>v>0&&i<=last?6:0),pointBackgroundColor:'#C9A84C',
+     pointBorderColor:'#0D1B2A',pointBorderWidth:2},
+    {label:'_future',data:cum.map((v,i)=>last<0?v:(i<last?null:v)),borderColor:'rgba(201,168,76,.3)',
+     borderWidth:1.8,borderDash:[6,5],pointRadius:0,fill:false,tension:.35}]},
+    options:{responsive:true,plugins:{legend:{display:false},
+      tooltip:{filter:i=>i.dataset.label!=='_future'}},
+      scales:{x:{grid:{display:false},ticks:{color:ink,font:{size:11}}},
+              y:{beginAtZero:true,grid:{color:grid},ticks:{color:'#C9A84C',font:{size:10}}}}}});
+
+  /* 2) แท่งซ้อนราย product + เส้นรวม */
+  const bk={};
+  rows.forEach(r=>{
+    const k=S.gran==='month'?r.date.slice(0,7):key(mondayOf(r.d));
+    if(!bk[k])bk[k]={Ultherapy:0,Xeomin:0,Belotero:0,Radiesse:0};
+    r.products.forEach(p=>{if(bk[k][p]!==undefined)bk[k][p]++;});});
+  const tk=S.gran==='month'?keys:Object.keys(bk).sort();
+  const totals=tk.map(k=>bk[k]?TP_PRODUCTS.reduce((n,p)=>n+bk[k][p],0):0);
+  const bars=TP_PRODUCTS.map(p=>({type:'bar',label:p,data:tk.map(k=>bk[k]?bk[k][p]:0),
+    backgroundColor:TP_COLOR[p],stack:'p',barPercentage:.75,categoryPercentage:.8,order:2}));
+  bars.push({type:'line',label:'Total',data:totals,borderColor:'#C9A84C',borderWidth:2,
+    borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#C9A84C',pointBorderColor:'#0D1B2A',
+    tension:.25,order:1});
+  mk('tpTrend',{type:'bar',
+    data:{labels:tk.map(S.gran==='month'?tpMonLabel:tpWeekLabel),datasets:bars},
+    options:{responsive:true,plugins:{legend:{position:'bottom',
+        labels:{color:ink,font:{size:12},filter:i=>i.text!=='Total'}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:ink,font:{size:11}}},
+              y:{stacked:true,beginAtZero:true,grid:{color:grid},ticks:{color:ink,font:{size:11}}}}}});
+
+  /* 3) โดนัทสัดส่วน product + ตัวเลข Ultherapy : Injectable ตรงกลาง */
+  const c=tpCounts(ctsRows),ct=TP_PRODUCTS.reduce((n,p)=>n+c[p],0);
+  mk('tpRatio',{type:'doughnut',
+    data:{labels:TP_PRODUCTS,datasets:[{data:TP_PRODUCTS.map(p=>c[p]),
+      backgroundColor:TP_PRODUCTS.map(p=>TP_COLOR[p]),borderWidth:3,borderColor:'#13263D'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>
+        ' '+x.label+': '+x.parsed+' ('+(ct?Math.round(x.parsed/ct*100):0)+'%)'}}}},
+    plugins:[{id:'tpMid',afterDraw(ch){
+      const A=ch.chartArea;if(!A)return;
+      const ctx=ch.ctx,u=c.Ultherapy,inj=c.Xeomin+c.Belotero+c.Radiesse,t=u+inj||1;
+      const up=Math.round(u/t*100),cx=(A.left+A.right)/2,cy=(A.top+A.bottom)/2;
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='#F0E6C8';ctx.font='bold 28px Poppins,Inter,sans-serif';
+      ctx.fillText(up+':'+(100-up),cx,cy-10);
+      ctx.fillStyle='#B8A87A';ctx.font='bold 11px Inter,sans-serif';
+      ctx.fillText('Ultherapy : Injectable',cx,cy+18);
+      ctx.restore();}}]});
 }
 
 function renderReqs(){
