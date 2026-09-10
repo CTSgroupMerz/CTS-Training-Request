@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -643,4 +643,27 @@ assert.strictEqual(ur.sessions[0].ctsId,B1,'ต้องล็อก CTS ที�
 assert.ok((ur.trail||[]).some(t=>t.act==='request'),'ต้องบันทึกร่องรอยการส่งคำขอ');
 assert.strictEqual(X.state.upcPick.length,0,'ส่งแล้วต้องล้างวันที่เลือกไว้');
 
-console.log('✓ ผ่านทั้ง 44 ข้อ');
+/* 45-47. ยกมาจาก check.js ที่เลิกใช้ — 3 ข้อนี้ยังคุมของจริงหลังย้าย Supabase
+      ที่เหลือใน check.js เทส API / mergeState / save() ยิง POST ของยุค GAS ซึ่งถูกลบไปแล้ว */
+clean();
+/* 45. SAVED = คีย์ที่ save() ใช้เทียบว่ามีอะไรเปลี่ยน (index.html: JSON.stringify(snap()))
+      ลืมใส่คีย์ที่บันทึกจริง -> แก้แล้ว save ไม่ยิง · ใส่สถานะหน้าจอเข้าไป -> ยิงรัวไม่จบ */
+const s1=JSON.stringify(X.snap());
+assert.strictEqual(JSON.stringify(Object.keys(JSON.parse(s1)).sort()),JSON.stringify(X.SAVED.slice().sort()),
+  'snapshot key ไม่ครบตาม SAVED');
+Object.assign(X.state,JSON.parse(s1));
+assert.strictEqual(JSON.stringify(X.snap()),s1,'round-trip แล้วข้อมูลเพี้ยน (มี Set/Date ปนอยู่)');
+['tab','filter','draft','loginRole','month','picks','pw','auth','upcProd','upcCts','upcPick'].forEach(k=>
+  assert.ok(!X.SAVED.includes(k),k+' เป็นสถานะหน้าจอ ไม่ควรอยู่ใน SAVED'));
+
+/* 46. id ใหม่ต้องไม่ชนแม้ seq เดียวกัน (สองเครื่องเดินเลขของตัวเองไปก่อน — บั๊ก 1 ก.ย.) */
+const ids=new Set();for(let i=0;i<200;i++)ids.add(X.newId('TR',1041));
+assert.ok(ids.size>100,'id เลขเดียวกันต้องกระจาย ไม่ใช่ซ้ำกันหมด');
+assert.ok([...ids].every(v=>/^TR-1041[A-Z]{2}$/.test(v)),'รูปแบบ id เพี้ยน');
+
+/* 47. รหัสผ่านต้องไม่ถูกฝังในไฟล์ที่ push ขึ้น repo สาธารณะ */
+['index.html','sw.js','manifest.json'].forEach(f=>
+  assert.ok(!/cts1234/i.test(fs.readFileSync(f,'utf8')),f+' มีรหัสผ่านฝังอยู่'));
+assert.ok(X.TODAY.toDateString()===new Date().toDateString(),'TODAY ต้องเป็นวันนี้จริง');
+
+console.log('✓ ผ่านทั้ง 47 ข้อ');
