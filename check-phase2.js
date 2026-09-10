@@ -35,7 +35,7 @@ function q(table){
 const el=()=>({innerHTML:'',classList:{add(){},remove(){},contains(){return false}},style:{},querySelectorAll:()=>[],
   addEventListener(){},appendChild(){},focus(){},scrollTop:0,dataset:{},textContent:'',value:''});
 const store={};
-const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,fetch,isNaN,parseInt,
+const ctx={console,setTimeout,setInterval:()=>0,clearInterval(){},clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,fetch,isNaN,parseInt,
   URL:{createObjectURL:()=>''},
   localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v,removeItem:k=>delete store[k]},
   window:{innerWidth:1200,addEventListener(){},supabase:{createClient:()=>({from:q,auth:{getSession:async()=>({data:{session:null}})}})}},

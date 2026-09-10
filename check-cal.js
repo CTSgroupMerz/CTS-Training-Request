@@ -12,7 +12,7 @@ const store={};
 const badge={n:0};   // จับ setAppBadge ที่แอปยิงออกมา
 const cache={};const G=id=>cache[id]||(cache[id]=el());   // คืน element เดิมทุกครั้ง จะได้อ่าน innerHTML กลับมาตรวจได้
 const sheet=()=>G('sheetBody').innerHTML;
-const ctx={console,setTimeout,clearTimeout,Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
+const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
   localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v,removeItem:k=>delete store[k]},
   window:{innerWidth:1200,addEventListener(){}},
@@ -26,11 +26,13 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
 const K='2026-08-24';
+/* วันในอนาคตพอผ่านกติกา 'ขอคิวล่วงหน้าอย่างน้อย 14 วัน' (LEAD_DAYS) — ใช้กับเทสที่กดเลือกวันจริง */
+const FUT=n=>{const d=new Date();d.setDate(d.getDate()+30+(n||0));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 /* ตรึงปฏิทินไว้ที่สัปดาห์/เดือนของ K — ปกติแอปเปิดที่ "วันนี้" พอเวลาผ่าน 24 ส.ค. 69 ไป
    คิวทดสอบก็หลุดออกนอกจอที่ monthHTML/weekHTML วาด แล้วเทสพังเองทั้งที่โค้ดไม่ได้เสีย */
 X.state.month=new Date(2026,7,1);
@@ -174,10 +176,10 @@ assert.strictEqual(X.freeIds(K,'am').length,1,'หัวหน้าว่าง
 X.setSkill(four[0],'Ultherapy','self');
 assert.strictEqual(X.freeIds(K,'am').length,2,'self 1 + TwS 1 = 2');
 
-/* 17. หัวข้อบังคับ 5 ข้อ */
+/* 17. หัวข้อบังคับ 6 ข้อ (เพิ่มประเภทคลินิก · หัวข้อเช็กรายProduct จาก ptopic) */
 const blank={product:[],topic:'',clinic:'',doctors:'',requester:''};
-assert.strictEqual(X.missingRequired(blank).length,5,'ต้องบังคับ 5 หัวข้อ');
-assert.strictEqual(X.missingRequired({product:['Ultherapy'],topic:'ก',clinic:'ข',doctors:2,requester:'ค'}).length,0,
+assert.strictEqual(X.missingRequired(blank).length,6,'ต้องบังคับ 6 หัวข้อ');
+assert.strictEqual(X.missingRequired({product:['Ultherapy'],ptopic:{Ultherapy:'ก'},clinic:'ข',clinicType:'Single',doctors:2,requester:'ค'}).length,0,
   'กรอกครบแล้วต้องผ่าน');
 
 /* 18. เวลาในฟอร์ม จองเช้าเลือกบ่ายไม่ได้ */
@@ -256,7 +258,7 @@ clean();
 X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.authed=true;
 X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
 X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],
-  topic:'หัวข้อ',clinic:'คลินิก',map:'',doctors:2,exp:'',handsOn:false,hoProduct:'',hoCases:'',
+  topic:'หัวข้อ',ptopic:{Ultherapy:'หัวข้อ',Xeomin:'หัวข้อ'},clinicType:'Single',clinic:'คลินิก',map:'',doctors:2,exp:'',handsOn:false,hoProduct:'',hoCases:'',
   photos:[],requester:'ผู้ขอ'};
 X.state.picks=[{date:K,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
 X.submit();
@@ -271,7 +273,7 @@ X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
 const only=X.BOOKABLE_CTS()[3].id;
 X.setSkill(only,'Xeomin','self');
 X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Xeomin'],
-  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
+  topic:'ก',ptopic:{Ultherapy:'ก',Xeomin:'ก'},clinicType:'Single',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
 X.state.picks=[{date:K,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
 X.submit();
 assert.strictEqual(X.state.requests[0].sessions[0].ctsId,only,
@@ -326,9 +328,9 @@ clean();
 X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
 X.state.tbcMode=true;
 X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],
-  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
+  topic:'ก',ptopic:{Ultherapy:'ก',Xeomin:'ก'},clinicType:'Single',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
 X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
-['2026-08-24','2026-08-25','2026-08-26'].forEach(d=>X.togglePick(d,'am',null));
+[FUT(0),FUT(1),FUT(2)].forEach(d=>X.togglePick(d,'am',null));
 assert.strictEqual(X.state.picks.length,3,'โหมด TBC ต้องเลือกได้เกินจำนวน session');
 X.openForm();
 assert.ok(!/เลือกเกินมา/.test(sheet()),'ฟอร์ม TBC ต้องไม่เตือนว่าเลือกเกิน');
@@ -371,7 +373,7 @@ clean();
 X.state.feed=[];X.state.authed=true;
 X.state.role='admin';X.state.me=null;
 const pend={id:'TR-BG',team:'A',status:'pending',mode:'std',module:'MAX-Entry',product:['Ultherapy'],
-  topic:'ก',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'ค',requesterId:'C01',
+  topic:'ก',ptopic:{Ultherapy:'ก',Xeomin:'ก'},clinicType:'Single',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'ค',requesterId:'C01',
   sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
 X.state.requests=[pend];X.notify(pend,'pending');
 assert.strictEqual(X.badgeCount(),X.pendingCount(),'Admin ต้องเห็นตัวเลขเท่าจำนวนที่ต้องอนุมัติ');
@@ -498,4 +500,147 @@ X.state.sched[K]={[B1]:{am:{kind:'booked',title:'คลินิก',product:'Ul
   attendees:[B1],start:'09:00',end:'12:00'},pm:null}};
 assert.strictEqual(X.entriesOf(K,B1).length,1,'คิวจากคำขอต้องไม่ขึ้นซ้ำจากตาราง jobs');
 
-console.log('✓ ผ่านทั้ง 36 ข้อ');
+/* 37. คิวที่อยู่แต่ในตาราง jobs (ไม่มี reqId/selfId) ต้องแก้ไข/ลบได้
+      บั๊กจริง: หน้าคิวมีแต่ปุ่มแก้ที่ผูกกับ selfId / ปุ่มลบที่ผูกกับคำขอ -> คิวที่ย้ายมาจาก Sheet แก้ไม่ได้ ลบไม่ได้
+      (พบวันที่ 9,20,21 ต.ค. และอีก 25 วัน — jobs มีแถว แต่ events ไม่มีแถว SE- คู่กัน) */
+clean();
+X.state.role='admin';X.state.me='admin';X.state.tab='cal';
+const orp={kind:'busy',title:'Cadaveric Workshop',product:null,reqId:null,selfId:null,
+  attendees:[B1,B2],start:'09:00',end:'16:30'};
+X.state.sched[K]={[B1]:{am:{...orp},pm:{...orp}},[B2]:{am:{...orp},pm:{...orp}}};
+const orpE=X.dayEntries(K).find(e=>e.job.title==='Cadaveric Workshop');
+assert.ok(orpE,'คิวจากตาราง jobs ต้องขึ้นในปฏิทิน');
+X.openJob(K,orpE.key);
+assert.ok(/data-adopt=/.test(sheet()),'คิวจากตาราง jobs ต้องมีปุ่มแก้ไข/ลบ');
+const sid=X.adoptJob(K,orpE.key);
+assert.ok(sid,'ต้องแปลงเป็นคิว SE ได้');
+assert.strictEqual(X.state.selfEvents.length,1,'ต้องได้ selfEvent 1 ใบ');
+assert.strictEqual(X.dayEntries(K).length,1,'แปลงแล้วต้องไม่ขึ้นซ้ำ 2 อัน');
+assert.deepStrictEqual(X.state.selfEvents[0].attendees,[B1,B2],'ต้องพาคนที่ไปด้วยกันมาครบ');
+assert.strictEqual(X.state.selfEvents[0].start+'-'+X.state.selfEvents[0].end,'09:00-16:30','ต้องเก็บเวลาจริงของคิว');
+/* กดลบ (ทางเดิมของหน้าจอ SE) แล้วต้องหายจากปฏิทินของทุกคน */
+X.clearSelf(sid);X.state.selfEvents=X.state.selfEvents.filter(e=>e.id!==sid);
+assert.strictEqual(X.dayEntries(K).length,0,'ลบแล้วต้องหายจากปฏิทินของทุกคน');
+/* คิวที่มีต้นทางอยู่แล้ว ห้ามแปลงซ้ำ */
+assert.strictEqual(X.adoptJob(K,'jb-'+B1+'-am'),null,'ไม่มี job แล้วต้องคืน null');
+
+/* 38. กันขอคิวกระชั้น — sale ปกติ 5 วัน · UPC 14 วัน (นับจากวันนี้) */
+clean();
+const soon=d=>{const t=new Date();t.setDate(t.getDate()+d);
+  return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');};
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.tbcMode=true;
+assert.strictEqual(X.togglePick(soon(3),'am',null),false,'sale ปกติ ขอคิวภายใน 3 วันไม่ได้');
+assert.strictEqual(X.togglePick(soon(7),'am',null),true,'sale ปกติ 7 วันข้างหน้าขอได้');
+X.state.picks=[];X.state.area='UPC';
+assert.strictEqual(X.togglePick(soon(7),'am',null),false,'UPC ขอคิวภายใน 7 วันไม่ได้');
+assert.strictEqual(X.togglePick(soon(20),'am',null),true,'UPC 20 วันข้างหน้าขอได้');
+assert.strictEqual(X.togglePick(soon(20),'am',null),true,'เอาวันที่เลือกไว้แล้วออกได้เสมอ');
+assert.strictEqual(X.state.picks.length,0,'เอาออกแล้วต้องไม่เหลือ');
+
+/* 39. เจ้าของ KPI ของคิวที่ไปกันหลายคน + PS Area เข้า Dashboard */
+clean();
+X.state.role='cts';X.state.me=B1;
+const kev={id:'SE-K1',date:K,dateEnd:'',allDay:false,start:'09:00',end:'12:00',title:'Ultherapy @คลินิก',
+  detail:'',product:['Ultherapy'],topics:[],attendees:[B1,B2],owner:B1,clinic:'คลินิก',psArea:'W02'};
+X.state.selfEvents.push(kev);X.syncSelf(kev);
+let row=X.tpAllRows().filter(r=>r.date===K)[0];
+assert.ok(row,'คิวที่ลงเองต้องเข้า Dashboard');
+assert.strictEqual(row.cid,B1,'ไม่ได้ติด ✓ ใคร -> นับให้คนที่ลงคิวเหมือนเดิม');
+assert.strictEqual(row.team,'Winner','PS Area W02 ต้องเข้าเป็นยอดของทีม Winner');
+assert.strictEqual(row.area,'W02','ต้องเก็บรหัส PS Area ไว้ด้วย');
+/* ติด ✓ ให้คนที่ 2 -> KPI ต้องย้ายไปคนนั้น และต้องมีคิวเดียวเท่านั้น ไม่นับซ้ำ */
+kev.kpi=B2;X.syncSelf(kev);
+const rows=X.tpAllRows().filter(r=>r.date===K);
+assert.strictEqual(rows.length,1,'ติด ✓ แล้วต้องยังนับเป็น 1 คิว ไม่ใช่ 2');
+assert.strictEqual(rows[0].cid,B2,'ต้องนับ KPI ให้คนที่ติด ✓');
+/* ✓ ให้คนที่ไม่ได้ไปงานนี้ ไม่มีผล */
+kev.kpi='belle';X.syncSelf(kev);
+assert.strictEqual(X.tpAllRows().filter(r=>r.date===K)[0].cid,B1,'✓ คนที่ไม่ได้ไป ต้องไม่ถูกนับ');
+assert.strictEqual(X.psTeam('KAE3'),'KA','KAE ต้องอยู่ทีม KA');
+assert.strictEqual(X.psTeam('UPC5'),'UPC','UPC ต้องอยู่ทีม UPC');
+
+const mkReq=(id,st,cid)=>({id,team:'A',status:st,mode:'std',module:'MAX-Entry',product:['Ultherapy'],
+  topic:'x',ptopic:{Ultherapy:'ก'},clinic:'คลินิก',clinicType:'Single',map:'',doctors:1,exp:'',handsOn:false,
+  photos:[],requester:'a',requesterId:'C01',area:'Champion',
+  sessions:[{date:K,slot:'am',ctsId:cid,start:'09:00',end:'12:00',extra:[]}]});
+
+/* 40. CTS รับทราบคิวที่ถูกจัดให้ + "คำขอของฉัน" เห็นเฉพาะใบที่ตัวเองเทรน */
+clean();
+const areq=mkReq('TR-A1','mgr',B1);
+X.state.requests=[areq];
+X.state.role='cts';X.state.me=B1;
+assert.strictEqual(X.myRequests().length,1,'CTS ที่เป็นผู้เทรนต้องเห็นคำขอนี้');
+assert.ok(X.needAck(areq),'CTS ที่ถูกจัดคิวต้องมีปุ่มรับทราบ');
+X.state.me=B2;
+assert.strictEqual(X.myRequests().length,0,'CTS ที่ไม่ได้เทรนใบนี้ต้องไม่เห็นในคำขอของฉัน');
+assert.ok(!X.needAck(areq),'คนที่ไม่ได้เทรนต้องไม่มีปุ่มรับทราบ');
+X.state.me=B1;X.ackReq('TR-A1');
+assert.ok(areq.ack&&areq.ack[B1],'กดรับทราบแล้วต้องบันทึกเวลาไว้');
+assert.ok(!X.needAck(areq),'รับทราบแล้วปุ่มต้องหาย');
+assert.ok(X.ackedJob({reqId:'TR-A1',sIdx:0}),'คิวที่รับทราบแล้วต้องขึ้น ✓ แดงในปฏิทิน');
+assert.ok(!X.ackedJob({reqId:'TR-A1',sIdx:1}),'session ที่ไม่มีอยู่ต้องไม่ขึ้น ✓ แดง');
+X.state.role='admin';
+assert.strictEqual(X.myRequests().length,1,'Admin เห็นทุกทีม');
+
+/* 41. เปลี่ยนผู้เทรนหลักของคิวที่อนุมัติแล้ว (หัวหน้า / CTM / Admin) */
+clean();
+X.state.requests=[mkReq('TR-B1','approved',B1)];
+const bs=X.state.requests[0].sessions[0];
+X.state.role='admin';X.state.tab='cal';
+X.openReqSession('TR-B1',0);
+assert.ok(/id="rsMain"/.test(sheet()),'Admin ต้องเห็นช่องเปลี่ยนผู้เทรนหลัก');
+G('rsMain').value=B2;G("rsTitle").value='';G("rsStart").value='09:00';G("rsEnd").value='12:00';
+G("rsSave").onclick();
+assert.strictEqual(bs.ctsId,B2,'ต้องเปลี่ยนผู้เทรนหลักได้');
+assert.strictEqual(X.entriesOf(K,B2).length,1,'คิวต้องย้ายไปคนใหม่');
+assert.strictEqual(X.entriesOf(K,B1).length,0,'คนเดิมต้องไม่เหลือคิวค้าง');
+assert.ok((X.state.requests[0].trail||[]).some(t=>t.act==='changed-trainer'),'ต้องบันทึกร่องรอยการเปลี่ยนตัว');
+/* CTS ธรรมดาเปลี่ยนไม่ได้ */
+X.state.role='cts';X.state.me=B1;
+X.openReqSession('TR-B1',0);
+assert.ok(!/id="rsMain"/.test(sheet()),'CTS ธรรมดาต้องไม่เห็นช่องเปลี่ยนผู้เทรนหลัก');
+
+/* 42. Sale UPC — เลือก product ก่อน -> เห็น CTS ที่ไปได้ -> ปฏิทินโชว์วันว่างเป็นรายวัน */
+clean();
+X.state.role='sales';X.state.area='UPC';X.state.salesId='UPC1';X.state.authed=true;X.state.tab='cal';
+X.state.upcProd=[];X.state.upcCts=null;X.state.upcPick=[];
+const kof=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const workday=n=>{const d=new Date();d.setDate(d.getDate()+n);
+  let g=0;while((d.getDay()===0||X.holidayOf(kof(d)))&&g++<40)d.setDate(d.getDate()+1);return kof(d);};
+assert.strictEqual(X.upcAble().length,0,'ยังไม่เลือก product ต้องยังไม่มี CTS ให้เลือก');
+X.state.upcProd=['Ultherapy'];
+assert.strictEqual(X.upcAble().length,0,'ยังไม่เปิด Skills ต้องยังไม่มีใครไปได้');
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+assert.strictEqual(X.upcAble().length,6,'เปิด Skills ครบ ต้องเลือกได้ทั้ง 6 คน');
+const U=workday(20);
+X.state.upcCts=B1;
+assert.ok(X.upcFree(U,B1),'วันทำงานที่ว่างทั้งวันต้องกดเลือกได้');
+assert.ok(!X.upcFree(workday(3),B1),'วันที่ยังไม่ถึง 14 วัน ต้องเลือกไม่ได้ (กติกา UPC)');
+X.state.sched[U]={[B1]:{am:{kind:'busy',title:'x',attendees:[B1],start:'09:00',end:'12:00'},pm:null}};
+assert.ok(!X.upcFree(U,B1),'ติดคิวครึ่งเช้า = ไม่นับว่าว่างทั้งวัน');
+X.state.sched[U]=undefined;
+
+/* 43. คำขอ UPC — product หลายตัว + หัวข้อราย product + hands-on ราย product */
+const mkIt=()=>({province:'เชียงใหม่',clinic:'ค',map:'m',module:'MAX-Entry',level:'Standard',
+  product:['Ultherapy','Xeomin'],ptopic:{},topic:'',doctors:2,exp:'x',handsOn:false,ho:{},photos:[],start:'09:00',end:'16:30'});
+const it=mkIt();
+const missOf=()=>X.upcMissing({days:[{date:U,items:[it]}],requester:'ก'});
+assert.ok(missOf().some(x=>/หัวข้อของ Ultherapy/.test(x)),'ต้องบังคับหัวข้อทีละ product');
+assert.ok(missOf().some(x=>/หัวข้อของ Xeomin/.test(x)),'ครบทุก product ที่เลือก');
+it.ptopic={Ultherapy:'a',Xeomin:'b'};
+assert.strictEqual(missOf().length,0,'กรอกครบแล้วต้องผ่าน');
+it.handsOn=true;
+assert.ok(missOf().some(x=>/hands-on/.test(x)),'hands-on ต้องกรอกเคสอย่างน้อย 1 product');
+it.ho={Ultherapy:{cases:'2',detail:'1.5cc x2'}};it.photos=[{url:'x'}];
+assert.strictEqual(missOf().length,0,'กรอกเคส+รูปแล้วต้องผ่าน');
+
+/* 44. Sale UPC ส่งคำขอ -> เข้า SM ก่อน และล็อก CTS ที่เลือกไว้ */
+X.state.requests=[];
+X.submitUPC({from:U,to:U,cts:B1,days:[{date:U,items:[mkIt()]}],requester:'ก'});
+const ur=X.state.requests[0];
+assert.strictEqual(ur.status,'sm','Sale UPC ต้องเด้งไป SM UPC ก่อน เหมือน Sale ปกติ');
+assert.strictEqual(ur.sessions[0].ctsId,B1,'ต้องล็อก CTS ที่ Sale เลือกไว้');
+assert.ok((ur.trail||[]).some(t=>t.act==='request'),'ต้องบันทึกร่องรอยการส่งคำขอ');
+assert.strictEqual(X.state.upcPick.length,0,'ส่งแล้วต้องล้างวันที่เลือกไว้');
+
+console.log('✓ ผ่านทั้ง 44 ข้อ');
