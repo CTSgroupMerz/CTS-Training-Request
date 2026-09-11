@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,ackList,ST_LABEL,notify,jobOf};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -666,4 +666,73 @@ assert.ok([...ids].every(v=>/^TR-1041[A-Z]{2}$/.test(v)),'รูปแบบ id 
   assert.ok(!/cts1234/i.test(fs.readFileSync(f,'utf8')),f+' มีรหัสผ่านฝังอยู่'));
 assert.ok(X.TODAY.toDateString()===new Date().toDateString(),'TODAY ต้องเป็นวันนี้จริง');
 
-console.log('✓ ผ่านทั้ง 47 ข้อ');
+
+
+/* 48. UPC + Train with Senior — บั๊กที่เต้เจอ (Atom/Eye ไม่ขึ้นวันว่างทั้งที่มี Senior ไปด้วยได้)
+   freeIds() เป็นตัวนับรวมของฝั่ง Sales: TwS ถูก slice ตามจำนวนหัวหน้าที่ว่าง ตัดตามลำดับในรายชื่อ
+   upcFree() ถามคนเดียว จึงต้องเช็คตรงๆ ว่ามีหัวหน้าว่างไหม ไม่ใช่ไปดูคิวรวม */
+clean();
+X.state.role='sales';X.state.area='UPC';X.state.salesId='UPC1';X.state.authed=true;
+X.state.upcProd=['Ultherapy'];X.state.upcPick=[];
+const tws=X.BOOKABLE_CTS().filter(c=>!X.LEAD_IDS.includes(c.id));
+tws.forEach(c=>X.setSkill(c.id,'Ultherapy','senior'));      // ทุกคนเป็น Train with Senior
+X.LEAD_IDS.forEach(id=>X.setSkill(id,'Ultherapy','self'));
+const U2=workday(20);
+tws.forEach(c=>assert.ok(X.upcFree(U2,c.id),c.id+' เป็น TwS และหัวหน้าว่าง ต้องขึ้นวันว่าง'));
+assert.ok(tws.length>X.seniorsFree(U2,'am').length,'ต้องมี TwS มากกว่าจำนวนหัวหน้า เทสนี้จึงมีความหมาย');
+/* หัวหน้าติดงานทั้งคู่ = TwS ไปไม่ได้จริง */
+X.state.sched[U2]={};
+X.LEAD_IDS.forEach(id=>X.state.sched[U2][id]={am:{kind:'busy',title:'x',attendees:[id],start:'09:00',end:'12:00'},
+  pm:{kind:'busy',title:'x',attendees:[id],start:'13:00',end:'16:30'}});
+tws.forEach(c=>assert.ok(!X.upcFree(U2,c.id),c.id+' เป็น TwS แต่หัวหน้าไม่ว่าง ต้องไม่ขึ้นวันว่าง'));
+X.state.sched[U2]=undefined;
+
+/* 49. งานกลาง MA / วันหยุด ต่อเนื่องหลายวัน -> กล่องเดียว + ช่วงวันที่ */
+const R=X.runsOf([{id:'E1',date:'2026-10-05',title:'Workshop',type:'Workshop'},
+                  {id:'E2',date:'2026-10-06',title:'Workshop',type:'Workshop'},
+                  {id:'E3',date:'2026-10-07',title:'Workshop',type:'Workshop'},
+                  {id:'E4',date:'2026-10-09',title:'Workshop',type:'Workshop'},
+                  {id:'E5',date:'2026-10-06',title:'Symposium',type:'Symposium'}],X.maSid);
+assert.strictEqual(R.length,3,'5 แถว -> 3 กล่อง (ติดกัน 3 วัน · เว้นวัน 1 · คนละงาน 1)');
+assert.strictEqual(R[0].items.length,3,'3 วันติดกันต้องรวมเป็นกล่องเดียว');
+assert.strictEqual(R[0].from+'..'+R[0].to,'2026-10-05..2026-10-07','ช่วงวันที่ของกล่องรวมต้องถูก');
+assert.ok(/–/.test(X.spanLabel(R[0]))&&/3 วัน/.test(X.spanLabel(R[0])),'ป้ายต้องบอกวันที่เท่าไหร่ถึงเท่าไหร่');
+assert.ok(!/–/.test(X.spanLabel(R[1])),'งานวันเดียวต้องไม่มีขีดช่วง');
+
+/* 50. แถบสีลากยาวของงานกลาง/วันหยุดในปฏิทิน — คร่อมวันจริง และช่องที่ถูกกินต้องไม่วาดชิปซ้ำ */
+const wkc=['2026-10-04','2026-10-05','2026-10-06','2026-10-07','2026-10-08','2026-10-09','2026-10-10']
+  .map((k,i)=>({k,hol:i>=4&&i<=5?{date:k,name:'หยุดยาว'}:null,
+    ma:(i>=1&&i<=2)?[{id:'E'+i,date:k,title:'Workshop',type:'Workshop'}]:[]}));
+const MS=X.maSpans(wkc);
+assert.strictEqual(MS.bars.length,2,'ต้องได้ 2 แถบ (งานกลาง 2 วัน + วันหยุด 2 วัน)');
+assert.ok(MS.bars.some(b=>b.c0===1&&b.n===2),'แถบงานกลางต้องเริ่มคอลัมน์ 1 กว้าง 2 วัน');
+assert.ok(MS.bars.some(b=>b.c0===4&&b.n===2),'แถบวันหยุดต้องเริ่มคอลัมน์ 4 กว้าง 2 วัน');
+assert.ok(MS.skip.has('1|evE1')&&MS.skip.has('4|hol'),'ช่องที่ถูกแถบกินต้องอยู่ใน skip');
+assert.strictEqual(MS.lanes,1,'2 แถบที่ไม่ทับกันใช้เลนเดียวได้');
+
+/* 51. BELLE อนุมัติขั้นสุดท้าย -> สถานะ/โน้ตต้องเป็น "อนุมัติครบ" ไม่ค้างว่ารอ BELLE */
+clean();
+X.state.role='cts';X.state.authed=true;
+const fr={id:'TR-FIN',status:'pending',team:'A',area:'C01',mode:'normal',product:'Ultherapy',clinic:'ค',
+  requester:'ก',sessions:[{date:workday(20),slot:'am',ctsId:B1}],trail:[],module:'MAX-Entry',level:'Standard',
+  topic:'t',map:'m',doctors:2,exp:'x',photos:[],ack:{},created:new Date()};
+X.state.requests=[fr];
+X.state.me=X.LEAD_IDS[0];fr._ack=true;X.approve('TR-FIN');
+assert.strictEqual(fr.status,'mgr','Senior Leader อนุมัติ -> ส่งต่อ CTM');
+assert.ok(/รอ.*อนุมัติขั้นสุดท้าย/.test(fr.note),'ขั้นนี้โน้ตต้องบอกว่ารอ CTM');
+X.state.me='belle';fr._ack=true;X.approve('TR-FIN');
+assert.strictEqual(fr.status,'approved','BELLE อนุมัติ -> approved');
+assert.strictEqual(X.ST_LABEL.approved,'อนุมัติครบ','ป้ายสถานะต้องเป็น "อนุมัติครบ"');
+assert.ok(!/รอ.*อนุมัติขั้นสุดท้าย/.test(fr.note),'โน้ตขั้นก่อนหน้าต้องถูกเขียนทับ ไม่ค้าง');
+assert.ok(/อนุมัติครบ/.test(fr.note),'โน้ตหลังอนุมัติครบต้องบอกว่าอนุมัติครบ');
+
+/* 52. คิวที่อนุมัติแล้วต้องเด้งเป็นแจ้งเตือนในแท็บ "คำขอ" ของ CTS คนนั้น จนกว่าจะกดรับทราบ */
+X.state.me=B1;
+assert.strictEqual(X.ackList().length,1,'CTS ที่ถูกจัดให้ต้องเห็นคิวค้างรับทราบ 1 ใบ');
+assert.ok(X.badgeCount()>0,'ป้ายตัวเลขต้องนับคิวที่ยังไม่รับทราบ');
+X.ackReq('TR-FIN');
+assert.strictEqual(X.ackList().length,0,'กดรับทราบแล้วต้องหายจากรายการ');
+X.state.me=X.CTS[1].id;
+assert.strictEqual(X.ackList().length,0,'CTS คนอื่นต้องไม่เห็นคิวของคนนี้');
+
+console.log('✓ ผ่านทั้ง 52 ข้อ');
