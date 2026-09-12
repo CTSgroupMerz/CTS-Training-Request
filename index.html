@@ -1582,7 +1582,7 @@ async function restoreLogin(){
 
 function logout(){
   if(SB)SB.auth.signOut().catch(()=>{});
-  auth={role:null};loaded=false;lastSaved='';
+  auth={role:null};loaded=false;lastSaved='';failStreak=0;syncChip('');
   try{localStorage.removeItem('cts-login');}catch(e){}
   Object.assign(state,{authed:false,role:null,me:null,area:null,salesId:null,sm:null,picks:[],draft:null,
   loginRole:null,loginArea:null,loginCts:null,loginCode:null,loginSm:null,filter:new Set(),tfilter:new Set(),dash:null});renderLogin();}
@@ -4947,6 +4947,7 @@ let loading=false, failStreak=0;
 function syncChip(st,msg){
   const c=$('syncchip');if(!c)return;
   clearTimeout(c._t);
+  if(!st){c.className='syncchip';return;}   // ล้างป้ายทิ้ง — ป้าย bad ไม่มีเวลาหมดอายุ ถ้าไม่ล้างจะค้างไปถึงหน้า login
   c.textContent=msg;c.className='syncchip '+st+' on';
   if(st!=='bad')c._t=setTimeout(()=>c.classList.remove('on'),st==='ok'?2000:12000);
 }
