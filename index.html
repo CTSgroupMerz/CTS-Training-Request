@@ -4971,7 +4971,8 @@ const numOrNull=v=>{const n=parseInt(v,10);return isNaN(n)?null:n;};
 /* cts_id เป็น FK -> profiles.member_id · คนที่ยังไม่มีแถวใน profiles ให้เป็น null
    ไม่งั้น insert ตารางลูกล้ม ทั้งที่แถว requests ขึ้นไปแล้ว -> เห็น "บันทึกไม่สำเร็จ" ทั้งที่คำขอบันทึกแล้ว
    (PROF ว่าง = ยังโหลด profiles ไม่สำเร็จ -> ปล่อยผ่านเหมือนเดิม) */
-const ctsFk=id=>(!id||Object.keys(PROF).length===0||PROF[id])?(id||null):null;
+const ctsOk=id=>Object.keys(PROF).length===0||!!PROF[id];   // PROF ว่าง = ยังโหลด profiles ไม่สำเร็จ -> ปล่อยผ่านเหมือนเดิม
+const ctsFk=id=>(!id||ctsOk(id))?(id||null):null;
 const iso=v=>{const d=v?new Date(v):null;return d&&!isNaN(d)?d.toISOString():null;};
 const midOfNick=n=>{const c=CTS.find(x=>x.nick===n);return c?c.id:(n==='Admin'?'admin':null);};
 const idNum=id=>{const m=String(id||'').match(/\d+/);return m?+m[0]:0;};
@@ -5068,8 +5069,10 @@ async function saveSched(prev,now){
     const str=j=>j?JSON.stringify(jobRow(k,cid,sl,j)):'';
     return str(was[ck])!==str(is[ck]);
   });
+  /* cts_id เป็น FK -> profiles.member_id · คนที่ยังไม่มีแถวใน profiles ข้ามไป
+     ไม่งั้นคิวของคนคนเดียวทำให้ทั้งรอบบันทึกล้ม -> ค้างที่ "ยังไม่ได้บันทึก" ทั้งที่ของอื่นขึ้นไปครบแล้ว */
   if(jobsUniqueReady){
-    const rows=keys.filter(ck=>is[ck]).map(ck=>{const [k,cid,sl]=ck.split('|');return jobRow(k,cid,sl,is[ck]);});
+    const rows=keys.filter(ck=>is[ck]&&ctsOk(ck.split('|')[1])).map(ck=>{const [k,cid,sl]=ck.split('|');return jobRow(k,cid,sl,is[ck]);});
     if(rows.length){
       const up=await SB.from('jobs').upsert(rows,{onConflict:'date,cts_id,slot'});
       if(up.error&&up.error.code==='42P10')jobsUniqueReady=false;   // ยังไม่ได้รัน fix_jobs_race.sql
@@ -5081,7 +5084,7 @@ async function saveSched(prev,now){
     const [k,cid,sl]=ck.split('|');
     const del=await SB.from('jobs').delete().eq('date',k).eq('cts_id',cid).eq('slot',sl);
     if(del.error)throw del.error;
-    if(is[ck]&&!jobsUniqueReady){const ins=await SB.from('jobs').insert(jobRow(k,cid,sl,is[ck]));if(ins.error)throw ins.error;}
+    if(is[ck]&&!jobsUniqueReady&&ctsOk(cid)){const ins=await SB.from('jobs').insert(jobRow(k,cid,sl,is[ck]));if(ins.error)throw ins.error;}
   }
 }
 
@@ -5146,6 +5149,7 @@ async function saveAvail(prev,now){
   const rows=[];
   Object.keys(is).forEach(key=>{if(was[key]&&JSON.stringify(was[key])===JSON.stringify(is[key]))return;
     const [date,cts_id,slot]=key.split('|'),v=is[key];
+    if(!ctsOk(cts_id))return;   // FK -> profiles.member_id เหมือน jobs
     rows.push({date,cts_id,slot,start:v.start||null,end_time:v.end||null,closed:!!v.closed});});
   if(rows.length){const up=await SB.from('avail').upsert(rows,{onConflict:'date,cts_id,slot'});if(up.error)throw up.error;}
   const gone=Object.keys(was).filter(k=>!is[k]);
@@ -5155,6 +5159,22 @@ async function saveAvail(prev,now){
 }
 /* งานกลาง + คิวงานที่ลงเอง: upsert on conflict id (ชุดเดียวจบ) แล้วลบ id ที่หายไป */
 let evReady=true;   // ตาราง events รับ id/client จากหน้าจอได้ไหม — ยังไม่ได้รัน 2 บรรทัดท้าย schema.sql = ไม่ได้
+/* ตารางยังไม่ได้สร้าง / RLS ปิด / คอลัมน์ไม่ครบ = ต้องไปแก้ที่ Supabase ไม่ใช่ปัญหาเน็ต ลองใหม่กี่ครั้งก็ไม่ผ่าน
+   ถ้าปล่อยให้ throw ทุกครั้ง save() จะค้างที่ "ยังไม่ได้บันทึก — กำลังลองใหม่" ตลอด
+   ทั้งที่คำขอ/ปฏิทินขึ้นเซิร์ฟเวอร์ไปครบแล้ว -> เตือนครั้งเดียวแล้วข้ามส่วนนั้นไป
+   (ทำแบบเดียวกับที่ saveEvents ทำกับ evReady อยู่ก่อนแล้ว) */
+const SETUP_ERR=['42P01','42501','42703','428C9','PGRST106','PGRST204','PGRST205'];
+const skipPart={};
+async function savePart(name,label,fn){
+  if(skipPart[name])return;
+  try{await fn();}
+  catch(e){
+    if(!SETUP_ERR.includes(e.code))throw e;
+    skipPart[name]=true;
+    console.error('save skipped: '+name,e);
+    toast(label+' ยังบันทึกขึ้นเซิร์ฟเวอร์ไม่ได้ ('+(e.code||'')+') — ต้องตั้งค่าที่ Supabase ก่อน');
+  }
+}
 async function saveEvents(prev,now){
   if(!evReady)return;
   const was=new Map(prev.map(([e])=>[evDbId(e),JSON.stringify(e)]));
@@ -5295,18 +5315,18 @@ async function save(){
     const live=new Set(now.map(r=>r.id));
     const gone=prev.filter(r=>!live.has(r.id)).map(r=>r.id);
     if(gone.length){const del=await SB.from('requests').delete().in('id',gone);if(del.error)throw del.error;}
-    await saveSched(old.sched||{},cur.sched||{});
-    await saveSkills(old.skills,cur.skills);
-    await saveHolidays(old.holidays,cur.holidays);
-    await saveEvents(evList(old),evList(cur));
-    await saveAvail(old.avail,cur.avail);
+    await savePart('sched','ปฏิทินงาน',()=>saveSched(old.sched||{},cur.sched||{}));
+    await savePart('skills','Skills CTS',()=>saveSkills(old.skills,cur.skills));
+    await savePart('holidays','วันหยุด',()=>saveHolidays(old.holidays,cur.holidays));
+    await savePart('events','งานกลาง / คิวที่ CTS ลงเอง',()=>saveEvents(evList(old),evList(cur)));
+    await savePart('avail','เวลาว่างของ CTS',()=>saveAvail(old.avail,cur.avail));
     lastSaved=body;
     failStreak=0;
     syncChip('ok','✓ บันทึกขึ้นเซิร์ฟเวอร์แล้ว');
   }catch(e){
     console.error('save failed',e);   // บอกสาเหตุจริงไปด้วย ไม่งั้นตามต่อไม่ได้ว่าติดตรงไหน
     failStreak++;
-    syncChip('bad','⚠ ยังไม่ได้บันทึก — กำลังลองใหม่'+(failStreak>1?' ('+failStreak+')':''));
+    syncChip('bad','⚠ ยังไม่ได้บันทึก'+(e.code?' ['+e.code+']':'')+' — กำลังลองใหม่'+(failStreak>1?' ครั้งที่ '+failStreak:''));
     if(failStreak===1)toast('บันทึกไม่สำเร็จ — '+(e.message||e.code||'จะลองใหม่อัตโนมัติ'));
   }finally{
     saving=false;

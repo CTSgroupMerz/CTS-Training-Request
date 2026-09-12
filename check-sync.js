@@ -23,9 +23,13 @@ const mkQ=rows=>{
   o.then=(res,rej)=>wait(netDelay).then(()=>({data:rows,error:null})).then(res,rej);
   return o;
 };
+let failTable=null,failCode=null;   // จำลองตารางที่เขียนไม่ได้ (ยังไม่ได้สร้าง / RLS ปิด / FK พัง)
+const mkErr=code=>{const o=mkQ([]);o.then=(res,rej)=>wait(netDelay)
+  .then(()=>({data:null,error:{code,message:'boom '+code}})).then(res,rej);return o;};
 const fakeSB={from(t){
   const o=mkQ(DB[t]||[]);
-  ['upsert','insert','delete','update'].forEach(m=>o[m]=v=>{writes.push([t,m,v]);return mkQ([{id:1}]);});
+  ['upsert','insert','delete','update'].forEach(m=>o[m]=v=>{writes.push([t,m,v]);
+    return failTable===t?mkErr(failCode):mkQ([{id:1}]);});
   return o;}};
 
 const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
@@ -81,6 +85,27 @@ const mkReq=id=>({id,mode:'normal',status:'pending',team:'A',area:'C01',product:
   X.state.requests.push(mkReq('TR-CHIP'));
   await X.save();
   assert.ok(/บันทึก/.test(G('syncchip').textContent),'หลังบันทึกต้องมีป้ายบอกสถานะ');
+
+
+  /* 7. ตารางที่ยังตั้งค่าใน Supabase ไม่ครบ (เช่น avail ยังไม่ได้สร้าง)
+        ต้องเตือนแล้วข้ามไป ไม่ใช่ทำให้ทั้งรอบค้างที่ "ยังไม่ได้บันทึก" ทั้งที่คำขอขึ้นไปแล้ว */
+  failTable='avail';failCode='42P01';
+  X.state.requests.push(mkReq('TR-PART'));
+  X.state.avail={'2027-01-05':{[X.CTS[1].id]:{am:{start:'10:00',end:'12:00'}}}};
+  await X.save();
+  assert.ok(writes.some(w=>w[0]==='requests'&&JSON.stringify(w[2]).includes('TR-PART')),
+    'คำขอต้องขึ้นเซิร์ฟเวอร์ถึงแม้ตารางอื่นจะยังตั้งค่าไม่ครบ');
+  assert.strictEqual(X.dirty(),false,'ส่วนที่ตั้งค่าไม่ครบ ต้องไม่ทำให้ทั้งรอบบันทึกค้าง');
+  assert.ok(!/ยังไม่ได้บันทึก/.test(G('syncchip').textContent),'ป้ายต้องไม่เตือนผิดว่ายังไม่ได้บันทึก');
+
+  /* 8. error จริง (ไม่ใช่เรื่องตั้งค่า) ต้องยังเตือนและถือว่าของค้างอยู่ */
+  failTable='requests';failCode='23503';
+  X.state.requests.push(mkReq('TR-FK'));
+  await X.save();
+  assert.ok(/ยังไม่ได้บันทึก/.test(G('syncchip').textContent),'error จริงต้องยังเตือน');
+  assert.ok(/23503/.test(G('syncchip').textContent),'ป้ายต้องบอกรหัส error จะได้ไล่ต่อได้');
+  assert.strictEqual(X.dirty(),true,'ของที่ยังไม่ขึ้นเซิร์ฟเวอร์ ต้องถือว่าค้างอยู่');
+  failTable=null;
 
   console.log('check-sync: ผ่านหมด');
   process.exit(0);   // แอปตั้ง setInterval ไว้ ถ้าไม่ exit เทสจะค้าง
