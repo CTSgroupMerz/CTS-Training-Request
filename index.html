@@ -880,6 +880,16 @@ textarea.in{min-height:76px;resize:vertical}
 .upcline{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line2)}
 .upcline .tm{font-family:var(--mono);font-size:10.5px;color:var(--ink3);font-weight:700;white-space:nowrap;padding-top:3px}
 .upcview{background:var(--paper);border-radius:13px;padding:11px 12px;margin-top:9px}
+/* Hands-on = สีม่วง ให้ CTS/หัวหน้ากวาดตาเห็นทันทีว่าคิวนี้ต้องเตรียมของ */
+.hotx{color:#6B2FBF;font-weight:800;font-size:12.5px;margin-top:5px}
+.hoflag{display:inline-flex;align-items:center;gap:4px;color:#6B2FBF;background:#F3ECFF;border:1px solid #D9C6F7;
+  border-radius:99px;padding:2px 9px;font-size:11px;font-weight:800}
+.upcdd{border:1px solid var(--line);border-radius:13px;margin-top:10px;background:#FCFBFE;overflow:hidden}
+.upcdd>summary{list-style:none;cursor:pointer;padding:9px 11px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px}
+.upcdd>summary::-webkit-details-marker{display:none}
+.upcdd>summary::before{content:'▸';color:var(--ink3);font-size:11px}
+.upcdd[open]>summary::before{content:'▾'}
+.upcdd .bd{padding:0 11px 11px}
 .upcview .idx{font-family:var(--mono);font-size:10.5px;font-weight:700;background:#fff;border-radius:6px;padding:2px 7px;color:var(--ink3)}
 .dayblock{border:1.5px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
 .dayhead{display:flex;align-items:center;gap:9px;margin-bottom:10px}
@@ -897,6 +907,15 @@ textarea.in{min-height:76px;resize:vertical}
   text-align:center;box-shadow:var(--sh2);pointer-events:none}
 @media(min-width:940px){.toast{bottom:26px}}
 .toast.on{opacity:1}
+/* ป้ายบอกสถานะการบันทึก — คนกดต้องรู้ทุกครั้งว่าของขึ้นเซิร์ฟเวอร์แล้วจริงไหม ไม่ใช่เดาเอง */
+.syncchip{position:fixed;bottom:calc(var(--navh) + 66px);left:50%;transform:translateX(-50%);z-index:79;
+  padding:6px 14px;border-radius:99px;font-size:12px;font-weight:800;opacity:0;transition:opacity .18s;
+  pointer-events:none;box-shadow:var(--sh2);white-space:nowrap}
+@media(min-width:940px){.syncchip{bottom:72px}}
+.syncchip.on{opacity:1}
+.syncchip.saving{background:#FFF3DF;color:#8A5A11;border:1px solid #E9CB97}
+.syncchip.ok{background:#E7F6EC;color:#14653A;border:1px solid #A9DCC0}
+.syncchip.bad{background:#FFE9E9;color:#9B1C1C;border:1px solid #F0AFAF}
 .evrow{display:flex;gap:10px;align-items:center;background:var(--ma-soft);border:1px solid var(--ma-edge);
   border-radius:13px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--ma-ink)}
 .evrow .muted{color:#C7D6F2}
@@ -935,6 +954,7 @@ textarea.in{min-height:76px;resize:vertical}
   <div class="sheet-body" id="sheetBody"></div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="syncchip" id="syncchip"></div>
 
 <script>
 const LOGO_DARK="data:image/png;base64,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";
@@ -2353,7 +2373,7 @@ function upcItemView(it,i){
     <div class="nclinic" style="margin-top:6px">${esc(it.clinic||'ยังไม่ระบุคลินิก')}</div>
     <div class="muted">${esc(it.province||'ยังไม่ระบุจังหวัด')}${it.doctors?' · แพทย์ '+it.doctors+' ท่าน':''}</div>
     ${it.topic?`<div style="font-size:13px;margin-top:5px">${esc(it.topic)}</div>`:''}
-    ${it.handsOn?`<div class="muted" style="margin-top:4px">Hands-on: ${esc(it.hoProduct||'—')} · รวม ${hoTotal(it.ho)||it.hoCases||'?'} เคส · รูป ${(it.photos||[]).length}</div>`:''}
+    ${it.handsOn?`<div class="hotx">● มี Hands-on ${hoTotal(it.ho)||it.hoCases||'?'} เคส · Support: ${esc(hoSum(it.ho)||it.hoProduct||'ยังไม่ระบุ product')}${(it.photos||[]).length?' · รูป '+it.photos.length:''}</div>`:''}
     ${it.map?`<div style="margin-top:5px"><a href="${esc(it.map)}" target="_blank" rel="noopener">เปิด Google Map</a></div>`:''}
   </div>`;
 }
@@ -2381,23 +2401,39 @@ function syncSelf(ev){
 }
 /* ทุกคนที่ไปงานของ session นี้ — ผู้เทรนที่หัวหน้าจัดให้ + คนที่ CTS เพิ่มเข้ามาเอง */
 const reqWho=s=>[s.ctsId].concat(s.extra||[]).filter(Boolean);
+/* UPC จองทั้งวัน — slot 'day' ไม่มีใน SLOT_DEF และในตาราง jobs (มีแค่ am/pm) */
+const slotDef=sl=>SLOT_DEF[sl]||{start:'09:00',end:'16:30'};
+const slotsOf=sl=>sl==='day'?['am','pm']:[sl];
+/* วันเดียวของทริป UPC ไปได้หลายคลินิก — product/เคส hands-on ต้องรวมทั้งวัน ไม่ใช่เอาแค่คลินิกแรก */
+const dayProds=d=>[...new Set(((d&&d.items)||[]).flatMap(i=>prodList(i.product)))];
+const dayHo=d=>((d&&d.items)||[]).filter(i=>i.handsOn);
+const upcDayOf=(r,date)=>r&&r.mode==='upc'?(r.days||[]).find(x=>x.date===date):null;
+/* เนื้อคิวที่จะลงปฏิทินของ session หนึ่ง — bookUPC กับ syncReqJob ใช้ตัวเดียวกัน จะได้ไม่เขียนทับกันเอง */
+function reqJobPayload(r,s){
+  const day=upcDayOf(r,s.date),its=(day&&day.items)||[];
+  return {kind:r.status==='approved'?'booked':'pend',
+    title:s.sTitle||(day?upcDayLabel(day).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training')),
+    product:s.sProduct||r.product||(day?dayProds(day):null),reqId:r.id,
+    start:s.start||(its[0]||{}).start||slotDef(s.slot).start,
+    end:s.end||(its[its.length-1]||{}).end||slotDef(s.slot).end};
+}
 /* เขียนคิวของ session ลง sched ให้ครบทุกคน คิวว่างฝั่ง Sales จะได้ถูกตัดตรง
    prevWho = คนชุดเดิม ต้องล้างออกก่อน ไม่งั้นคนที่ถูกเอาออกจะยังติดคิวค้าง */
 function syncReqJob(r,s,prevWho){
-  (prevWho||[]).forEach(id=>{const j=jobOf(s.date,id,s.slot);if(j&&j.reqId===r.id)setJob(s.date,id,s.slot,null);});
-  reqWho(s).forEach(id=>setJob(s.date,id,s.slot,stampNow({
-    kind:r.status==='approved'?'booked':'pend',title:s.sTitle||s.sProduct||r.clinic||'Training',
-    product:s.sProduct||r.product,reqId:r.id,
-    start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end})));
+  const sls=slotsOf(s.slot);
+  (prevWho||[]).forEach(id=>sls.forEach(sl=>{const j=jobOf(s.date,id,sl);if(j&&j.reqId===r.id)setJob(s.date,id,sl,null);}));
+  const p=reqJobPayload(r,s);
+  reqWho(s).forEach(id=>sls.forEach(sl=>setJob(s.date,id,sl,stampNow({...p}))));
 }
 /* CTS แก้คิวที่มาจากคำขอที่อนุมัติแล้ว — หัวข้อ เวลา และคนที่ไปด้วย เหมือนคิวที่ลงเอง
    ผู้เทรนหลักที่หัวหน้าจัดให้แก้ที่นี่ไม่ได้ ต้องให้หัวหน้าเปลี่ยนที่ "จัด / เปลี่ยน CTS" */
 function openReqSession(reqId,sIdx,keep){
   const r=state.requests.find(x=>x.id===reqId);if(!r)return;
   const s=r.sessions[+sIdx];if(!s)return;
-  const auto=s.sProduct||r.clinic||'Training';
-  const D=keep||{title:s.sTitle||'',start:s.start||SLOT_DEF[s.slot].start,
-    end:s.end||SLOT_DEF[s.slot].end,extra:(s.extra||[]).slice(),main:s.ctsId};
+  const p0=reqJobPayload(r,s);
+  const auto=p0.title;
+  const D=keep||{title:s.sTitle||'',start:s.start||p0.start,
+    end:s.end||p0.end,extra:(s.extra||[]).slice(),main:s.ctsId};
   if(!D.main)D.main=s.ctsId;   // keep ที่ส่งมาจากรอบก่อนอาจยังไม่มีฟิลด์นี้
   /* 13. คิวที่อนุมัติแล้วยังเปลี่ยนตัวผู้เทรนหลักได้ เผื่อคนเดิมป่วย/ติดธุระกะทันหัน */
   const chgMain=isLead()||isMgr()||state.role==='admin';
@@ -2436,7 +2472,7 @@ function openReqSession(reqId,sIdx,keep){
     const e=$('rsErr');
     if(toMin(D.end)<=toMin(D.start)){e.hidden=false;e.textContent='เวลาสิ้นสุดต้องหลังเวลาเริ่ม';return;}
     const busy=D.extra.concat(D.main===s.ctsId?[]:[D.main])
-      .filter(id=>{const j=jobOf(s.date,id,s.slot);return j&&j.reqId!==r.id;});
+      .filter(id=>slotsOf(s.slot).some(sl=>{const j=jobOf(s.date,id,sl);return j&&j.reqId!==r.id;}));
     if(busy.length){e.hidden=false;
       e.textContent='ติดคิวอื่นอยู่แล้ว: '+busy.map(id=>byId(id).nick).join(', ');return;}
     const prev=reqWho(s);
@@ -2637,6 +2673,22 @@ function openSelfEntry(date,editId,keep){
 }
 
 /* สีของบล็อกงาน — ถ้ามีหลายคนไปด้วยกัน ใช้ลายทางรวมสีทุกคน */
+/* กล่องรายละเอียดใต้คิว UPC ในปฏิทิน CTS — วันนี้เทรนที่ไหน product อะไร หัวข้ออะไร แพทย์กี่คน มี hands-on ไหม */
+function upcJobDetail(r,k){
+  const d=upcDayOf(r,k);
+  return `<div class="card"><h3>รายละเอียดจากคำขอ ${r.id}</h3>
+    <div class="muted">ทริป UPC ${(r.days||[]).length} วัน · ${fmtDate(r.dateFrom)} – ${fmtDate(r.dateTo)}
+      · ผู้ขอ ${esc(r.requester||'—')} · <span class="salecode">${esc(saleCode(r))}</span></div>
+    <div class="eyebrow" style="margin-top:12px">วันนี้ · ${fmtDate(k)}</div>
+    ${d?((d.items||[]).map((it,i)=>upcItemView(it,i)).join('')||'<div class="muted">ยังไม่มีรายการ</div>')
+       :'<div class="muted">ไม่พบข้อมูลของวันนี้ในคำขอ</div>'}
+    <div class="eyebrow" style="margin-top:14px">ทั้งทริป</div>
+    ${upcDayBox(r,true)}
+    ${missBox(r)}
+    <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูลของคำขอ (ทุกวันในทริป)</button>
+    <div class="note" style="margin-top:9px">หัวข้อ เวลา และคนที่ไปด้วยของ<b>คิวในปฏิทิน</b> แก้ที่ปุ่มด้านบน · ตรงนี้แก้รายละเอียดของคำขอ เช่น คลินิก product แพทย์</div>
+  </div>`;
+}
 function jobStyle(j,fallbackId){
   const ids=(j&&j.attendees&&j.attendees.length?j.attendees:[fallbackId]).filter(Boolean);
   if(ids.length<2)return `--c:${pal(ids[0]||fallbackId).c};--ci:${pal(ids[0]||fallbackId).ci}`;
@@ -2656,7 +2708,7 @@ function openJob(k,ekey){
   /* หัวกล่อง: รออนุมัติ / TBC = แดง · อนุมัติแล้ว = เขียว พร้อม ✓ */
   const stHTML=j.kind==='booked'?'<span class="st-ok">✓ Approved</span>'
     :(j.kind==='pend'||j.kind==='tbc')?`<span class="st-wait">${st}</span>`:st;
-  const detail=r?`
+  const detail=r&&r.mode==='upc'?upcJobDetail(r,k):r?`
     <div class="card"><h3>รายละเอียดจากคำขอ ${r.id}</h3>
       <dl class="kv">
         <dt>คลินิก</dt><dd>${r.clinic?esc(r.clinic):'<span class="gapv">— ยังไม่ได้กรอก</span>'}</dd>
@@ -2699,7 +2751,7 @@ function openJob(k,ekey){
       style="margin-top:11px">${j.emailOk?'✓ Email Approved แล้ว — กดเพื่อยกเลิก':'✓ ยืนยันว่า Email Approved แล้ว'}</button>`:''}
     ${canSeeNames()&&j.selfId?`<button class="btn block" data-self="${j.selfId}" style="margin-top:11px">✎ แก้ไขคิวงานนี้</button>`:''}
     ${canSeeNames()&&!r&&!j.selfId?`<button class="btn block" data-adopt="${k}|${ekey}" style="margin-top:11px">✎ แก้ไข / ลบคิวงานนี้</button>`:''}
-    ${canSeeNames()&&r&&r.status==='approved'&&r.mode!=='upc'&&j.sIdx!==undefined
+    ${canSeeNames()&&r&&r.status==='approved'&&j.sIdx!==undefined
       ?`<button class="btn block" data-reqsess="${r.id}|${j.sIdx}" style="margin-top:11px">✎ แก้ไขคิวงานนี้ (หัวข้อ · เวลา · ผู้ร่วมงาน)</button>`:''}
     ${canSeeNames()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">◷ แก้เวลา / เวลาที่ว่าง</button>`:''}
     ${canSeeNames()&&r&&r.status==='approved'?`<button class="btn bad block" data-cancelreq="${r.id}" style="margin-top:9px">✕ คิวยกเลิก — ลบออกจากปฏิทิน</button>`:''}
@@ -2805,16 +2857,19 @@ function dayEntries(k,pool){
     if(r.status==='rejected'||r.status==='cancelled')return;   // คิวยกเลิก = หายจากปฏิทิน CTS
     (r.sessions||[]).forEach((s,i)=>{
       if(s.date!==k||!s.ctsId)return;
-      const day=(r.days||[]).find(x=>x.date===k);
-      const it=(day&&(day.items||[])[0])||{};
+      const day=upcDayOf(r,k);
+      const its=(day&&day.items)||[];
+      const it=its[0]||{},last=its[its.length-1]||it;
       const full=s.slot==='day';
       /* sTitle / extra = ของที่ CTS แก้เองหลังคำขอถูกอนุมัติ (หัวข้อ และคนที่ไปด้วย) */
       put(r.id+'-'+i,{kind:r.status==='approved'?'booked':r.status==='tbc'?'tbc':'pend',
-        title:r.mode==='upc'?upcDayLabel(day||{items:[]}).replace(/&amp;/g,'&'):(s.sTitle||s.sProduct||r.clinic||'Training'),
-        detail:s.sTopic||r.topic||'',product:s.sProduct||r.product||it.product||null,
+        title:s.sTitle||(day?upcDayLabel(day).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training')),
+        /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
+        detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
+        product:s.sProduct||r.product||(day?dayProds(day):it.product)||null,
         reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
-        end:s.end||it.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
+        end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
   });
   /* คิวที่บันทึกในตาราง jobs โดยตรง (ไม่ได้มาจากคำขอ และไม่ใช่งานที่ CTS ลงเอง) — ข้อมูลที่ย้ายมาจาก Sheet
@@ -3387,26 +3442,23 @@ function upcDayLabel(d){
   return `${esc(it.clinic||'ยังไม่ระบุคลินิก')}${d.items.length>1?` +${d.items.length-1}`:''}`;
 }
 function bookUPC(req){
-  /* ทริปเดียวกันพยายามใช้ CTS คนเดียวทั้งทริปก่อน ถ้าไม่มีใครว่างครบค่อยจัดรายวัน */
+  /* ทริปเดียวกันพยายามใช้ CTS คนเดียวทั้งทริปก่อน ถ้าไม่มีใครว่างครบค่อยจัดรายวัน
+     จัดได้เฉพาะ 6 คนที่รับคิวได้ เหมือนคำขอปกติที่ผ่าน freeIds() — Senior Leader/Supervisor ไม่ใช่ตัวรับคิว
+     (และบางคนยังไม่มีแถวใน profiles -> upc_days.cts_id เป็น FK จะทำให้ทั้งรอบบันทึกล้ม) */
+  const pool=BOOKABLE_CTS();
   if(req.sessions.some(sn=>!sn.ctsId)){
-    const allFree=CTS.find(c=>req.sessions.every(sn=>
+    const allFree=pool.find(c=>req.sessions.every(sn=>
       sn.ctsId===c.id||(slotStatus(sn.date,c.id,'am')==='free'&&slotStatus(sn.date,c.id,'pm')==='free')));
     if(allFree)req.sessions.forEach(sn=>{if(!sn.ctsId)sn.ctsId=allFree.id;});
   }
   req.sessions.forEach(sn=>{
-    if(!sn.ctsId){const f=CTS.find(c=>slotStatus(sn.date,c.id,'am')==='free'&&slotStatus(sn.date,c.id,'pm')==='free');
+    if(!sn.ctsId){const f=pool.find(c=>slotStatus(sn.date,c.id,'am')==='free'&&slotStatus(sn.date,c.id,'pm')==='free');
       if(f)sn.ctsId=f.id;}
-    if(sn.ctsId){
-      const d=req.days.find(x=>x.date===sn.date)||{items:[]};
-      const it=(d.items||[])[0]||{};
-      const job={kind:req.status==='approved'?'booked':'pend',title:upcDayLabel(d).replace(/&amp;/g,'&'),
-        product:it.product||null,reqId:req.id,start:it.start||'09:00',end:it.end||'16:30'};
-      setJob(sn.date,sn.ctsId,'am',{...job});
-      setJob(sn.date,sn.ctsId,'pm',{...job});
-    }
+    if(sn.ctsId){const p=reqJobPayload(req,sn);
+      reqWho(sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,{...p})));}
   });
 }
-function clearUPC(req){req.sessions.forEach(sn=>{if(sn.ctsId){setJob(sn.date,sn.ctsId,'am',null);setJob(sn.date,sn.ctsId,'pm',null);}});}
+function clearUPC(req){req.sessions.forEach(sn=>reqWho(sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,null))));}
 
 function submitUPC(D){
   /* 6. Sale UPC ส่งแล้วต้องผ่าน SM UPC ก่อน เหมือน Sale ปกติ (sale -> SM -> CTS Leader -> CTM) */
@@ -3581,12 +3633,13 @@ function reqCard(r,act){
     <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
       ${prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
       <span class="pill n">${r.module} · ${r.sessions.length} session</span>
-      ${r.level?`<span class="pill n">${r.level}</span>`:''}</div>
+      ${r.level?`<span class="pill n">${r.level}</span>`:''}
+      ${r.handsOn?`<span class="hoflag">● Hands-on ${r.hoCases||'?'} เคส</span>`:''}</div>
     <dl class="kv">
       <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):gapv()}</dd>
       <dt>ประเภทคลินิก</dt><dd>${r.clinicType?esc(r.clinicType):gapv()}</dd>
       <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':gapv()}${r.exp?' · '+esc(r.exp.split('—')[0]):''}</dd>
-      <dt>Hands-on</dt><dd>${r.handsOn?`${r.hoProduct?esc(r.hoProduct):gapv()} · ${r.hoCases||'?'} เคส · รูป ${r.photos.length}`:'ไม่มี'}</dd>
+      <dt>Hands-on</dt><dd>${r.handsOn?`<span class="hotx">Support: ${r.hoProduct?esc(r.hoProduct):'ยังไม่ระบุ product'} · ${r.hoCases||'?'} เคส · รูป ${r.photos.length}</span>`:'ไม่มี'}</dd>
       <dt>สาขา/สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>
       <dt>ผู้ขอ</dt><dd>${r.requester?esc(r.requester):gapv()}</dd></dl>
     <div class="sess">${r.sessions.map((s,i)=>`<div class="s" style="--c:${s.ctsId&&showCts?pal(s.ctsId).c:'#F6F5FA'};--ci:${s.ctsId&&showCts?pal(s.ctsId).ci:'var(--ink2)'}">
@@ -3643,25 +3696,35 @@ function supBox(r){
       · <span class="big">${x.c||'?'}</span> เคส${x.detail?' · '+esc(x.detail):''}${r.mode==='upc'?` · ${esc(x.clinic||'—')}`:''}</div>`).join('')}
     ${r.photos&&r.photos.length?`<div class="muted" style="margin-top:5px">แนบรูปเคส ${r.photos.length} รูป</div>`:''}</div>`;
 }
+/* ทริป UPC เก็บข้อมูลไว้ราย item — สรุปขึ้นมาให้กล่องคำขอทุกหน้าจออ่านได้เหมือนคำขอปกติ */
+const upcAgg=r=>{const items=(r.days||[]).flatMap(d=>d.items||[]);
+  const uniq=f=>[...new Set(items.map(f).filter(Boolean))];
+  return {items,product:[...new Set(items.flatMap(i=>prodList(i.product)))],
+    topic:uniq(i=>i.topic).join(' · '),clinic:uniq(i=>i.clinic).join(' · '),
+    level:uniq(i=>i.level).join(' · '),module:uniq(i=>i.module).join(' · '),
+    doctors:items.reduce((m,i)=>m+(+i.doctors||0),0),ho:items.filter(i=>i.handsOn)};};
 function smReqCard(r,act){
-  const when=r.mode==='upc'
-    ? (r.days||[]).map(d=>`${fmtDate(d.date)} · ${(d.items||[]).map(i=>esc(i.clinic||'—')).join(', ')||'—'}`)
-    : (r.sessions||[]).map((sn,i)=>`S${i+1} · ${fmtDate(sn.date)} · ${sn.start||SLOT_DEF[sn.slot==='day'?'am':sn.slot].start}–${sn.end||SLOT_DEF[sn.slot==='day'?'pm':sn.slot].end}`);
-  return `<div class="req"><div class="req-strip" style="--pc:${prodMain(r.product)?PRODHEX[prodMain(r.product)]:'#DDD'}"></div><div class="req-in">
-    <div class="req-top"><div><div class="req-id">${r.id} · ${saleCode(r)} · ทีม ${smOfArea(r.area)||r.area}</div>
-      <div class="req-clinic">${r.clinic?esc(r.clinic):'<span style="color:var(--ink3)">ยังไม่ระบุคลินิก</span>'}</div></div>
-      <span class="status ${r.status}">${ST_LABEL[r.status]||r.status}</span></div>
+  const U=r.mode==='upc'?upcAgg(r):null;
+  const prods=U?U.product:r.product;
+  const when=U?[]:(r.sessions||[]).map((sn,i)=>`S${i+1} · ${fmtDate(sn.date)} · ${sn.start||SLOT_DEF[sn.slot==='day'?'am':sn.slot].start}–${sn.end||SLOT_DEF[sn.slot==='day'?'pm':sn.slot].end}`);
+  return `<div class="req"><div class="req-strip" style="--pc:${prodMain(prods)?PRODHEX[prodMain(prods)]:'#DDD'}"></div><div class="req-in">
+    <div class="req-top"><div><div class="req-id">${r.id} · ${saleCode(r)} · ${U?'UPC · ดูแลร่วม':'ทีม '+(smOfArea(r.area)||r.area)}</div>
+      <div class="req-clinic">${U?`ทริป ${(r.days||[]).length} วัน · ${esc(U.clinic||'ยังไม่ระบุคลินิก')}`
+        :(r.clinic?esc(r.clinic):'<span style="color:var(--ink3)">ยังไม่ระบุคลินิก</span>')}</div></div>
+      <span class="status ${r.status}">${stLabel(r.status)}</span></div>
     <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap">
-      ${prodList(r.product).length?prodTags(r.product):'<span class="pill miss">ยังไม่ระบุ product</span>'}
-      <span class="pill n">${r.module||'—'} · ${(r.sessions||[]).length} session</span>
-      ${r.level?`<span class="pill n">${r.level}</span>`:''}</div>
+      ${prodList(prods).length?prodTags(prods):'<span class="pill miss">ยังไม่ระบุ product</span>'}
+      <span class="pill n">${U?`UPC Trip · ${U.items.length} คลินิก`:(r.module||'—')+' · '+(r.sessions||[]).length+' session'}</span>
+      ${(U?U.level:r.level)?`<span class="pill n">${esc(U?U.level:r.level)}</span>`:''}
+      ${(U?U.ho.length:r.handsOn)?`<span class="hoflag">● มี Hands-on ${U?U.ho.length+' รายการ':(r.hoCases||'?')+' เคส'}</span>`:''}</div>
     <dl class="kv">
-      <dt>หัวข้อ</dt><dd>${r.topic?esc(r.topic):gapv()}</dd>
-      <dt>แพทย์</dt><dd>${+r.doctors>0?r.doctors+' ท่าน':gapv()}${r.exp?' · '+esc(String(r.exp).split('—')[0]):''}</dd>
-      <dt>สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>
+      <dt>หัวข้อ</dt><dd>${(U?U.topic:r.topic)?esc(U?U.topic:r.topic):gapv()}</dd>
+      <dt>แพทย์</dt><dd>${(U?U.doctors:+r.doctors)>0?(U?U.doctors:r.doctors)+' ท่าน':gapv()}${!U&&r.exp?' · '+esc(String(r.exp).split('—')[0]):''}</dd>
+      ${U?'':`<dt>สถานที่</dt><dd>${r.map?`<a href="${esc(r.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:gapv()}</dd>`}
       <dt>ผู้ขอ</dt><dd>${esc(r.requester||'—')} · ${saleCode(r)}</dd></dl>
     ${supBox(r)}
-    <div class="sess">${when.map(w=>`<div class="s"><span>${w}</span></div>`).join('')}</div>
+    ${U?upcDayBox(r,canSeeNames()||r.status==='approved')
+      :`<div class="sess">${when.map(w=>`<div class="s"><span>${w}</span></div>`).join('')}</div>`}
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
     ${act?`<div class="row" style="margin-top:12px">
       <button class="btn ok grow" data-smok="${r.id}">✓ Approve</button>
@@ -3674,7 +3737,9 @@ function smDecide(id,ok){
   if(!r)return;
   openSheet(`<div class="eyebrow">${r.id} · ${saleCode(r)}</div><h2>${ok?'อนุมัติคำขอนี้':'ไม่อนุมัติคำขอนี้'}</h2>`,
   `<div class="card">
-    <div class="muted">${esc(r.clinic||'—')} · ${r.module||'—'} · ${(r.sessions||[]).length} session</div>
+    <div class="muted">${r.mode==='upc'
+      ?`ทริป UPC ${(r.days||[]).length} วัน · ${esc(upcAgg(r).clinic||'ยังไม่ระบุคลินิก')}`
+      :`${esc(r.clinic||'—')} · ${r.module||'—'} · ${(r.sessions||[]).length} session`}</div>
     ${supBox(r)}
     <label class="f" style="margin-top:12px">คอมเมนต์ถึงทีม (ไม่ใส่ก็ได้)</label>
     <textarea class="in" id="smNote" rows="3" placeholder="${ok?'เช่น อนุมัติ support ตามที่ขอ':'เช่น ขอลดจำนวนเคส หรือเลื่อนวัน'}"></textarea>
@@ -3827,21 +3892,25 @@ function openEdit(id){
   };
 }
 
+/* รายละเอียดรายวันของทริป UPC — ใช้ตัวเดียวกันทุกหน้าจอ (Sale · SM · Senior Leader · CTS · CTM)
+   กดหัววันเพื่อกางดูรายละเอียดเต็มของแต่ละคลินิกในวันนั้น เหมือนคำขอรออนุมัติของคำขอปกติ */
+function upcDayBox(r,showCts,openAll){
+  return (r.days||[]).map((d,di)=>{
+    const sn=(r.sessions||[]).find(x=>x.date===d.date)||{};
+    const ho=dayHo(d),hoc=ho.reduce((m,i)=>m+(hoTotal(i.ho)||+i.hoCases||0),0);
+    return `<details class="upcdd"${openAll||di===0?' open':''}>
+      <summary><b>${fmtDate(d.date)}</b>
+        ${sn.ctsId&&showCts?`<span class="pill lead">${byId(sn.ctsId).nick}</span>`:'<span class="pill miss">รอจัด CTS</span>'}
+        <span class="muted">${(d.items||[]).length} คลินิก</span>
+        ${prodTags(dayProds(d))||'<span class="pill miss">ยังไม่ระบุ product</span>'}
+        ${ho.length?`<span class="hoflag">● Hands-on ${hoc||ho.length} เคส</span>`:''}</summary>
+      <div class="bd">${(d.items||[]).map((it,i)=>upcItemView(it,i)).join('')
+        ||'<div class="muted">ยังไม่มีรายการ</div>'}</div>
+    </details>`;}).join('');
+}
 function upcCard(r,act){
   const showCts=canSeeNames()||r.status==='approved';
-  const days=(r.days||[]).map(d=>{
-    const sn=(r.sessions||[]).find(x=>x.date===d.date)||{};
-    return `<div class="upcday">
-      <div class="upcday-h"><b>${fmtDate(d.date)}</b>
-        ${sn.ctsId&&showCts?`<span class="s" style="background:${pal(sn.ctsId).c};color:${pal(sn.ctsId).ci}">
-          ${face(sn.ctsId,'xs')} ${byId(sn.ctsId).nick}</span>`:'<span class="muted">รอจัด CTS</span>'}</div>
-      ${(d.items||[]).map((it,i)=>`<div class="upcline">
-        <span class="tm">${it.start||'—'}–${it.end||'—'}</span>
-        ${prodList(it.product).length?prodTags(it.product):'<span class="pill miss">no product</span>'}
-        <span class="grow">${esc(it.clinic||'ยังไม่ระบุคลินิก')}<br>
-          <span class="muted">${esc(it.province||'—')}${it.module?' · '+it.module:''}${it.doctors?' · แพทย์ '+it.doctors:''}</span></span></div>`).join('')
-        ||'<div class="muted">ยังไม่มีรายการ</div>'}
-    </div>`;}).join('');
+  const days=upcDayBox(r,showCts);
   return `<div class="req"><div class="req-strip" style="--pc:linear-gradient(90deg,#FFD961,#FF9FC6,#7C9CEC,#8FE2FF)"></div><div class="req-in">
     <div class="req-top"><div><div class="req-id">${r.id} · <span class="salecode">${esc(saleCode(r))}</span> · UPC · ดูแลร่วม</div>
       <div class="req-clinic">ทริป ${r.days.length} วัน · ${fmtDate(r.dateFrom)} – ${fmtDate(r.dateTo)}</div></div>
@@ -4140,12 +4209,19 @@ function tpAllRows(){
       const sv=j.selfId?state.selfEvents.find(x=>x.id===j.selfId):null;
       const src=r||sv||{};
       const area=r?r.area:(src.psArea||'');
-      ownersOf(e).forEach(cid=>{const c=byId(cid);
-        out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
-          team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
-          clinic:String(src.clinic||j.title||'—').trim()||'—',
-          clinicType:src.clinicType||'',
-          doctors:+src.doctors||0,products,uid:k+'|'+e.key+'|'+cid});});
+      /* ทริป UPC วันเดียวไปได้หลายคลินิก — แตกเป็นคิวละคลินิก ไม่งั้น KPI นับให้แค่คลินิกแรก
+         (คลินิก แพทย์ product ของแต่ละที่อยู่ราย item ไม่ได้อยู่ที่ตัวคำขอ) */
+      const uday=upcDayOf(r,k);
+      const visits=uday&&(uday.items||[]).length
+        ? uday.items.map((it,ix)=>({sfx:'#'+ix,clinic:String(it.clinic||'—').trim()||'—',doctors:+it.doctors||0,
+            products:[...new Set(prodList(it.product).map(prodFamily).filter(p=>TP_PRODUCTS.includes(p)))]}))
+        : [{sfx:'',clinic:String(src.clinic||j.title||'—').trim()||'—',doctors:+src.doctors||0,products}];
+      visits.filter(v=>v.products.length).forEach(v=>
+        ownersOf(e).forEach(cid=>{const c=byId(cid);
+          out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
+            team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
+            clinic:v.clinic,clinicType:src.clinicType||'',
+            doctors:v.doctors,products:v.products,uid:k+'|'+e.key+v.sfx+'|'+cid});}));
     });
   });
   return out;
@@ -4851,6 +4927,17 @@ const snap=()=>Object.fromEntries(SAVED.map(k=>[k,state[k]]));
 /* รหัสผ่านไม่เคยอยู่ในไฟล์นี้ — Supabase Auth เก็บ session ให้เอง ที่นี่เก็บแค่บทบาทที่เลือก */
 let auth={role:null};
 let lastSaved='', loaded=false, saving=false;
+/* กำลังดึงข้อมูลอยู่ไหม — load() ใช้เวลาหลายร้อย ms ถึงหลายวินาทีบนมือถือ
+   ระหว่างนั้นผู้ใช้กดอนุมัติ/ลบได้ ผลที่ยิงไปก่อนหน้าจึงเก่ากว่าของในเครื่องแล้ว */
+let loading=false, failStreak=0;
+/* ป้ายสถานะการบันทึก — แสดงตลอดจนกว่าของจะขึ้นเซิร์ฟเวอร์จริง
+   ('ok' โชว์ 2 วิแล้วหาย · 'bad' ค้างไว้จนบันทึกสำเร็จ) */
+function syncChip(st,msg){
+  const c=$('syncchip');if(!c)return;
+  clearTimeout(c._t);
+  c.textContent=msg;c.className='syncchip '+st+' on';
+  if(st!=='bad')c._t=setTimeout(()=>c.classList.remove('on'),st==='ok'?2000:12000);
+}
 /* มีของที่แก้ในเครื่องแต่ยังไม่ขึ้นเซิร์ฟเวอร์ไหม
    load() สร้าง state ใหม่ทั้งก้อน — ถ้ายิงตอนยังมีของค้าง งานที่เพิ่งลบ/เพิ่งอนุมัติจะถูกของเก่าจากเซิร์ฟเวอร์ทับ
    (= อาการ "ลบแล้วเด้งกลับ ต้องลบซ้ำ" · "อนุมัติแล้วสถานะเด้งกลับ ต้องกดซ้ำ")
@@ -4869,6 +4956,10 @@ const DB_STATUS=['pending','approved','tbc','rejected','cancelled','sm','mgr']; 
 const COL_KEYS=['id','mode','module','level','product','topic','clinic','map','doctors','exp',
                 'handsOn','hoProduct','hoCases','requester','created','updatedAt'];
 const numOrNull=v=>{const n=parseInt(v,10);return isNaN(n)?null:n;};
+/* cts_id เป็น FK -> profiles.member_id · คนที่ยังไม่มีแถวใน profiles ให้เป็น null
+   ไม่งั้น insert ตารางลูกล้ม ทั้งที่แถว requests ขึ้นไปแล้ว -> เห็น "บันทึกไม่สำเร็จ" ทั้งที่คำขอบันทึกแล้ว
+   (PROF ว่าง = ยังโหลด profiles ไม่สำเร็จ -> ปล่อยผ่านเหมือนเดิม) */
+const ctsFk=id=>(!id||Object.keys(PROF).length===0||PROF[id])?(id||null):null;
 const iso=v=>{const d=v?new Date(v):null;return d&&!isNaN(d)?d.toISOString():null;};
 const midOfNick=n=>{const c=CTS.find(x=>x.nick===n);return c?c.id:(n==='Admin'?'admin':null);};
 const idNum=id=>{const m=String(id||'').match(/\d+/);return m?+m[0]:0;};
@@ -5070,7 +5161,9 @@ async function saveEvents(prev,now){
 }
 
 async function load(){
-  if(!SB)return false;
+  if(!SB||loading)return false;
+  loading=true;
+  const mark=lastSaved;   // ของที่รู้ว่าตรงกับเซิร์ฟเวอร์ ณ ตอนเริ่มยิง
   try{
     const [reqs,profs,jobs,skills,hols,evs,avl]=await Promise.all([
       SB.from('requests').select('*,request_sessions(*),upc_days(*,upc_items(*))').order('created_at',{ascending:false}),
@@ -5081,6 +5174,10 @@ async function load(){
       SB.from('events').select('*').order('id'),
       SB.from('avail').select('date,cts_id,slot,start,end_time,closed')]);
     if(reqs.error)throw reqs.error;
+    /* ระหว่างรอเน็ต มีคนกดอนุมัติ/ลบ/ส่งคำขอ หรือ save() เพิ่งส่งของใหม่ขึ้นไปแล้ว
+       ข้อมูลชุดนี้ถูกอ่านมาก่อนหน้านั้น = เก่ากว่าของในเครื่อง
+       เอามาทับเมื่อไหร่จะเห็นเป็น "เด้งกลับเป็นแบบเดิม ทั้งที่บันทึกไปแล้ว" -> ทิ้งรอบนี้ไป */
+    if(loaded&&(lastSaved!==mark||dirty())){save();return false;}
     if(!profs.error)PROF=Object.fromEntries(profs.data.map(p=>[p.member_id,p.id]));
     if(reqs.data.length&&!('client' in reqs.data[0]))hasClientCol=false;
     state.requests=reqs.data.map(fromRow);
@@ -5122,16 +5219,17 @@ async function load(){
     /* โหลดไม่สำเร็จ = ห้ามบันทึก ไม่งั้นจะเอา state เปล่าไปทับของจริงบนเซิร์ฟเวอร์ */
     toast('โหลดข้อมูลไม่ได้ — '+(e.message||'ตรวจอินเทอร์เน็ตแล้วลองใหม่'));
     return false;
-  }
+  }finally{loading=false;}
 }
 
 /* ปุ่ม ⟳ — ดึงข้อมูลล่าสุดมาดูเดี๋ยวนี้ ไม่ต้องรอสลับแอปหรือรีโหลดหน้า */
 async function refresh(){
   if(!SB)return toast('โหมดออฟไลน์ — ไม่มีข้อมูลให้รีเฟรช');
-  if(saving)return toast('กำลังบันทึกอยู่ — รอสักครู่แล้วกดใหม่');
+  if(saving||loading)return toast('กำลังซิงก์ข้อมูลอยู่ — รอสักครู่แล้วกดใหม่');
   if(dirty()){await save();if(dirty())return toast('ยังบันทึกของที่แก้ไว้ไม่สำเร็จ — รอสักครู่แล้วกดใหม่');}
   toast('กำลังโหลดข้อมูลล่าสุด…');
   if(await load()){render();toast('อัปเดตข้อมูลล่าสุดแล้ว');}
+  else toast('ยังไม่ได้อัปเดต — มีของที่เพิ่งแก้รออยู่ กดใหม่อีกครั้ง');
 }
 
 /* บันทึกคำขอเดียว — upsert แถวหลัก (ON CONFLICT id DO UPDATE) แล้วเขียนตารางลูกใหม่ทับของเดิม
@@ -5149,7 +5247,7 @@ async function saveReq(r){
     if(del.error)throw del.error;
     for(const d of (r.days||[])){
       const sn=(r.sessions||[]).find(s=>s.date===d.date);
-      const day=await SB.from('upc_days').insert({request_id:r.id,date:d.date,cts_id:(sn&&sn.ctsId)||null}).select('id').single();
+      const day=await SB.from('upc_days').insert({request_id:r.id,date:d.date,cts_id:ctsFk(sn&&sn.ctsId)}).select('id').single();
       if(day.error)throw day.error;
       const items=(d.items||[]).map(i=>({upc_day_id:day.data.id,clinic:i.clinic||null,province:i.province||null,
         module:i.module||null,level:i.level||null,product:prodMain(i.product),topic:i.topic||null,
@@ -5161,7 +5259,7 @@ async function saveReq(r){
     const del=await SB.from('request_sessions').delete().eq('request_id',r.id);
     if(del.error)throw del.error;
     const rows=(r.sessions||[]).map(s=>({request_id:r.id,date:s.date,slot:s.slot||'day',
-      start:s.start||null,end_time:s.end||null,cts_id:s.ctsId||null,
+      start:s.start||null,end_time:s.end||null,cts_id:ctsFk(s.ctsId),
       product:prodMain(s.sProduct)||prodMain(r.product),topic:s.sTopic||null,full_day:!!s.fullDay}));
     if(rows.length){const ins=await SB.from('request_sessions').insert(rows);if(ins.error)throw ins.error;}
   }
@@ -5174,6 +5272,7 @@ async function save(){
   const body=JSON.stringify(snap());
   if(body===lastSaved)return;
   saving=true;
+  syncChip('saving','⟳ กำลังบันทึก…');
   try{
     const old=lastSaved?JSON.parse(lastSaved):{requests:[],sched:{}};
     const cur=JSON.parse(body);
@@ -5190,19 +5289,28 @@ async function save(){
     await saveEvents(evList(old),evList(cur));
     await saveAvail(old.avail,cur.avail);
     lastSaved=body;
+    failStreak=0;
+    syncChip('ok','✓ บันทึกขึ้นเซิร์ฟเวอร์แล้ว');
   }catch(e){
-    toast('บันทึกไม่สำเร็จ — จะลองใหม่อัตโนมัติ');
+    console.error('save failed',e);   // บอกสาเหตุจริงไปด้วย ไม่งั้นตามต่อไม่ได้ว่าติดตรงไหน
+    failStreak++;
+    syncChip('bad','⚠ ยังไม่ได้บันทึก — กำลังลองใหม่'+(failStreak>1?' ('+failStreak+')':''));
+    if(failStreak===1)toast('บันทึกไม่สำเร็จ — '+(e.message||e.code||'จะลองใหม่อัตโนมัติ'));
   }finally{
     saving=false;
-    if(loaded&&JSON.stringify(snap())!==lastSaved)setTimeout(save,1500);   // มีการแก้ระหว่างกำลังบันทึก หรือบันทึกพลาด → ลองใหม่
+    /* มีการแก้ระหว่างกำลังบันทึก หรือบันทึกพลาด → ลองใหม่
+       พลาดติดกันให้ถอยเวลาออกไป (สูงสุด 30 วิ) ไม่งั้นยิงรัวทุก 1.5 วิและ toast เด้งไม่หยุด */
+    if(loaded&&JSON.stringify(snap())!==lastSaved)
+      setTimeout(save,Math.min(1500*Math.pow(2,failStreak),30000));
   }
 }
 
 /* สลับกลับมาที่แอป -> ดึงข้อมูลล่าสุด ตัวเลขบนไอคอนจะได้ตรงกับงานจริง
    (ไม่ดึงระหว่างกำลังบันทึก กันของที่แก้ค้างอยู่ถูกทับ) */
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState!=='visible'||!state.authed||!loaded||saving)return;
+  if(document.visibilityState!=='visible'||!state.authed||!loaded||saving||loading)return;
   if(dirty())return save();          // ของยังไม่ขึ้นเซิร์ฟเวอร์ — บันทึกก่อน ห้ามโหลดทับ
+  if(sheetOpen())return;             // ฟอร์มเปิดค้างอยู่ — load() สร้าง state ใหม่ ของในฟอร์มจะชี้ไป object เก่า
   load().then(ok=>{if(ok)render();});
 });
 
@@ -5213,7 +5321,7 @@ document.addEventListener('visibilitychange',()=>{
    ponytail: polling ธรรมดาพอสำหรับทีมสิบกว่าคน — ถ้าคนใช้พร้อมกันเยอะขึ้นค่อยย้ายไป Supabase Realtime */
 const sheetOpen=()=>{const el=$('sheet');return !!el&&el.classList.contains('on');};
 setInterval(()=>{
-  if(!SB||!state.authed||!loaded||saving||sheetOpen()||document.visibilityState!=='visible')return;
+  if(!SB||!state.authed||!loaded||saving||loading||sheetOpen()||document.visibilityState!=='visible')return;
   if(dirty())return save();          // ของยังไม่ขึ้นเซิร์ฟเวอร์ — บันทึกก่อน ห้ามโหลดทับ
   load().then(ok=>{if(ok)render();});
 },30000);
