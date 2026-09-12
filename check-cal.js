@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -804,4 +804,15 @@ assert.ok(/คลินิกบี/.test(sheet()),'กดคิว UPC ใน�
 assert.ok(/class="hotx"/.test(sheet()),'กดคิว UPC ต้องเห็น hands-on สีม่วง');
 assert.ok(/data-reqsess/.test(sheet()),'คิว UPC ต้องมีปุ่มแก้ไขคิวเหมือนคิวปกติ');
 
-console.log('✓ ผ่านทั้ง 58 ข้อ');
+/* 59. Dashboard ฝั่งขาย (Sale/SM) — ทริป UPC ต้องนับรายคลินิก
+      เดิม r.clinic/r.product ของคำขอ UPC ว่าง -> ได้ 1 training คลินิก "—" และ 0 ทุก product */
+X.state.dash={from:UD1,to:UD2};
+const srows=X.saleRows(['UPC1']);
+assert.strictEqual(srows.length,3,'ทริป UPC 3 คลินิก ต้องนับ 3 training ในฝั่งขาย');
+assert.ok(!srows.some(x=>x.clinic==='—'),'ต้องได้ชื่อคลินิกจริง ไม่ใช่ "—"');
+assert.strictEqual([...new Set(srows.flatMap(x=>x.fams))].sort().join('|'),
+  'Belotero|Radiesse|Ultherapy|Xeomin','product ฝั่งขายต้องมาจากราย item ของ UPC');
+assert.strictEqual(srows.filter(x=>x.sup.length).length,1,
+  'hands-on ต้องนับเฉพาะคลินิกที่ขอ ไม่กระจายซ้ำทุกแถว');
+
+console.log('✓ ผ่านทั้ง 59 ข้อ');

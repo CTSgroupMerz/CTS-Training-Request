@@ -4070,13 +4070,25 @@ function saleRows(codes){
   const R=dashRange();
   if(!R.from||!R.to||R.to<R.from)return [];
   const inR=d=>d>=R.from&&d<=R.to;
-  return state.requests.filter(r=>codes.includes(saleCode(r))
+  const famsOf=v=>[...new Set(prodList(v).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
+  const out=[];
+  state.requests.filter(r=>codes.includes(saleCode(r))
       &&r.status!=='rejected'&&r.status!=='cancelled'
       &&(r.sessions||[]).some(sn=>inR(sn.date)))
-    .map(r=>({r,code:saleCode(r),clinic:String(r.clinic||'—').trim(),
-      fams:[...new Set(prodList(r.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))],
-      sup:supList(r),
-      date:(r.sessions||[]).map(sn=>sn.date).sort()[0]}));
+    .forEach(r=>{
+      const code=saleCode(r);
+      /* ทริป UPC = หลายคลินิกหลายวันในคำขอเดียว · คลินิก/product/hands-on อยู่ราย item ไม่ได้อยู่ที่ตัวคำขอ
+         นับเป็นคำขอเดียวเหมือนคำขอปกติไม่ได้ จะได้ 1 training ที่คลินิก "—" และไม่มี product เลย */
+      if(r.mode==='upc'){
+        (r.days||[]).filter(d=>inR(d.date)).forEach(d=>(d.items||[]).forEach(it=>
+          out.push({r,code,clinic:String(it.clinic||'—').trim()||'—',fams:famsOf(it.product),
+            sup:it.handsOn?[{p:it.hoProduct,c:it.hoCases,clinic:it.clinic}]:[],date:d.date})));
+        return;
+      }
+      out.push({r,code,clinic:String(r.clinic||'—').trim(),fams:famsOf(r.product),
+        sup:supList(r),date:(r.sessions||[]).map(sn=>sn.date).sort()[0]});
+    });
+  return out;
 }
 /* รวมจำนวนเคส Support Product ต่อ product — ไม่ระบุจำนวนนับเป็น 0 เคส แต่ยังนับเป็น 1 คำขอ */
 function supTotals(rows){
