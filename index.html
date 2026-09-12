@@ -1130,7 +1130,9 @@ function canApprove(r){
   return false;
 }
 const ST_LABEL={sm:'รอ SM Approve',pending:'รอ CTS Leader',mgr:'รอ CTM Approve',
-  approved:'อนุมัติครบ',tbc:'TBC',rejected:'rejected',cancelled:'cancelled',expired:'expired'};
+  approved:'Approved',tbc:'TBC',rejected:'rejected',cancelled:'cancelled',expired:'expired'};
+/* ป้ายสถานะทุกที่ต้องอ่านออกเหมือนกัน — ห้ามโชว์คีย์ดิบอย่าง "mgr" */
+const stLabel=s=>ST_LABEL[s]||s;
 /* ชื่อขั้นของคนที่กำลังใช้งาน — ใช้เป็นหลักฐานใน trail */
 const myStep=()=>state.role==='sm'?'SM '+state.sm
   :state.role==='sales'?'Sale '+(state.salesId||'')
@@ -2331,8 +2333,8 @@ function openUPCDay(k){
     +evs.map(e=>`<div class="evrow"><div class="d">MA</div><div class="grow"><b>${esc(e.title)}</b><br>
       <span class="muted">${e.type}</span></div></div>`).join('')
     +(ups.length?ups.map(o=>`<div class="card">
-        <div class="row"><span class="req-id grow">${o.r.id} · ${o.r.requester||'—'}</span>
-          <span class="status ${o.r.status}">${o.r.status}</span></div>
+        <div class="row"><span class="req-id grow">${o.r.id} · <span class="salecode">${esc(saleCode(o.r))}</span> · ${o.r.requester||'—'}</span>
+          <span class="status ${o.r.status}">${stLabel(o.r.status)}</span></div>
         ${(o.day.items||[]).map((it,i)=>upcItemView(it,i)).join('')}
         <button class="btn block" data-edit="${o.r.id}" style="margin-top:10px">✎ แก้ไข / เพิ่มข้อมูล</button>
       </div>`).join('')
@@ -2364,12 +2366,14 @@ const slotsOfRange=(st,en)=>{
   if(b>toMin(SLOT_DEF.pm.start))out.push('pm');
   return out.length?out:['am'];
 };
+/* เจ้าของ KPI ของคิวหนึ่ง — กด ✓ ได้หลายคน · ข้อมูลเก่าเก็บเป็นสตริงคนเดียว แปลงให้เป็น array */
+const kpiList=k=>Array.isArray(k)?k.filter(Boolean):(k?[k]:[]);
 function syncSelf(ev){
   clearSelf(ev.id);
   const sl=ev.allDay?['am','pm']:slotsOfRange(ev.start,ev.end);
   dateRange(ev.date,ev.dateEnd||ev.date).forEach(k=>{
     ev.attendees.forEach(cid=>sl.forEach(x=>{
-      setJob(k,cid,x,{kind:'busy',title:ev.title,product:ev.product||null,selfId:ev.id,allDay:!!ev.allDay,kpi:ev.kpi||null,
+      setJob(k,cid,x,{kind:'busy',title:ev.title,product:ev.product||null,selfId:ev.id,allDay:!!ev.allDay,kpi:kpiList(ev.kpi),
         attendees:ev.attendees.slice(),
         start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end,owner:ev.owner});
     }));
@@ -2507,11 +2511,11 @@ function openSelfEntry(date,editId,keep){
       style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${D.product.includes(pr)}">${pr}</button>`).join('')}</div>
     <label class="f">หัวข้อที่เกี่ยวข้อง <span>· เลือกได้หลายอัน</span></label>
     <div class="chips">${TOPIC_TAGS.map(t=>`<button class="chip" data-stt="${t}" aria-pressed="${(D.topics||[]).includes(t)}">${t}</button>`).join('')}</div>
-    <label class="f">ใครไปงานนี้บ้าง <span>· กดซ้ำที่ชื่อจนขึ้น ✓ = เจ้าของ KPI ของคิวนี้</span></label>
+    <label class="f">ใครไปงานนี้บ้าง <span>· กดซ้ำที่ชื่อจนขึ้น ✓ = เจ้าของ KPI ของคิวนี้ · ติ๊ก ✓ ได้หลายคน</span></label>
     <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-att="${c.id}" aria-pressed="${D.attendees.includes(c.id)}"
-      style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${D.kpi===c.id?'✓ ':''}${c.nick}</button>`).join('')}</div>
+      style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${kpiList(D.kpi).includes(c.id)?'✓ ':''}${c.nick}</button>`).join('')}</div>
     ${D.attendees.length>1?`<div class="muted" style="margin-top:6px">คนที่ไม่มี ✓ ถือว่าไปร่วมเฉยๆ — คิวว่างถูกตัดตามปกติ แต่ไม่นับ KPI${
-      D.kpi?'':' · ยังไม่ได้เลือก ระบบจะนับให้คนที่ลงคิว'}</div>`:''}
+      kpiList(D.kpi).length?' · นับ KPI ให้ '+kpiList(D.kpi).map(i=>byId(i).nick).join(' · '):' · ยังไม่ได้เลือก ระบบจะนับให้คนที่ลงคิว'}</div>`:''}
   </div>
   ${D.product.length?`
   <div class="note ma" style="margin:0 0 12px">เลือก Product แล้ว — กรอกรายละเอียดการเทรนให้ครบเหมือนคำขอของ Sales
@@ -2584,11 +2588,12 @@ function openSelfEntry(date,editId,keep){
   B.querySelectorAll('[data-stt]').forEach(b=>b.onclick=()=>{grab();const l=D.topics||(D.topics=[]),i=l.indexOf(b.dataset.stt);
     i>=0?l.splice(i,1):l.push(b.dataset.stt);openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>{grab();const id=b.dataset.att;
-    /* วน 3 จังหวะ: ยังไม่เลือก -> ไปด้วย -> ✓ เจ้าของ KPI -> เอาออก */
+    /* วน 3 จังหวะ: ยังไม่เลือก -> ไปด้วย -> ✓ เจ้าของ KPI -> เอาออก · ✓ พร้อมกันได้หลายคน */
+    D.kpi=kpiList(D.kpi);
     if(!D.attendees.includes(id))D.attendees.push(id);
-    else if(D.kpi!==id)D.kpi=id;
-    else{D.attendees.splice(D.attendees.indexOf(id),1);D.kpi=null;}
-    if(D.kpi&&!D.attendees.includes(D.kpi))D.kpi=null;
+    else if(!D.kpi.includes(id))D.kpi.push(id);
+    else{D.attendees.splice(D.attendees.indexOf(id),1);D.kpi.splice(D.kpi.indexOf(id),1);}
+    D.kpi=D.kpi.filter(i=>D.attendees.includes(i));
     openSelfEntry(D.date,editId,D);});
   B.querySelectorAll('[data-sem]').forEach(b=>b.onclick=()=>{grab();
     D.module=D.module===b.dataset.sem?null:b.dataset.sem;openSelfEntry(D.date,editId,D);});
@@ -2646,6 +2651,8 @@ function openJob(k,ekey){
   const c=byId(cid);
   const r=j.reqId?state.requests.find(x=>x.id===j.reqId):null;
   const st={busy:'ติดงาน',pend:'รออนุมัติ',booked:'ยืนยันแล้ว',tbc:'TBC — ล็อกไว้ก่อน'}[j.kind]||'';
+  /* รหัส Sale เจ้าของคิว — คิวจากคำขอใช้รหัสผู้ขอ · คิวที่ CTS ลงเองใช้ PS Area ที่เลือกไว้ */
+  const saleTag=r?saleCode(r):((j.selfId&&(state.selfEvents.find(x=>x.id===j.selfId)||{}).psArea)||'');
   /* หัวกล่อง: รออนุมัติ / TBC = แดง · อนุมัติแล้ว = เขียว พร้อม ✓ */
   const stHTML=j.kind==='booked'?'<span class="st-ok">✓ Approved</span>'
     :(j.kind==='pend'||j.kind==='tbc')?`<span class="st-wait">${st}</span>`:st;
@@ -2673,7 +2680,8 @@ function openJob(k,ekey){
     :j.selfId?`<div class="card"><div class="muted">คิวงานที่ CTS ลงเอง — แก้ไขหัวข้อ เวลา และผู้ร่วมงานได้ที่ปุ่มด้านบน</div></div>`
     :`<div class="card"><div class="muted">คิวนี้บันทึกไว้ในตารางโดยตรง ไม่ได้มาจากคำขอในระบบ</div></div>`;
 
-  openSheet(`<div class="eyebrow">${stHTML} · ${TEAMS[c.team].label}</div><h2>${esc(j.title||'คิวงาน')}</h2>`,
+  openSheet(`<div class="eyebrow">${stHTML} · ${TEAMS[c.team].label}${
+    saleTag?` · <span class="salecode">${esc(saleTag)}</span>`:''}</div><h2>${esc(j.title||'คิวงาน')}</h2>`,
   `<div class="card" style="border-left:6px solid ${pal(cid).c}">
     <div class="row">${face(cid,'m')}<div class="grow">
       <div style="font-weight:700">${c.nick} — ${c.name}</div>
@@ -2790,7 +2798,7 @@ function dayEntries(k,pool){
   state.selfEvents.forEach(ev=>{
     if(!dateRange(ev.date,ev.dateEnd||ev.date).includes(k))return;
     put('se-'+ev.id,{kind:'busy',title:ev.title,detail:ev.detail||'',product:ev.product||null,topics:ev.topics||[],
-      selfId:ev.id,emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:ev.kpi||null,upBy:ev.upBy,upAt:ev.upAt,
+      selfId:ev.id,emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:kpiList(ev.kpi),upBy:ev.upBy,upAt:ev.upAt,
       start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
   });
   state.requests.forEach(r=>{
@@ -3835,12 +3843,15 @@ function upcCard(r,act){
         ||'<div class="muted">ยังไม่มีรายการ</div>'}
     </div>`;}).join('');
   return `<div class="req"><div class="req-strip" style="--pc:linear-gradient(90deg,#FFD961,#FF9FC6,#7C9CEC,#8FE2FF)"></div><div class="req-in">
-    <div class="req-top"><div><div class="req-id">${r.id} · UPC · ดูแลร่วม</div>
+    <div class="req-top"><div><div class="req-id">${r.id} · <span class="salecode">${esc(saleCode(r))}</span> · UPC · ดูแลร่วม</div>
       <div class="req-clinic">ทริป ${r.days.length} วัน · ${fmtDate(r.dateFrom)} – ${fmtDate(r.dateTo)}</div></div>
-      <span class="status ${r.status}">${r.status}</span></div>
+      <span class="status ${r.status}">${stLabel(r.status)}</span></div>
     <div class="muted" style="margin-top:6px">ผู้ขอ ${esc(r.requester||'—')} · รวม ${r.days.reduce((n,d)=>n+d.items.length,0)} คลินิก</div>
     ${days}
     ${missBox(r)}
+    ${ackedBy(r).length?`<div class="note ok" style="margin-top:9px">✓ CTS รับทราบแล้ว: <b>${
+      ackedBy(r).map(i=>byId(i)?byId(i).nick:i).join(' · ')}</b></div>`:''}
+    ${needAck(r)?`<button class="btn primary block" data-ack="${r.id}" style="margin-top:10px">✓ รับทราบคิวนี้</button>`:''}
     ${r.note?`<div class="note">${esc(r.note)}</div>`:''}
     <div class="row" style="margin-top:11px">
       <button class="btn grow" data-uedit="${r.id}">✎ แก้ไข / เพิ่มข้อมูล</button>
@@ -3961,9 +3972,10 @@ function dashRange(){
 }
 /* เจ้าของคิว = คนที่ลงคิวนั้น · คิวจากคำขอคือ CTS ที่หัวหน้าจัดให้ (who[0]) คนที่เพิ่มมาทีหลังไม่นับ
    คิวที่ CTS ลงเองคือคนลง (owner) — ถ้า Admin เป็นคนลงให้ ก็นับให้คนแรกในรายชื่อผู้ร่วมงาน */
-const ownerOf=e=>{const k=e.job.kpi;
-  if(k&&e.who.includes(k))return k;
-  return (e.job.owner&&e.who.includes(e.job.owner))?e.job.owner:e.who[0];};
+/* ติ๊ก ✓ ได้หลายคน = คิวนี้นับ KPI ให้ทุกคนที่ติ๊ก (1 คิว = 1 ครั้งของแต่ละคน) */
+const ownersOf=e=>{const k=kpiList(e.job.kpi).filter(i=>e.who.includes(i));
+  if(k.length)return k;
+  return [(e.job.owner&&e.who.includes(e.job.owner))?e.job.owner:e.who[0]];};
 function trainRows(){
   const R=dashRange(),out=[];
   if(!R.from||!R.to||R.to<R.from)return out;
@@ -3971,7 +3983,7 @@ function trainRows(){
   dateRange(R.from,R.to).forEach(k=>{
     dayEntries(k,pool).filter(e=>e.job&&e.who.length).forEach(e=>{
       const fams=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
-      out.push({cid:ownerOf(e),date:k,uid:k+'|'+e.key,fams});
+      ownersOf(e).forEach(cid=>out.push({cid,date:k,uid:k+'|'+e.key+'|'+cid,fams}));
     });
   });
   return out;
@@ -4127,13 +4139,13 @@ function tpAllRows(){
       const r=j.reqId?state.requests.find(x=>x.id===j.reqId):null;
       const sv=j.selfId?state.selfEvents.find(x=>x.id===j.selfId):null;
       const src=r||sv||{};
-      const cid=ownerOf(e),c=byId(cid);
       const area=r?r.area:(src.psArea||'');
-      out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
-        team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
-        clinic:String(src.clinic||j.title||'—').trim()||'—',
-        clinicType:src.clinicType||'',
-        doctors:+src.doctors||0,products,uid:k+'|'+e.key});
+      ownersOf(e).forEach(cid=>{const c=byId(cid);
+        out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
+          team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
+          clinic:String(src.clinic||j.title||'—').trim()||'—',
+          clinicType:src.clinicType||'',
+          doctors:+src.doctors||0,products,uid:k+'|'+e.key+'|'+cid});});
     });
   });
   return out;
