@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -815,4 +815,18 @@ assert.strictEqual([...new Set(srows.flatMap(x=>x.fams))].sort().join('|'),
 assert.strictEqual(srows.filter(x=>x.sup.length).length,1,
   'hands-on ต้องนับเฉพาะคลินิกที่ขอ ไม่กระจายซ้ำทุกแถว');
 
-console.log('✓ ผ่านทั้ง 59 ข้อ');
+
+/* 60. KPI ของ UPC ต้องอยู่ครบหลังบันทึกลง DB แล้วโหลดกลับมา (toRow -> jsonb -> fromRow)
+      เดิม fromRow คืน product=[] ซึ่งเป็น truthy -> s.sProduct||r.product ตัดจบตรงนั้น
+      ไม่ตกไปใช้ product รวมของทั้งวัน -> Training Pulse ไม่เห็นคิว UPC เลยหลังรีเฟรช */
+const rtRow=JSON.parse(JSON.stringify(X.toRow(UT)));
+assert.ok(rtRow.client&&rtRow.client.days,'product ราย item ต้องถูกเก็บใน client.days');
+X.state.requests=[X.fromRow(rtRow)];
+const rtRows=X.tpAllRows().filter(r=>r.date===UD1);
+assert.strictEqual(rtRows.length,2,'โหลดกลับมาแล้ว วันที่เทรน 2 คลินิก ต้องยังนับ 2 คิว');
+assert.strictEqual([...new Set(rtRows.flatMap(r=>r.products))].sort().join('|'),
+  'Belotero|Ultherapy|Xeomin','product ต้องครบเท่าเดิมหลังโหลดกลับ');
+assert.strictEqual([...new Set(rtRows.map(r=>r.cts))].join('|'),X.CTS.find(c=>c.id===UT.sessions[0].ctsId).nick,
+  'KPI ต้องยังนับให้ CTS คนเดิมที่ถูกจัดให้');
+
+console.log('✓ ผ่านทั้ง 60 ข้อ');

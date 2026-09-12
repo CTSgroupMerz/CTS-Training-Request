@@ -1351,6 +1351,10 @@ function bindMail(scope){
 /* Product ของคำขอ เลือกได้หลายตัว — เก็บเป็น array แต่ยังอ่านข้อมูลเก่าที่เป็นสตริงเดี่ยวได้ */
 const prodList=v=>!v?[]:(Array.isArray(v)?v:[v]);
 const prodMain=v=>prodList(v)[0]||null;
+/* เลือกชุด product ตัวแรกที่ไม่ว่าง — ใช้ || ตรงๆ ไม่ได้เพราะ [] เป็น truthy
+   คำขอ UPC ในเครื่องมี product=null แต่พอโหลดกลับจาก DB กลายเป็น [] (x.products||[])
+   -> '||' ตัดจบตรงนั้น ไม่ตกไปใช้ product รวมของทั้งวัน = KPI ของ UPC หายหลังรีเฟรช */
+const pickProds=(...v)=>v.find(x=>prodList(x).length)||null;
 const prodTags=v=>prodList(v).map(x=>`<span class="tag" style="background:${PRODHEX[x]||'#999'};color:${pink(x)}">${x}</span>`).join(' ');
 /* ป้าย product แบบข้อความสั้นในปฏิทิน — รองรับหลาย product ต่อคิว */
 const prodText=v=>prodList(v).join(' · ');
@@ -2413,7 +2417,7 @@ function reqJobPayload(r,s){
   const day=upcDayOf(r,s.date),its=(day&&day.items)||[];
   return {kind:r.status==='approved'?'booked':'pend',
     title:s.sTitle||(day?upcDayLabel(day).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training')),
-    product:s.sProduct||r.product||(day?dayProds(day):null),reqId:r.id,
+    product:pickProds(s.sProduct,r.product,day?dayProds(day):null),reqId:r.id,
     start:s.start||(its[0]||{}).start||slotDef(s.slot).start,
     end:s.end||(its[its.length-1]||{}).end||slotDef(s.slot).end};
 }
@@ -2866,7 +2870,7 @@ function dayEntries(k,pool){
         title:s.sTitle||(day?upcDayLabel(day).replace(/&amp;/g,'&'):(s.sProduct||r.clinic||'Training')),
         /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
         detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
-        product:s.sProduct||r.product||(day?dayProds(day):it.product)||null,
+        product:pickProds(s.sProduct,r.product,day?dayProds(day):it.product),
         reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
