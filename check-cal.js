@@ -26,7 +26,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,ackList,ST_LABEL,notify,jobOf};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -735,4 +735,73 @@ assert.strictEqual(X.ackList().length,0,'กดรับทราบแล้ว
 X.state.me=X.CTS[1].id;
 assert.strictEqual(X.ackList().length,0,'CTS คนอื่นต้องไม่เห็นคิวของคนนี้');
 
-console.log('✓ ผ่านทั้ง 52 ข้อ');
+
+
+/* ================================================================
+   53-58. ทริป UPC หลายวัน หลายคลินิกต่อวัน
+   บั๊กที่คุม: SM/หัวหน้าเห็นกล่องคำขอว่างเปล่า · hands-on ไม่เด่น ·
+               คิวถูกจัดให้ Senior Leader (FK พัง -> "บันทึกไม่สำเร็จ") ·
+               KPI นับให้แค่คลินิกแรกของวัน
+   ================================================================ */
+clean();
+X.state.role='sales';X.state.area='UPC';X.state.salesId='UPC1';X.state.authed=true;
+const UD1=workday(20),UD2=workday(25);
+const uItem=o=>({province:'เชียงใหม่',clinic:'คลินิกเอ',map:'m',module:'MAX-Entry',level:'Standard',
+  product:['Ultherapy'],ptopic:{Ultherapy:'a'},topic:'Ultherapy: a',doctors:2,exp:'x',
+  handsOn:false,ho:{},hoProduct:'',hoCases:'',photos:[],start:'09:00',end:'12:00',...o});
+X.state.requests=[];
+X.submitUPC({from:UD1,to:UD2,cts:null,requester:'ก',days:[
+  {date:UD1,items:[uItem({}),
+    uItem({clinic:'คลินิกบี',product:['Xeomin','Belotero Balance'],ptopic:{Xeomin:'b'},topic:'Xeomin: b',
+      doctors:3,handsOn:true,ho:{Xeomin:{cases:'2',detail:'50u'}},hoProduct:'Xeomin 2 เคส (50u)',hoCases:'2',
+      start:'13:00',end:'16:30'})]},
+  {date:UD2,items:[uItem({clinic:'คลินิกซี',product:['Radiesse Plus'],ptopic:{},topic:'Radiesse: c'})]}]});
+const UT=X.state.requests[0];
+
+/* 53. จัดคิวได้เฉพาะ CTS ที่รับคิวได้ — Senior Leader/Supervisor ไม่มีแถวใน profiles บ้าง ทำให้ FK พัง */
+UT.sessions.forEach(sn=>assert.ok(X.isBookable(sn.ctsId),
+  'คิว UPC ต้องจัดให้ CTS ที่รับคิวได้ ไม่ใช่ Senior Leader/Supervisor'));
+
+/* 54. กล่องคำขอฝั่ง SM ต้องโชว์ product · หัวข้อ · คลินิก · จำนวนแพทย์ เหมือนคำขอปกติ */
+const smh=X.smReqCard(UT,true);
+['Ultherapy','Xeomin','คลินิกเอ','คลินิกบี','คลินิกซี','Ultherapy: a'].forEach(x=>
+  assert.ok(smh.includes(x),'กล่องคำขอฝั่ง SM ต้องโชว์ '+x));
+assert.ok(/7 ท่าน/.test(smh),'กล่อง SM ต้องรวมจำนวนแพทย์ทั้งทริป (2+3+2)');
+
+/* 55. Hands-on ต้องเด่นเป็นตัวหนังสือม่วง บอกจำนวนเคสและ product ที่ขอ support */
+const uc=X.upcCard(UT,false);
+assert.ok(/class="hoflag"/.test(uc)&&/class="hoflag"/.test(smh),'วันที่มี hands-on ต้องมีป้ายม่วง');
+assert.ok(/class="hotx"/.test(uc),'รายการ hands-on ต้องเป็นตัวหนังสือม่วง');
+assert.ok(/Hands-on 2 เคส/.test(uc),'ต้องบอกจำนวนเคส hands-on');
+assert.ok(/Xeomin 2 เคส/.test(uc),'ต้องบอก product ที่ขอ support');
+
+/* 56. คิว UPC ในปฏิทิน CTS ต้องรวม product ของทั้งวัน ไม่ใช่แค่คลินิกแรก */
+UT.status='approved';X.bookUPC(UT);
+const uent=X.dayEntries(UD1,X.CTS.map(c=>c.id)).find(e=>e.job&&e.job.reqId===UT.id);
+assert.ok(uent,'คิว UPC ที่อนุมัติแล้วต้องขึ้นในปฏิทิน CTS');
+['Ultherapy','Xeomin','Belotero Balance'].forEach(p=>
+  assert.ok(X.prodList(uent.job.product).includes(p),'คิว UPC ต้องรวม product ของทั้งวัน: '+p));
+
+/* 57. Dashboard — วันเดียวเทรน 2 ที่ 3 product ต้องนับ KPI ให้ครบ */
+const urows=X.tpAllRows().filter(r=>r.date===UD1);
+assert.strictEqual(urows.length,2,'วันเดียวเทรน 2 คลินิก ต้องนับเป็น 2 คิว');
+assert.strictEqual(urows.map(r=>r.clinic).sort().join('|'),'คลินิกบี|คลินิกเอ','ต้องแยกตามคลินิกจริง');
+assert.strictEqual([...new Set(urows.flatMap(r=>r.products))].sort().join('|'),
+  'Belotero|Ultherapy|Xeomin','ต้องนับ product ครบทุกตระกูลที่ออกเทรนวันนั้น');
+assert.strictEqual(urows.reduce((n,r)=>n+r.doctors,0),5,'จำนวนแพทย์ต้องรวมทุกคลินิกในวันนั้น');
+
+/* 58. CTS แก้คิว UPC ได้เหมือนคิวปกติ — หัวข้อที่แก้ต้องลงทั้งช่องเช้าและบ่าย */
+X.state.role='cts';X.state.me=X.LEAD_IDS[0];
+X.openReqSession(UT.id,0);
+assert.ok(/id="rsTitle"/.test(sheet()),'คิว UPC ต้องเปิดหน้าแก้ไขคิวงานได้');
+UT.sessions[0].sTitle='ทริปเชียงใหม่';X.bookUPC(UT);
+['am','pm'].forEach(sl=>assert.strictEqual(X.jobOf(UD1,UT.sessions[0].ctsId,sl).title,'ทริปเชียงใหม่',
+  'หัวข้อที่แก้ต้องขึ้นทั้งช่องเช้าและบ่าย'));
+X.state.me=UT.sessions[0].ctsId;
+const uee=X.dayEntries(UD1,X.CTS.map(c=>c.id)).find(e=>e.job&&e.job.reqId===UT.id);
+X.openJob(UD1,uee.key);
+assert.ok(/คลินิกบี/.test(sheet()),'กดคิว UPC ในปฏิทินต้องเห็นคลินิกที่เทรนวันนั้นครบ');
+assert.ok(/class="hotx"/.test(sheet()),'กดคิว UPC ต้องเห็น hands-on สีม่วง');
+assert.ok(/data-reqsess/.test(sheet()),'คิว UPC ต้องมีปุ่มแก้ไขคิวเหมือนคิวปกติ');
+
+console.log('✓ ผ่านทั้ง 58 ข้อ');
