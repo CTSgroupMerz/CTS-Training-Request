@@ -722,7 +722,7 @@ assert.strictEqual(fr.status,'mgr','Senior Leader อนุมัติ -> ส�
 assert.ok(/รอ.*อนุมัติขั้นสุดท้าย/.test(fr.note),'ขั้นนี้โน้ตต้องบอกว่ารอ CTM');
 X.state.me='belle';fr._ack=true;X.approve('TR-FIN');
 assert.strictEqual(fr.status,'approved','BELLE อนุมัติ -> approved');
-assert.strictEqual(X.ST_LABEL.approved,'อนุมัติครบ','ป้ายสถานะต้องเป็น "อนุมัติครบ"');
+assert.strictEqual(X.ST_LABEL.approved,'Approved','ป้ายสถานะต้องเป็น "Approved"');
 assert.ok(!/รอ.*อนุมัติขั้นสุดท้าย/.test(fr.note),'โน้ตขั้นก่อนหน้าต้องถูกเขียนทับ ไม่ค้าง');
 assert.ok(/อนุมัติครบ/.test(fr.note),'โน้ตหลังอนุมัติครบต้องบอกว่าอนุมัติครบ');
 
