@@ -27,7 +27,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
      'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
-     + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText};';
+     + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText,tpSupHTML};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -923,4 +923,23 @@ assert.ok(cz.charCodeAt(0)===0xFEFF,'CSV ต้องขึ้นต้นด้
 assert.ok(cz.includes('"คลินิก, สาขา"'),'ค่าที่มีคอมมาต้องถูกครอบด้วยอัญประกาศ');
 assert.ok(cz.includes('"เขา ""ว่า"" ดี"'),'อัญประกาศในค่าต้องถูก escape เป็น ""');
 
-console.log('✓ ผ่านทั้ง 68 ข้อ');
+/* 69. Support Product — รวมรายตระกูลด้านบน + แตกรายคลินิกด้านล่าง */
+const SUP=[
+  {clinic:'คลินิกเอ',clinicType:'Single',products:['Ultherapy'],detail:[{p:'Ultherapy',ho:true,cases:2}]},
+  {clinic:'คลินิกเอ',clinicType:'Single',products:['Xeomin'],  detail:[{p:'Xeomin',ho:true,cases:3}]},
+  {clinic:'คลินิกบี',clinicType:'Chain', products:['Ultherapy'],detail:[{p:'Ultherapy',ho:true,cases:9}]},
+  {clinic:'คลินิกซี',clinicType:'',      products:['Belotero'], detail:[{p:'Belotero',ho:true,cases:0}]},
+  {clinic:'คลินิกดี',clinicType:'',      products:['Radiesse'], detail:[{p:'Radiesse',ho:false,cases:9}]}];
+const sh=X.tpSupHTML(SUP);
+assert.ok(/Ultherapy<\/b><em>11<\/em>/.test(sh),'Ultherapy ต้องรวมข้ามคลินิกเป็น 11 เคส');
+assert.ok(/Xeomin<\/b><em>3<\/em>/.test(sh),'ยอดรวมต้องแยกตาม product');
+assert.ok(/Radiesse<\/b><em>0<\/em>/.test(sh),'product ที่ไม่ได้ขอ support ต้องเป็น 0 ไม่ใช่หายไป');
+assert.ok(/รวมทั้งหมด<\/b><em>14<\/em>/.test(sh),'ต้องมียอดรวมทุก product');
+['คลินิกเอ','คลินิกบี','คลินิกซี'].forEach(c=>assert.ok(sh.includes(c),'ต้อง list คลินิก '+c));
+assert.ok(!sh.includes('คลินิกดี'),'คิวที่ไม่ได้ขอ hands-on ต้องไม่เข้ารายการ');
+assert.ok(sh.indexOf('คลินิกบี')<sh.indexOf('คลินิกเอ'),'เรียงตามจำนวนเคสมากไปน้อย');
+assert.ok(/suptick/.test(sh),'ขอ support แต่ไม่ได้กรอกจำนวน ต้องขึ้น ✓ ไม่ใช่ 0');
+assert.strictEqual((sh.match(/<th>/g)||[]).length,6,'ตารางต้องมี Clinic + 4 product + รวม');
+assert.strictEqual(X.tpSupHTML([]).includes('ไม่มีการขอ Support Product'),true,'ไม่มีข้อมูลต้องบอกให้รู้');
+
+console.log('✓ ผ่านทั้ง 69 ข้อ');

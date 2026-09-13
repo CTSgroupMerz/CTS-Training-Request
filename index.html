@@ -783,6 +783,23 @@ textarea.in{min-height:76px;resize:vertical}
 .tp .tp-empty{padding:24px;text-align:center;color:var(--tp-soft);font-size:13px}
 .tp .tp-note{margin-top:10px;font-size:12px;color:var(--tp-soft);text-align:center}
 .tp .tp-foot{text-align:center;font-size:11.5px;color:var(--tp-soft);padding:6px 0 2px}
+/* Support Product — แถบยอดรวมรายตระกูล + ตารางแตกรายคลินิก */
+.tp .sup-tot{display:flex;flex-wrap:wrap;gap:9px;margin:4px 0 14px}
+.tp .sup-t{flex:1 1 130px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;
+  gap:0 8px;align-items:center;background:var(--tp-surface2,rgba(255,255,255,.03));
+  border:1px solid var(--tp-line);border-left:3px solid var(--pc,var(--tp-soft));border-radius:12px;padding:9px 12px;opacity:.45}
+.tp .sup-t.on,.tp .sup-t.sum{opacity:1}
+.tp .sup-t i{grid-row:1/4;width:9px;height:9px;border-radius:50%;background:var(--pc,var(--tp-soft))}
+.tp .sup-t b{font-size:12px;color:var(--tp-soft);font-weight:700}
+.tp .sup-t em{font-style:normal;font-family:var(--mono);font-size:22px;font-weight:800;color:#F0E6C8;line-height:1.1}
+.tp .sup-t small{font-size:10.5px;color:var(--tp-soft)}
+.tp .sup-t.sum{border-left-color:#C9A84C}
+.tp .sup-t.sum i{background:#C9A84C}
+.tp td.supcell{text-align:center;white-space:nowrap}
+.tp td.supcell b{font-family:var(--mono);font-size:14px;display:block}
+.tp td.supcell small{display:block;font-size:10px;color:var(--tp-soft)}
+.tp .supnil{color:var(--tp-line)}
+.tp .suptick{font-size:14px;font-weight:700}
 /* ตารางข้อมูลดิบ (Dashboard + Record) — กว้างเกินจอได้ เลื่อนแนวนอนในการ์ดของตัวเอง */
 table.rawtb{border-collapse:collapse;font-size:12px;white-space:nowrap}
 table.rawtb th,table.rawtb td{border:1px solid var(--line2);padding:6px 9px;text-align:left}
@@ -4383,16 +4400,38 @@ const tpTableRows=rows=>rows.slice()
       cells.push(p?(p.topic?p.p+' — '+p.topic:p.p):'');
       cells.push(p?(p.ho?'Yes':'No'):'');}
     return cells;});
-/* ยอด Support Product (hands-on) รายตระกูล — ยกมาจาก Dashboard เดิมของฝั่งขาย */
+/* ยอด Support Product (hands-on) — รวมรายตระกูลด้านบน แล้วแตกเป็นรายคลินิกด้านล่าง
+   เคส = จำนวนที่กรอกไว้ · คิวที่ติ๊ก hands-on แต่ไม่ได้กรอกจำนวน นับเป็น 1 คิวแต่ 0 เคส (โชว์ ✓) */
 function tpSupHTML(rows){
-  const m={};
-  rows.forEach(r=>(r.detail||[]).forEach(d=>{if(!d.ho)return;
-    (m[d.p]||(m[d.p]={cases:0,n:0}));m[d.p].cases+=d.cases||0;m[d.p].n++;}));
-  const L=Object.entries(m).sort((a,b)=>b[1].cases-a[1].cases);
-  return L.length?L.map(([p,v])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--tp-line)">
-      <span class="tag" style="background:${TP_COLOR[p]||'#DDD'};color:#3A2E12">${esc(p)}</span><span class="grow"></span>
-      <span style="font-family:var(--mono);font-weight:700">${v.cases}</span><span class="muted">เคส · ${v.n} คิว</span></div>`).join('')
-    :'<div class="muted" style="padding:8px 0">ไม่มีการขอ Support Product ในช่วงนี้</div>';
+  const tot={},cl={};
+  rows.forEach(r=>(r.detail||[]).forEach(d=>{
+    if(!d.ho)return;
+    const t=tot[d.p]||(tot[d.p]={cases:0,n:0});t.cases+=d.cases||0;t.n++;
+    const g=cl[r.clinic]||(cl[r.clinic]={ctype:r.clinicType,p:{},cases:0,n:0});
+    const c=g.p[d.p]||(g.p[d.p]={cases:0,n:0});c.cases+=d.cases||0;c.n++;
+    g.cases+=d.cases||0;g.n++;}));
+  const used=TP_PRODUCTS.filter(p=>tot[p]);
+  if(!used.length)return '<div class="tp-empty">ไม่มีการขอ Support Product ในช่วงนี้</div>';
+  const sum=used.reduce((n,p)=>n+tot[p].cases,0);
+  const head='<div class="sup-tot">'+TP_PRODUCTS.map(function(p){
+    const v=tot[p]||{cases:0,n:0};
+    return '<span class="sup-t'+(v.n?' on':'')+'" style="--pc:'+TP_COLOR[p]+'"><i></i>'
+      +'<b>'+p+'</b><em>'+v.cases+'</em><small>เคส · '+v.n+' คิว</small></span>';}).join('')
+    +'<span class="sup-t sum"><i></i><b>รวมทั้งหมด</b><em>'+sum+'</em><small>เคส · '
+    +used.reduce((n,p)=>n+tot[p].n,0)+' คิว</small></span></div>';
+  const list=Object.entries(cl).sort((a,b)=>b[1].cases-a[1].cases||b[1].n-a[1].n);
+  const body=list.map(function(e){
+    const name=e[0],g=e[1];
+    return '<tr><td><div class="clinic-name">'+esc(name)
+      +(g.ctype?'<span class="type-badge">'+esc(g.ctype)+'</span>':'')+'</div></td>'
+      +TP_PRODUCTS.map(function(p){const c=g.p[p];
+        return '<td class="supcell">'+(c?(c.cases?'<b style="color:'+TP_COLOR[p]+'">'+c.cases+'</b>'
+          :'<span class="suptick" style="color:'+TP_COLOR[p]+'">✓</span>')
+          +'<small>'+c.n+' คิว</small>':'<span class="supnil">—</span>')+'</td>';}).join('')
+      +'<td class="supcell"><b>'+g.cases+'</b><small>'+g.n+' คิว</small></td></tr>';}).join('');
+  return head+'<div class="tp-scroll"><table class="clinic-table"><thead><tr><th>Clinic</th>'
+    +TP_PRODUCTS.map(function(p){return '<th>'+p+'</th>';}).join('')
+    +'<th>รวม</th></tr></thead><tbody>'+body+'</tbody></table></div>';
 }
 /* ดาวน์โหลดเป็น CSV มี BOM — Excel เปิดแล้วภาษาไทยไม่เพี้ยน (ไม่ต้องพึ่งไลบรารี xlsx) */
 const csvText=(cols,rows)=>{
