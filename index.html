@@ -800,6 +800,9 @@ textarea.in{min-height:76px;resize:vertical}
 .tp td.supcell small{display:block;font-size:10px;color:var(--tp-soft)}
 .tp .supnil{color:var(--tp-line)}
 .tp .suptick{font-size:14px;font-weight:700}
+.tp tr.suprow{cursor:pointer}
+.tp tr.suprow:hover td,.tp tr.suprow:focus-visible td{background:rgba(201,168,76,.09)}
+.tp tr.suprow .clinic-name{text-decoration:underline;text-decoration-color:rgba(201,168,76,.45);text-underline-offset:3px}
 /* ตารางข้อมูลดิบ (Dashboard + Record) — กว้างเกินจอได้ เลื่อนแนวนอนในการ์ดของตัวเอง */
 table.rawtb{border-collapse:collapse;font-size:12px;white-space:nowrap}
 table.rawtb th,table.rawtb td{border:1px solid var(--line2);padding:6px 9px;text-align:left}
@@ -4172,7 +4175,8 @@ const tpWeekLabel=k=>{const d=parse(k);return d.getDate()+'/'+(d.getMonth()+1);}
 const tpDetail=(s,fams)=>fams.map(p=>({p,
   topic:Object.keys(s.ptopic||{}).filter(x=>prodFamily(x)===p).map(x=>s.ptopic[x]).filter(Boolean).join(' · '),
   ho:!!(s.ho||{})[p]||(!!s.handsOn&&prodFamily(s.hoProduct)===p),
-  cases:+(((s.ho||{})[p]||{}).cases)||0}));
+  cases:+(((s.ho||{})[p]||{}).cases)||0,
+  note:((s.ho||{})[p]||{}).detail||''}));   // รายละเอียดเคสที่ Sale พิมพ์ไว้เอง (เช่น 1.5cc x2)
 /* ทุกคิวเทรนที่มี product — ไม่กรองช่วงวัน (ตัวกรองทำทีหลังใน tpRows) */
 function tpAllRows(){
   const out=[],pool=CTS.map(c=>c.id),days=new Set();
@@ -4208,6 +4212,7 @@ function tpAllRows(){
             team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
             clinic:v.clinic,clinicType:v.s.clinicType||src.clinicType||'',
             module:v.s.module||'',level:v.s.level||'',detail:tpDetail(v.s,v.products),
+            reqId:j.reqId||j.selfId||'',
             doctors:v.doctors,products:v.products,uid:k+'|'+e.key+v.sfx+'|'+cid});}));
     });
   });
@@ -4358,6 +4363,10 @@ function renderDash(){
 
   const set=o=>{Object.assign(S,o);renderDash();};
   $('tpTable').onclick=()=>tableSheet('รายละเอียดข้อมูลการเทรน',SC.title,TP_TCOLS,tpTableRows(rows),'training-detail.csv');
+  view().querySelectorAll('[data-supcl]').forEach(tr=>{
+    const go=()=>openSupClinic(tr.dataset.supcl);
+    tr.onclick=go;
+    tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};});
   $('tpFrom').onchange=e=>set({from:e.target.value,range:''});
   $('tpTo').onchange=e=>set({to:e.target.value,range:''});
   $('tpCts').onchange=e=>set({cts:e.target.value});
@@ -4400,9 +4409,44 @@ const tpTableRows=rows=>rows.slice()
       cells.push(p?(p.topic?p.p+' — '+p.topic:p.p):'');
       cells.push(p?(p.ho?'Yes':'No'):'');}
     return cells;});
+/* คิวชุดที่ตารางกำลังโชว์อยู่ — กดชื่อคลินิกแล้วเปิดรายละเอียดจากชุดเดียวกัน ไม่ต้องคำนวณใหม่ */
+let tpSupSrc=[];
+/* รายละเอียด Support Product ของคลินิกหนึ่ง — เห็นจำนวนเคสและข้อความที่ Sale กรอกไว้รายคิว */
+function openSupClinic(name){
+  const list=tpSupSrc.filter(r=>r.clinic===name&&(r.detail||[]).some(d=>d.ho))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  if(!list.length)return;
+  const tot={};
+  list.forEach(r=>(r.detail||[]).forEach(d=>{if(!d.ho)return;
+    const t=tot[d.p]||(tot[d.p]={cases:0,n:0});t.cases+=d.cases||0;t.n++;}));
+  const sum=Object.values(tot).reduce((n,v)=>n+v.cases,0);
+  const tag=(p,txt)=>`<span class="tag" style="background:${TP_COLOR[p]||'#DDD'};color:#3A2E12">${esc(txt||p)}</span>`;
+  const cards=list.map(r=>{
+    const ho=(r.detail||[]).filter(d=>d.ho);
+    return `<div class="card">
+      <div class="row" style="flex-wrap:wrap;gap:6px">
+        <b>${fmtDate(r.date)}</b><span class="salecode">${esc(r.code)}</span>
+        <span class="pill n">${esc(r.cts)}</span>
+        ${r.module?`<span class="pill n">${esc(r.module)}${r.level?' · '+esc(r.level):''}</span>`:''}
+        <span class="grow"></span>${r.reqId?`<span class="muted" style="font-size:11px">${esc(r.reqId)}</span>`:''}</div>
+      ${ho.map(d=>`<div class="row" style="margin-top:8px;align-items:flex-start;gap:8px">
+        ${tag(d.p)}<div class="grow">
+          <b style="font-family:var(--mono);font-size:15px">${d.cases||'—'}</b>
+          <span class="muted"> เคส${d.cases?'':' (ไม่ได้ระบุจำนวน)'}</span>
+          ${d.note?`<div style="font-size:13px;margin-top:2px">${esc(d.note)}</div>`:''}
+          ${d.topic?`<div class="muted" style="font-size:12px">หัวข้อ: ${esc(d.topic)}</div>`:''}</div></div>`).join('')}
+    </div>`;}).join('');
+  openSheet(`<div class="eyebrow">Support Product</div><h2>${esc(name)}</h2>`,
+  `<div class="card"><div class="row" style="flex-wrap:wrap;gap:6px">
+      ${TP_PRODUCTS.filter(p=>tot[p]).map(p=>tag(p,p+' · '+tot[p].cases+' เคส')).join('')}</div>
+    <div class="muted" style="margin-top:8px">รวม ${sum} เคส · ${list.length} คิว — ตัวเลขตามที่ Sale กรอกไว้ในคำขอ</div></div>
+  ${cards}
+  <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
+}
 /* ยอด Support Product (hands-on) — รวมรายตระกูลด้านบน แล้วแตกเป็นรายคลินิกด้านล่าง
    เคส = จำนวนที่กรอกไว้ · คิวที่ติ๊ก hands-on แต่ไม่ได้กรอกจำนวน นับเป็น 1 คิวแต่ 0 เคส (โชว์ ✓) */
 function tpSupHTML(rows){
+  tpSupSrc=rows;          // เก็บไว้ให้หน้ารายละเอียดรายคลินิกใช้ตอนกดแถว
   const tot={},cl={};
   rows.forEach(r=>(r.detail||[]).forEach(d=>{
     if(!d.ho)return;
@@ -4422,7 +4466,7 @@ function tpSupHTML(rows){
   const list=Object.entries(cl).sort((a,b)=>b[1].cases-a[1].cases||b[1].n-a[1].n);
   const body=list.map(function(e){
     const name=e[0],g=e[1];
-    return '<tr><td><div class="clinic-name">'+esc(name)
+    return '<tr class="suprow" data-supcl="'+esc(name)+'" tabindex="0"><td><div class="clinic-name">'+esc(name)
       +(g.ctype?'<span class="type-badge">'+esc(g.ctype)+'</span>':'')+'</div></td>'
       +TP_PRODUCTS.map(function(p){const c=g.p[p];
         return '<td class="supcell">'+(c?(c.cases?'<b style="color:'+TP_COLOR[p]+'">'+c.cases+'</b>'
