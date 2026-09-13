@@ -26,7 +26,8 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList};';
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
+     + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -621,13 +622,16 @@ assert.ok(!X.upcFree(U,B1),'ติดคิวครึ่งเช้า = ไ�
 X.state.sched[U]=undefined;
 
 /* 43. คำขอ UPC — product หลายตัว + หัวข้อราย product + hands-on ราย product */
-const mkIt=()=>({province:'เชียงใหม่',clinic:'ค',map:'m',module:'MAX-Entry',level:'Standard',
+const mkIt=()=>({province:'เชียงใหม่',clinic:'ค',clinicType:'Single',map:'m',module:'MAX-Entry',level:'Standard',
   product:['Ultherapy','Xeomin'],ptopic:{},topic:'',doctors:2,exp:'x',handsOn:false,ho:{},photos:[],start:'09:00',end:'16:30'});
 const it=mkIt();
 const missOf=()=>X.upcMissing({days:[{date:U,items:[it]}],requester:'ก'});
 assert.ok(missOf().some(x=>/หัวข้อของ Ultherapy/.test(x)),'ต้องบังคับหัวข้อทีละ product');
 assert.ok(missOf().some(x=>/หัวข้อของ Xeomin/.test(x)),'ครบทุก product ที่เลือก');
 it.ptopic={Ultherapy:'a',Xeomin:'b'};
+/* ประเภทคลินิกต้องกรอกเหมือนคำขอปกติ — ตาราง raw data ต้องมีช่อง Type ของคิว UPC ด้วย */
+it.clinicType='';assert.ok(missOf().some(x=>/ประเภทคลินิก/.test(x)),'รายการ UPC ต้องบังคับประเภทคลินิก');
+it.clinicType='Single';
 assert.strictEqual(missOf().length,0,'กรอกครบแล้วต้องผ่าน');
 it.handsOn=true;
 assert.ok(missOf().some(x=>/hands-on/.test(x)),'hands-on ต้องกรอกเคสอย่างน้อย 1 product');
@@ -829,4 +833,94 @@ assert.strictEqual([...new Set(rtRows.flatMap(r=>r.products))].sort().join('|'),
 assert.strictEqual([...new Set(rtRows.map(r=>r.cts))].join('|'),X.CTS.find(c=>c.id===UT.sessions[0].ctsId).nick,
   'KPI ต้องยังนับให้ CTS คนเดิมที่ถูกจัดให้');
 
-console.log('✓ ผ่านทั้ง 60 ข้อ');
+/* ================= รอบ "UPC เห็นผู้เทรน · เปลี่ยนตัวผู้เทรน · Dashboard ฝั่งขาย · ตารางข้อมูลดิบ" ================= */
+const UREQ=X.state.requests[0];           // ทริป UPC ที่โหลดกลับมาจาก DB ในข้อ 60
+
+/* 61. ปฏิทิน SM ต้องขึ้นชื่อคลินิกของวันนั้น ไม่ใช่รหัส TR- (คำขอ UPC เก็บคลินิกไว้ราย item) */
+assert.ok(!X.reqClinicOn(UREQ,UD1).includes('TR'),'คำขอ UPC ต้องคืนชื่อคลินิก ไม่ใช่รหัสคำขอ');
+assert.strictEqual(X.reqClinicOn(UREQ,UD1),'คลินิกเอ · คลินิกบี','ต้องรวมทุกคลินิกที่เทรนวันนั้น');
+const smc=X.smChip({r:UREQ,s:UREQ.sessions[0],i:0,code:'UPC1'},true);
+assert.ok(smc.includes('คลินิกเอ'),'ชิปในปฏิทิน SM ต้องโชว์ชื่อคลินิก');
+assert.ok(!/TR\d/.test(smc),'ชิปในปฏิทิน SM ต้องไม่ขึ้นแค่รหัส TR-');
+
+/* 62. กล่องคำขอ UPC ต้องโชว์รูป + สีประจำตัวของ CTS เหมือนคำขอของ Sale/KAE */
+X.state.role='cts';X.state.me=X.LEAD_IDS[0];
+const udb=X.upcDayBox(UREQ,true);
+assert.ok(/class="ctschip"/.test(udb),'กล่องวันของ UPC ต้องมีชิป CTS');
+assert.ok(/class="ava xs"/.test(udb),'ชิป CTS ของ UPC ต้องมีรูป');
+assert.ok(/--c:#/.test(udb),'ชิป CTS ของ UPC ต้องใช้สีประจำตัว');
+
+/* 63. แถวข้อมูลดิบต้องมีครบทุกช่องที่ต้อง Record — รหัส Sale · Sub-Team · Module · ระดับ · Hands-on ราย product */
+const dr=X.tpAllRows().find(r=>r.date===UD1);
+assert.strictEqual(dr.code,'UPC1','แถว Dashboard ต้องรู้ว่าเป็นคิวของรหัส Sale ไหน');
+assert.ok(/Team [AB]/.test(dr.sub),'ต้องรู้ Sub-Team (Team A/B) ของ CTS');
+assert.ok(dr.detail.length&&dr.detail.every(d=>'ho' in d),'ต้องรู้ว่าแต่ละ product มี hands-on ไหม');
+const tb=X.tpTableRows(X.tpAllRows().filter(r=>r.date===UD1));
+assert.strictEqual(X.TP_TCOLS.length,20,'ตารางต้องมี 20 คอลัมน์ (Product 1-4 + Hands-on 1-4)');
+tb.forEach(row=>assert.strictEqual(row.length,X.TP_TCOLS.length,'จำนวนช่องต้องเท่าหัวตาราง'));
+assert.ok(tb.some(row=>row.includes('Yes')),'คลินิกที่ขอ hands-on ต้องขึ้น Yes');
+assert.ok(tb.some(row=>row.includes('No')),'product ที่ไม่ได้ขอ hands-on ต้องขึ้น No');
+
+/* 64. Dashboard ฝั่งขาย — Sale เห็นแค่รหัสตัวเอง ไม่มี By PS Team · SM เห็นทั้งทีมและยังมี By PS Team */
+X.state.role='sales';X.state.salesId='UPC1';X.state.area='UPC';
+assert.strictEqual(X.dashScope().codes.join(','),'UPC1','Sale ต้องเห็นเฉพาะรหัสตัวเอง');
+X.renderDash();
+let dh=G('view').innerHTML;
+assert.ok(dh.includes('By Sale (Individual)'),'Dashboard ของ Sale ต้องเป็น By Sale (Individual)');
+assert.ok(!dh.includes('By CTS (Individual)'),'Dashboard ของ Sale ต้องไม่มี By CTS');
+assert.ok(!dh.includes('By PS Team'),'Dashboard ของ Sale ต้องไม่มี By PS Team');
+assert.ok(dh.includes('ดูรายละเอียดข้อมูลการเทรนแบบตาราง'),'ต้องมีปุ่มเปิดตารางข้อมูลดิบ');
+X.state.role='sm';X.state.sm='UPC';
+assert.ok(X.dashScope().codes.includes('UPC6'),'SM ต้องเห็นทุกรหัสในทีมตัวเอง');
+X.renderDash();
+dh=G('view').innerHTML;
+assert.ok(dh.includes('By Sale (Individual)')&&dh.includes('By PS Team'),'Dashboard ของ SM ต้องมีทั้ง By Sale และ By PS Team');
+X.state.role='cts';X.state.me=X.LEAD_IDS[0];
+X.renderDash();
+assert.ok(G('view').innerHTML.includes('By CTS (Individual)'),'Dashboard ของ CTS ต้องยังเป็น By CTS');
+
+/* 65. คิวที่ CTS ลงเองและเลือก PS Area ต้องเข้า Dashboard ของรหัสนั้น */
+X.state.selfEvents=[{id:'SE9',date:UD1,dateEnd:'',allDay:true,title:'เทรนเอง',attendees:[OTHER],owner:OTHER,
+  product:['Ultherapy'],ptopic:{Ultherapy:'Ultherapy Legacy'},clinic:'คลินิกลงเอง',clinicType:'Single',
+  module:'MAX-Entry',level:'Standard',doctors:1,psArea:'C01'}];
+const selfRow=X.tpAllRows().find(r=>r.clinic==='คลินิกลงเอง');
+assert.ok(selfRow,'คิวที่ CTS ลงเองและมี product ต้องเข้า Dashboard');
+assert.strictEqual(selfRow.code,'C01','ต้องนับให้รหัส Sale ที่เลือกไว้ใน PS Area');
+assert.strictEqual(selfRow.team,'Champion','ต้องเข้า Dashboard ของ SM ทีมนั้นด้วย');
+
+/* 66. Senior Leader เปลี่ยนตัวผู้เทรนหลังอนุมัติแล้ว — คิวย้ายจริง · ลบรับทราบของคนเก่า · แจ้งเตือนให้คนใหม่กดรับทราบ */
+const SWD=FUT(60),NEW=X.BOOKABLE_CTS()[1].id,OLD=X.BOOKABLE_CTS()[0].id;
+const SW={id:'TR9001',team:'A',area:'Champion',requesterId:'C01',requester:'เทสสลับตัว',status:'approved',
+  created:new Date(),product:['Ultherapy'],ptopic:{Ultherapy:'Ultherapy Legacy'},clinic:'คลินิกสลับตัว',
+  clinicType:'Single',module:'MAX-Entry',level:'Standard',doctors:2,photos:[],trail:[],ack:{[OLD]:'x'},
+  sessions:[{date:SWD,slot:'am',ctsId:OLD,start:'09:00',end:'12:00'}]};
+X.state.requests=[SW];X.state.feed=[];
+X.state.role='cts';X.state.me=X.LEAD_IDS[0];
+assert.ok(X.canSwapCts(SW),'Senior Leader ต้องเปลี่ยนตัวผู้เทรนของคิวที่อนุมัติแล้วได้');
+X.assign(SW.id);
+G('sheetBody').querySelectorAll=sel=>sel==='[data-sess]'?[{dataset:{sess:'0'},value:NEW}]:[];
+G('saveRe').onclick();
+assert.strictEqual(SW.sessions[0].ctsId,NEW,'ผู้เทรนต้องถูกเปลี่ยนเป็นคนใหม่');
+assert.ok(!SW.ack[OLD],'ต้องลบสถานะรับทราบของคนเก่าทิ้ง');
+assert.strictEqual(X.jobOf(SWD,NEW,'am').kind,'booked','คิวของคนใหม่ต้องเป็น booked ไม่ใช่ pend');
+assert.strictEqual(X.jobOf(SWD,OLD,'am'),null,'คิวของคนเก่าต้องถูกปล่อยคืน');
+X.state.me=NEW;
+assert.ok(X.needAck(SW),'CTS คนใหม่ต้องถูกขอให้กดรับทราบ');
+assert.strictEqual(X.state.feed[0].kind,'changed','ต้องแจ้งเตือนฝั่งขายว่ามีการเปลี่ยนผู้เทรน');
+assert.ok((SW.trail||[]).some(t=>/เปลี่ยนผู้เทรน/.test(t.note||'')),'ต้องบันทึกหลักฐานการเปลี่ยนตัวใน Approval Tracking');
+
+/* 67. ตาราง Record ดิบ — ทุกคำขอ + Approval Status Tracking */
+X.state.role='admin';
+const rrows=X.recTableRows(X.state.requests);
+assert.strictEqual(rrows.length,1,'ต้องได้ 1 แถวต่อ 1 คำขอ');
+assert.strictEqual(rrows[0].length,X.REC_COLS.length,'จำนวนช่องต้องเท่าหัวตาราง Record');
+assert.ok(rrows[0][0]==='TR9001'&&rrows[0].includes('คลินิกสลับตัว'),'ตาราง Record ต้องมีข้อมูลของคำขอ');
+assert.ok(/เปลี่ยนผู้เทรน/.test(rrows[0][X.REC_COLS.length-1]),'ช่องสุดท้ายต้องเป็น Approval Status Tracking');
+
+/* 68. ไฟล์ CSV ต้องมี BOM (Excel อ่านภาษาไทยออก) และครอบ escape ค่าที่มีคอมมา/อัญประกาศ */
+const cz=X.csvText(['a','b'],[['คลินิก, สาขา','เขา "ว่า" ดี']]);
+assert.ok(cz.charCodeAt(0)===0xFEFF,'CSV ต้องขึ้นต้นด้วย BOM ไม่งั้น Excel อ่านภาษาไทยเพี้ยน');
+assert.ok(cz.includes('"คลินิก, สาขา"'),'ค่าที่มีคอมมาต้องถูกครอบด้วยอัญประกาศ');
+assert.ok(cz.includes('"เขา ""ว่า"" ดี"'),'อัญประกาศในค่าต้องถูก escape เป็น ""');
+
+console.log('✓ ผ่านทั้ง 68 ข้อ');
