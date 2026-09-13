@@ -4511,11 +4511,14 @@ function tpDraw(rows,ctsRows){
       scales:{x:{stacked:true,grid:{display:false},ticks:{color:ink,font:{size:11}}},
               y:{stacked:true,beginAtZero:true,grid:{color:grid},ticks:{color:ink,font:{size:11}}}}}});
 
-  /* 3) โดนัทสัดส่วน product + ตัวเลข Ultherapy : Injectable ตรงกลาง */
+  /* 3) โดนัทสัดส่วน product + ตัวเลข Ultherapy : Injectable ตรงกลาง
+        Chart.js วาดตามเข็มจาก 12 นาฬิกา -> ตัวแรกของลิสต์จะไปอยู่ฝั่งขวา สวนกับตัวเลขตรงกลาง
+        ที่อ่านซ้าย→ขวาว่า Ultherapy : Injectable · กลับลำดับลิสต์ = Ultherapy ไปอยู่ฝั่งซ้าย */
   const c=tpCounts(ctsRows),ct=TP_PRODUCTS.reduce((n,p)=>n+c[p],0);
+  const ring=TP_PRODUCTS.slice().reverse();
   mk('tpRatio',{type:'doughnut',
-    data:{labels:TP_PRODUCTS,datasets:[{data:TP_PRODUCTS.map(p=>c[p]),
-      backgroundColor:TP_PRODUCTS.map(p=>TP_COLOR[p]),borderWidth:3,borderColor:'#13263D'}]},
+    data:{labels:ring,datasets:[{data:ring.map(p=>c[p]),
+      backgroundColor:ring.map(p=>TP_COLOR[p]),borderWidth:3,borderColor:'#13263D'}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
       plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>
         ' '+x.label+': '+x.parsed+' ('+(ct?Math.round(x.parsed/ct*100):0)+'%)'}}}},
