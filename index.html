@@ -799,7 +799,6 @@ textarea.in{min-height:76px;resize:vertical}
 .tp td.supcell b{font-family:var(--mono);font-size:14px;display:block}
 .tp td.supcell small{display:block;font-size:10px;color:var(--tp-soft)}
 .tp .supnil{color:var(--tp-line)}
-.tp .suptick{font-size:14px;font-weight:700}
 .tp tr.suprow{cursor:pointer}
 .tp tr.suprow:hover td,.tp tr.suprow:focus-visible td{background:rgba(201,168,76,.09)}
 .tp tr.suprow .clinic-name{text-decoration:underline;text-decoration-color:rgba(201,168,76,.45);text-underline-offset:3px}
@@ -4350,7 +4349,7 @@ function renderDash(){
       ${tpRepeatHTML(rows)}</div>
 
     ${SC.sale?'<div class="panel"><div class="panel-head"><div>'
-      +'<h2>Support Product</h2><div class="sub">เคส hands-on ที่ขอ support ในช่วงที่เลือก</div></div></div>'
+      +'<h2>Support Product</h2><div class="sub">จำนวนคิวเทรนที่ขอ support ราย product — กดชื่อคลินิกเพื่อดูจำนวนเคสที่กรอกไว้</div></div></div>'
       +tpSupHTML(rows)+'</div>':''}
 
     <div class="panel"><div class="panel-head"><div>
@@ -4456,23 +4455,23 @@ function tpSupHTML(rows){
     g.cases+=d.cases||0;g.n++;}));
   const used=TP_PRODUCTS.filter(p=>tot[p]);
   if(!used.length)return '<div class="tp-empty">ไม่มีการขอ Support Product ในช่วงนี้</div>';
-  const sum=used.reduce((n,p)=>n+tot[p].cases,0);
+  /* ตัวเลขที่โชว์ = จำนวน "คิวเทรน" ที่ขอ support product นั้น ไม่ใช่จำนวนเคส
+     (เคสอยู่ในหน้ารายละเอียดที่กดชื่อคลินิก — โชว์ 2 ตัวเลขคู่กันแล้วคนอ่านสับสนว่าอันไหนคือคิว) */
+  const sum=used.reduce((n,p)=>n+tot[p].n,0);
   const head='<div class="sup-tot">'+TP_PRODUCTS.map(function(p){
     const v=tot[p]||{cases:0,n:0};
     return '<span class="sup-t'+(v.n?' on':'')+'" style="--pc:'+TP_COLOR[p]+'"><i></i>'
-      +'<b>'+p+'</b><em>'+v.cases+'</em><small>เคส · '+v.n+' คิว</small></span>';}).join('')
-    +'<span class="sup-t sum"><i></i><b>รวมทั้งหมด</b><em>'+sum+'</em><small>เคส · '
-    +used.reduce((n,p)=>n+tot[p].n,0)+' คิว</small></span></div>';
-  const list=Object.entries(cl).sort((a,b)=>b[1].cases-a[1].cases||b[1].n-a[1].n);
+      +'<b>'+p+'</b><em>'+v.n+'</em><small>คิว</small></span>';}).join('')
+    +'<span class="sup-t sum"><i></i><b>รวมทั้งหมด</b><em>'+sum+'</em><small>คิว</small></span></div>';
+  const list=Object.entries(cl).sort((a,b)=>b[1].n-a[1].n||b[1].cases-a[1].cases);
   const body=list.map(function(e){
     const name=e[0],g=e[1];
     return '<tr class="suprow" data-supcl="'+esc(name)+'" tabindex="0"><td><div class="clinic-name">'+esc(name)
       +(g.ctype?'<span class="type-badge">'+esc(g.ctype)+'</span>':'')+'</div></td>'
       +TP_PRODUCTS.map(function(p){const c=g.p[p];
-        return '<td class="supcell">'+(c?(c.cases?'<b style="color:'+TP_COLOR[p]+'">'+c.cases+'</b>'
-          :'<span class="suptick" style="color:'+TP_COLOR[p]+'">✓</span>')
-          +'<small>'+c.n+' คิว</small>':'<span class="supnil">—</span>')+'</td>';}).join('')
-      +'<td class="supcell"><b>'+g.cases+'</b><small>'+g.n+' คิว</small></td></tr>';}).join('');
+        return '<td class="supcell">'+(c?'<b style="color:'+TP_COLOR[p]+'">'+c.n+'</b><small>คิว</small>'
+          :'<span class="supnil">—</span>')+'</td>';}).join('')
+      +'<td class="supcell"><b>'+g.n+'</b><small>คิว</small></td></tr>';}).join('');
   return head+'<div class="tp-scroll"><table class="clinic-table"><thead><tr><th>Clinic</th>'
     +TP_PRODUCTS.map(function(p){return '<th>'+p+'</th>';}).join('')
     +'<th>รวม</th></tr></thead><tbody>'+body+'</tbody></table></div>';

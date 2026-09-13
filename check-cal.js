@@ -935,14 +935,15 @@ const SUP=[
   sup('คลินิกซี','','Belotero',0,{d:4}),
   sup('คลินิกดี','','Radiesse',9,{d:5,det:{ho:false}})];
 const sh=X.tpSupHTML(SUP);
-assert.ok(/Ultherapy<\/b><em>11<\/em>/.test(sh),'Ultherapy ต้องรวมข้ามคลินิกเป็น 11 เคส');
-assert.ok(/Xeomin<\/b><em>3<\/em>/.test(sh),'ยอดรวมต้องแยกตาม product');
+assert.ok(/Ultherapy<\/b><em>2<\/em>/.test(sh),'Ultherapy ขอ support 2 คิว — ตัวเลขต้องเป็นจำนวนคิว ไม่ใช่ 11 เคส');
+assert.ok(/Xeomin<\/b><em>1<\/em>/.test(sh),'ยอดรวมต้องแยกตาม product');
 assert.ok(/Radiesse<\/b><em>0<\/em>/.test(sh),'product ที่ไม่ได้ขอ support ต้องเป็น 0 ไม่ใช่หายไป');
-assert.ok(/รวมทั้งหมด<\/b><em>14<\/em>/.test(sh),'ต้องมียอดรวมทุก product');
+assert.ok(/รวมทั้งหมด<\/b><em>4<\/em>/.test(sh),'ยอดรวมต้องเป็นจำนวนคิวทั้งหมด');
+assert.ok(!/เคส/.test(sh),'แผงนี้ต้องไม่โชว์จำนวนเคส กันสับสนว่าเป็นจำนวนคิว');
 ['คลินิกเอ','คลินิกบี','คลินิกซี'].forEach(c=>assert.ok(sh.includes(c),'ต้อง list คลินิก '+c));
 assert.ok(!sh.includes('คลินิกดี'),'คิวที่ไม่ได้ขอ hands-on ต้องไม่เข้ารายการ');
-assert.ok(sh.indexOf('คลินิกบี')<sh.indexOf('คลินิกเอ'),'เรียงตามจำนวนเคสมากไปน้อย');
-assert.ok(/suptick/.test(sh),'ขอ support แต่ไม่ได้กรอกจำนวน ต้องขึ้น ✓ ไม่ใช่ 0');
+assert.ok(sh.indexOf('คลินิกเอ')<sh.indexOf('คลินิกบี'),'เรียงตามจำนวนคิวมากไปน้อย');
+assert.ok(sh.includes('คลินิกซี'),'คิวที่ขอ support แต่ไม่ได้กรอกจำนวนเคส ต้องยังนับเป็น 1 คิว');
 assert.strictEqual((sh.match(/<th>/g)||[]).length,6,'ตารางต้องมี Clinic + 4 product + รวม');
 assert.strictEqual(X.tpSupHTML([]).includes('ไม่มีการขอ Support Product'),true,'ไม่มีข้อมูลต้องบอกให้รู้');
 
