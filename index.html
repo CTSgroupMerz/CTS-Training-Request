@@ -4210,6 +4210,7 @@ function tpAllRows(){
             sub:c?((TEAMS[c.team]||{}).label||c.team):'—',code:code||'—',
             team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
             clinic:v.clinic,clinicType:v.s.clinicType||src.clinicType||'',
+            province:v.s.province||'',   /* มีเฉพาะคำขอ UPC — คำขอปกติไม่มีช่องจังหวัดให้กรอก */
             module:v.s.module||'',level:v.s.level||'',detail:tpDetail(v.s,v.products),
             reqId:j.reqId||j.selfId||'',
             doctors:v.doctors,products:v.products,uid:k+'|'+e.key+v.sfx+'|'+cid});}));
@@ -4395,14 +4396,14 @@ function renderDash(){
 
 /* ===== ตารางข้อมูลดิบของการเทรน + Export Excel =====
    1 แถว = CTS 1 คน · 1 วัน · 1 คลินิก — เทรนหลาย product ในวันเดียวกันอยู่แถวเดียวกัน (Product 1-4) */
-const TP_TCOLS=['No.','Month','Date','CTS Name','Sub-Team','Sale Team','Sale Area','Clinic name','Type','No. of Doctor',
+const TP_TCOLS=['No.','Month','Date','CTS Name','Sub-Team','Sale Team','Sale Area','Clinic name','Province','Type','No. of Doctor',
   'Training Module','ระดับเนื้อหาการเทรน',
   'Product 1','Hands-on 1','Product 2','Hands-on 2','Product 3','Hands-on 3','Product 4','Hands-on 4'];
 const tpTableRows=rows=>rows.slice()
   .sort((a,b)=>a.date.localeCompare(b.date)||String(a.cts).localeCompare(String(b.cts)))
   .map((r,i)=>{
     const d=(r.detail&&r.detail.length?r.detail:(r.products||[]).map(p=>({p,topic:'',ho:false}))).slice(0,4);
-    const cells=[i+1,TP_MON[r.d.getMonth()],r.date,r.cts,r.sub||'—',r.team,r.code,r.clinic,r.clinicType||'—',
+    const cells=[i+1,TP_MON[r.d.getMonth()],r.date,r.cts,r.sub||'—',r.team,r.code,r.clinic,r.province||'—',r.clinicType||'—',
       r.doctors||0,r.module||'—',r.level||'—'];
     for(let x=0;x<4;x++){const p=d[x];
       cells.push(p?(p.topic?p.p+' — '+p.topic:p.p):'');

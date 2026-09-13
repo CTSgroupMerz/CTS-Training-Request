@@ -856,7 +856,10 @@ assert.strictEqual(dr.code,'UPC1','แถว Dashboard ต้องรู้ว�
 assert.ok(/Team [AB]/.test(dr.sub),'ต้องรู้ Sub-Team (Team A/B) ของ CTS');
 assert.ok(dr.detail.length&&dr.detail.every(d=>'ho' in d),'ต้องรู้ว่าแต่ละ product มี hands-on ไหม');
 const tb=X.tpTableRows(X.tpAllRows().filter(r=>r.date===UD1));
-assert.strictEqual(X.TP_TCOLS.length,20,'ตารางต้องมี 20 คอลัมน์ (Product 1-4 + Hands-on 1-4)');
+assert.strictEqual(X.TP_TCOLS.length,21,'ตารางต้องมี 21 คอลัมน์ (Province + Product 1-4 + Hands-on 1-4)');
+/* จังหวัดมีเฉพาะคำขอ UPC ที่กรอกไว้ราย item — คิวอื่นต้องเป็น - ไม่ใช่ช่องว่าง */
+assert.ok(tb.every(row=>row[X.TP_TCOLS.indexOf('Province')]),'ทุกแถวต้องมีค่าในช่อง Province');
+assert.ok(tb.some(row=>row[X.TP_TCOLS.indexOf('Province')]==='เชียงใหม่'),'คิว UPC ต้องบันทึกจังหวัดที่กรอกไว้');
 tb.forEach(row=>assert.strictEqual(row.length,X.TP_TCOLS.length,'จำนวนช่องต้องเท่าหัวตาราง'));
 assert.ok(tb.some(row=>row.includes('Yes')),'คลินิกที่ขอ hands-on ต้องขึ้น Yes');
 assert.ok(tb.some(row=>row.includes('No')),'product ที่ไม่ได้ขอ hands-on ต้องขึ้น No');
