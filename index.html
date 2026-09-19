@@ -1085,11 +1085,15 @@ const askedProducts=()=>prodList(state.draft&&state.draft.product);
 const prodGateOn=()=>(state.role==='sales'||salesView())&&!isUPC();
 /* ยังไม่ได้เลือก Product — ปฏิทินต้องบอกเหตุผล ไม่ใช่ขึ้น "เต็ม" ซึ่งคนละเรื่องกัน */
 const gateBlocked=()=>prodGateOn()&&!askedProducts().length;
+const FREE_SLOTS=10;   // เพดานกันเผลอเลือกรัวของ module ที่ไม่ล็อกจำนวน (เท่ากับโหมด TBC)
 const MODULES={
   'MAX-Entry':{min:1,max:1,def:1,note:'ล็อก 1 session'},
   'MAX-A'    :{min:3,max:3,def:3,note:'ล็อก 3 sessions'},
   'MAX-B'    :{min:4,max:6,def:4,note:'เลือก 4–6 sessions'},
+  /* MSC+ เป็นประเภทการเทรน ไม่ใช่ชุด session — free:true = ไม่ต้องระบุจำนวน เลือกกี่วันก็ได้ */
+  'MSC+'     :{min:1,max:FREE_SLOTS,def:1,free:true,note:'ประเภทการเทรน — ไม่ต้องระบุจำนวน session'},
 };
+const freeMod=m=>!!(MODULES[m]||{}).free;
 const LEVELS=['Standard','Advance'];
 /* หัวข้อการเทรนของแต่ละตระกูล product — เลือกจาก dropdown ตาม product ที่ขอ
    คีย์ = คำแรกของชื่อ product (Belotero Soft -> Belotero, Radiesse Plus -> Radiesse) */
@@ -1223,10 +1227,12 @@ const myRequests=()=>state.requests.filter(r=>{
   if(!canSeeReq(r))return false;
   if(state.role!=='cts'||isMgr())return true;
   if(isLead())return r.team===byId(state.me).team||r.team==='BOTH';
-  return (r.sessions||[]).some(sn=>reqWho(sn).includes(state.me));
+  /* ผู้เทรนรายคลินิกของทริป UPC ก็ต้องเห็นคำขอนี้ ไม่งั้นกดรับทราบไม่ได้ (sessWho ครอบทั้งสองแบบ) */
+  return (r.sessions||[]).some(sn=>sessWho(r,sn).includes(state.me));
 });
 /* 11. CTS รับทราบคิวที่ถูกจัดให้ — r.ack[ctsId]=เวลาที่กด */
-const isTrainerOn=(r,cid)=>(r.sessions||[]).some(sn=>reqWho(sn).includes(cid));
+const sessWho=(r,sn)=>r.mode==='upc'?upcDayWho(r,sn):reqWho(sn);
+const isTrainerOn=(r,cid)=>(r.sessions||[]).some(sn=>sessWho(r,sn).includes(cid));
 const ackedBy=r=>Object.keys(r.ack||{});
 const needAck=r=>state.role==='cts'&&(r.status==='mgr'||r.status==='approved')
   &&isTrainerOn(r,state.me)&&!(r.ack||{})[state.me];
@@ -1243,7 +1249,8 @@ const ackedJob=j=>{
   if(!j||!j.reqId)return false;
   const r=state.requests.find(x=>x.id===j.reqId);
   const sn=r&&(r.sessions||[])[j.sIdx];
-  return !!(sn&&sn.ctsId&&(r.ack||{})[sn.ctsId]);
+  const who=j.cts||(sn&&sn.ctsId);
+  return !!(who&&(r.ack||{})[who]);
 };
 /* UPC = เขตต่างจังหวัด เดินทางหลายวัน — ไม่ต้องดูคิวว่างรายครึ่งวัน */
 const isUPC=()=>state.role==='sales'&&state.area==='UPC';
@@ -1878,7 +1885,8 @@ function renderCal(){
   const c=$('btnCont');if(c)c.onclick=openForm;
   const cl=$('btnClr');if(cl)cl.onclick=()=>{state.picks=[];renderCal();};
   const tsw=$('tbcSw');if(tsw)tsw.onchange=e=>{state.tbcMode=e.target.checked;
-    if(!state.tbcMode&&state.draft&&state.picks.length>state.draft.slots)state.picks=state.picks.slice(0,state.draft.slots);
+    if(!state.tbcMode&&state.draft&&!freeMod(state.draft.module)&&state.picks.length>state.draft.slots)
+      state.picks=state.picks.slice(0,state.draft.slots);
     renderCal();toast(state.tbcMode?'โหมดล็อกวัน TBC — เลือกได้หลายวัน':'กลับสู่โหมดคำขอปกติ');};
 }
 function shift(n){
@@ -2328,7 +2336,10 @@ function legend(){
 
 /* ---- picking ---- */
 /* โหมดล็อกวัน TBC: เลือกได้หลายวันเกินจำนวน session ที่ module กำหนด (สูงสุด 10 กันเผลอ) */
-function needSlots(){return state.tbcMode?10:(state.draft?state.draft.slots:99);}
+function needSlots(){
+  if(state.tbcMode)return FREE_SLOTS;
+  if(state.draft&&freeMod(state.draft.module))return FREE_SLOTS;
+  return state.draft?state.draft.slots:99;}
 /* ระยะเวลาขอคิวขั้นต่ำ นับจากวันนี้ — กันคิว urgent · UPC ต้องเผื่อเดินทางต่างจังหวัด */
 const LEAD_DAYS={normal:5,upc:14};
 const leadDays=()=>isUPC()?LEAD_DAYS.upc:LEAD_DAYS.normal;
@@ -2356,7 +2367,7 @@ function quickPick(k,slot,ctsId){
     if(!state.draft&&state.picks.length===1)toast('เลือกช่วงเวลาแล้ว — กด "สร้างคำขอ" ด้านล่าง');}
 }
 function pickBar(){
-  const need=state.tbcMode?null:(state.draft?state.draft.slots:null);
+  const need=(state.tbcMode||(state.draft&&freeMod(state.draft.module)))?null:(state.draft?state.draft.slots:null);
   const ok=need?state.picks.length===need:state.picks.length>0;
   return `<div class="card" style="border-color:var(--ok-edge);position:sticky;bottom:12px;box-shadow:var(--sh2)">
     <div class="row" style="flex-wrap:wrap"><div class="grow"><div class="eyebrow">เลือกไว้</div>
@@ -2506,7 +2517,7 @@ function openUPCDay(k){
         <div class="row"><span class="req-id grow">${o.r.id} · <span class="salecode">${esc(saleCode(o.r))}</span> · ${o.r.requester||'—'}</span>
           <span class="status ${o.r.status}">${stLabel(o.r.status)}</span></div>
         ${upcWho(o.r,k)?`<div class="muted">ผู้เทรน · ${esc(upcWho(o.r,k))}</div>`:''}
-        ${(o.day.items||[]).map((it,i)=>upcItemView(it,i)).join('')}
+        ${(o.day.items||[]).map((it,i)=>upcItemView(it,i,(o.r.sessions||[]).find(x=>x.date===k))).join('')}
         <button class="btn block" data-edit="${o.r.id}" style="margin-top:10px">✎ แก้ไข / เพิ่มข้อมูล</button>
       </div>`).join('')
       :'<div class="card"><div class="muted">ไม่มีคิวเทรน UPC ในวันนี้</div></div>');
@@ -2514,10 +2525,14 @@ function openUPCDay(k){
     body+`<button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
   bindCards($('sheetBody'));
 }
-function upcItemView(it,i){
+function upcItemView(it,i,sn){
+  /* ผู้เทรนของคลินิกนี้ — ไม่ได้กำหนดเอง = ตามผู้เทรนหลักของวันนั้น */
+  const cid=sn?upcItemCts(it,sn):null;
   return `<div class="upcview">
     <div class="row" style="flex-wrap:wrap;gap:6px">
       <span class="idx">${i+1}</span>
+      ${cid?`<span class="ctschip" style="--c:${pal(cid).c};--ci:${pal(cid).ci}">${face(cid,'xs')}<b>${byId(cid).nick}</b>${
+        it.ctsId?'':' <i style="font-style:normal;opacity:.7">· หลัก</i>'}</span>`:''}
       ${prodList(it.product).length?prodTags(it.product):''}
       ${it.module?`<span class="pill n">${it.module}${it.level?' · '+it.level:''}</span>`:''}
       <span class="muted" style="margin-left:auto;font-family:var(--mono);font-size:11px">${it.start||'—'}–${it.end||'—'}</span></div>
@@ -2676,6 +2691,7 @@ function openReqSession(reqId,sIdx,keep){
           +' → '+(v?byId(v).nick:'ผู้เทรนหลัก'));});
       if(one.length)chg.push(fmtDate(d.date)+' · '+one.join(' · '));});
     if(chg.length)logTrail(r,'changed-trainer',chg.join(' | '));
+    const whoBefore=[...new Set(Object.values(prevAll).flat())];
     s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.filter(i=>i!==s.ctsId);
     stampNow(s);
     if(r.mode==='upc'){
@@ -2685,8 +2701,15 @@ function openReqSession(reqId,sIdx,keep){
       r.sessions.forEach(sn=>{if(!sn.ctsId)return;const pl=reqJobPayload(r,sn);
         upcDayWho(r,sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,stampNow({...pl}))));});
     }else syncReqJob(r,s,prevAll[s.date]);
+    /* คนที่หลุดออกจากคำขอแล้ว ลบสถานะรับทราบทิ้ง · คนใหม่ยังไม่มี ack จึงถูกขอให้กดรับทราบเองตามระบบเดิม */
+    if(chg.length||swapped){
+      whoBefore.forEach(id=>{if(!isTrainerOn(r,id))delete (r.ack||{})[id];});
+      const fresh=[...new Set(r.sessions.flatMap(sn=>sessWho(r,sn)))].filter(id=>!(r.ack||{})[id]);
+      if(fresh.length){r.note='เปลี่ยนผู้เทรนโดย '+myStep()+' — รอ '+fresh.map(i=>byId(i).nick).join(' · ')+' รับทราบ';
+        notify(r,'changed');}
+    }
     closeSheet();render();
-    toast(chg.length?'เปลี่ยนผู้เทรนรายคลินิกแล้ว '+chg.length+' วัน'
+    toast(chg.length?'เปลี่ยนผู้เทรนรายคลินิกแล้ว '+chg.length+' วัน — แจ้งคนใหม่ให้กดรับทราบแล้ว'
       :swapped?'เปลี่ยนผู้เทรนหลักเป็น '+byId(s.ctsId).nick+' แล้ว':'บันทึกคิวงานแล้ว');
   };
 }
@@ -2887,7 +2910,8 @@ function upcJobDetail(r,k){
     <div class="muted">ทริป UPC ${(r.days||[]).length} วัน · ${fmtDate(r.dateFrom)} – ${fmtDate(r.dateTo)}
       · ผู้ขอ ${esc(r.requester||'—')} · <span class="salecode">${esc(saleCode(r))}</span></div>
     <div class="eyebrow" style="margin-top:12px">วันนี้ · ${fmtDate(k)}</div>
-    ${d?((d.items||[]).map((it,i)=>upcItemView(it,i)).join('')||'<div class="muted">ยังไม่มีรายการ</div>')
+    ${d?((d.items||[]).map((it,i)=>upcItemView(it,i,(r.sessions||[]).find(x=>x.date===k))).join('')
+        ||'<div class="muted">ยังไม่มีรายการ</div>')
        :'<div class="muted">ไม่พบข้อมูลของวันนี้ในคำขอ</div>'}
     <div class="eyebrow" style="margin-top:14px">ทั้งทริป</div>
     ${upcDayBox(r,true)}
@@ -3079,15 +3103,17 @@ function dayEntries(k,pool){
       if(day&&its.length&&its.some(x=>x.ctsId&&x.ctsId!==s.ctsId)){
         const grp=new Map();
         its.forEach((x,ix)=>{const cid=upcItemCts(x,s);if(cid)(grp.get(cid)||grp.set(cid,[]).get(cid)).push(ix);});
+        /* ผู้เทรนหลักอาจไม่เหลือคลินิกเลย (โดนเปลี่ยนตัวหมดทุกที่) — คนที่ไปด้วยต้องไปเกาะกลุ่มแรกแทน ไม่งั้นหายจากปฏิทิน */
+        const exHost=grp.has(s.ctsId)?s.ctsId:[...grp.keys()][0];
         grp.forEach((ixs,cid)=>{
           const list=ixs.map(ix=>its[ix]),a=list[0],b=list[list.length-1];
           put(r.id+'-'+i+'@'+cid,{kind:cxl?'cxl':r.status==='approved'?'booked':r.status==='tbc'?'tbc':'pend',
             title:(a.clinic||'ยังไม่ระบุคลินิก')+(list.length>1?' +'+(list.length-1):''),
             detail:list.map(x=>x.topic).filter(Boolean).join(' · '),
             product:pickProds(null,r.product,[...new Set(list.flatMap(x=>prodList(x.product)))]),
-            reqId:r.id,sIdx:i,items:ixs,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
+            reqId:r.id,sIdx:i,items:ixs,cts:cid,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
             start:a.start||SLOT_DEF.am.start,end:b.end||SLOT_DEF.pm.end},
-            [cid].concat(cid===s.ctsId?(s.extra||[]):[]));});
+            [cid].concat(cid===exHost?(s.extra||[]).filter(x=>x!==cid):[]));});
         return;
       }
       /* sTitle / extra = ของที่ CTS แก้เองหลังคำขอถูกอนุมัติ (หัวข้อ และคนที่ไปด้วย) */
@@ -3395,11 +3421,15 @@ function openForm(){
   const modChips=Object.keys(MODULES).map(m=>`<button class="chip" data-m="${m}" aria-pressed="${d.module===m}">${m}</button>`).join('');
   const prodChips=PRODUCTS.map(p=>`<button class="chip prodchip" data-p="${p}" style="--cc:${PRODHEX[p]};--ct:${pink(p)}" aria-pressed="${prodList(d.product).includes(p)}">${p}</button>`).join('');
   const selProds=prodList(d.product);   /* เลือกกี่ product ก็มีช่อง "หัวข้อ" เท่านั้น */
-  const sessBox=rule?`<label class="f">จำนวน session <span>· ${rule.note}</span></label>
+  const freeM=!!(rule&&rule.free);
+  const sessBox=!rule?''
+    :freeM?`<div class="note">${rule.note} — เลือกวันได้ตามจริง${state.picks.length?' (ตอนนี้ '+state.picks.length+' วัน)':''}</div>`
+    :`<label class="f">จำนวน session <span>· ${rule.note}</span></label>
     <select class="in" id="fSess" ${rule.min===rule.max?'disabled':''}>
-    ${Array.from({length:rule.max-rule.min+1},(_,i)=>rule.min+i).map(n=>`<option value="${n}" ${d.sessions===n?'selected':''}>${n} session</option>`).join('')}</select>`:'';
+    ${Array.from({length:rule.max-rule.min+1},(_,i)=>rule.min+i).map(n=>`<option value="${n}" ${d.sessions===n?'selected':''}>${n} session</option>`).join('')}</select>`;
   /* โหมด TBC = ล็อกวันเผื่อไว้ จำนวน session ไม่คุมจำนวนวัน — เลือกกี่วันก็ได้ */
-  const need=rule?d.slots:1,short=state.tbcMode?0:need-state.picks.length;
+  const need=freeM?state.picks.length:(rule?d.slots:1);
+  const short=(state.tbcMode||freeM)?0:need-state.picks.length;
   const picks=state.picks.map((p,i)=>`<div class="picked-row">
     <div class="picked-item"><span class="idx">S${i+1}</span>${p.ctsId?face(p.ctsId,'xs'):''}
       <span class="grow">${fmtDate(p.date)} · ${p.slot==='am'?'เช้า':'บ่าย'}${p.ctsId?' · '+byId(p.ctsId).nick:''}</span>
@@ -3423,7 +3453,7 @@ function openForm(){
     <label class="f">ระดับเนื้อหาการเทรน <span>· ไม่เกี่ยวกับจำนวน session</span></label>
     <select class="in" id="fLevel"><option value="">— เลือกระดับ —</option>
       ${LEVELS.map(l=>`<option ${d.level===l?'selected':''}>${l}</option>`).join('')}</select>
-    <label class="f">วัน / ช่วงเวลา <span>· ${state.tbcMode?`คิว TBC เลือกได้หลายวัน ไม่ต้องเท่ากับ ${need} session`:`ต้องครบ ${need} slot`}${need>1?' · แต่ละ session ระบุ product และหัวข้อแยกได้':''}</span></label>
+    <label class="f">วัน / ช่วงเวลา <span>· ${state.tbcMode?`คิว TBC เลือกได้หลายวัน ไม่ต้องเท่ากับ ${need} session`:freeM?`เลือกได้ตามจริง ไม่จำกัดจำนวน`:`ต้องครบ ${need} slot`}${need>1?' · แต่ละ session ระบุ product และหัวข้อแยกได้':''}</span></label>
     <div class="picked-list">${picks||'<div class="muted">ยังไม่ได้เลือก</div>'}</div>
     ${short>0?`<div class="warn">ยังขาดอีก ${short} slot — กดปุ่มด้านล่างไปเลือก ข้อมูลที่กรอกไว้ไม่หาย</div>`:''}
     ${short<0?`<div class="warn">เลือกเกินมา ${-short} slot — ลบออกก่อน</div>`:''}
@@ -3488,6 +3518,8 @@ function openForm(){
       if(tp)p.sTopic=tp.value;});};
   window.__grab=grab;
   B.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{grab();d.module=b.dataset.m;const r=MODULES[d.module];
+    /* module ที่ไม่ล็อกจำนวน — วันที่เลือกไว้แล้วต้องไม่ถูกตัดทิ้ง */
+    if(r.free){d.sessions=null;d.slots=Math.max(1,state.picks.length);openForm();return;}
     d.sessions=r.def;d.slots=r.def;
     if(!state.tbcMode&&state.picks.length>d.slots)state.picks=state.picks.slice(0,d.slots);openForm();});
   B.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{grab();const l=prodList(d.product),i=l.indexOf(b.dataset.p);
@@ -3824,7 +3856,8 @@ function submit(){
   const d=state.draft,e=[];
   if(!d.module)e.push('เลือก Module Training');
   missingRequired(d).forEach(x=>e.push('กรอก '+x));
-  if(!state.tbcMode&&state.picks.length!==d.slots)e.push(`เลือกวันให้ครบ ${d.slots} slot`);
+  if(freeMod(d.module)){if(!state.picks.length)e.push('เลือกวันที่จะเทรนอย่างน้อย 1 วัน');}
+  else if(!state.tbcMode&&state.picks.length!==d.slots)e.push(`เลือกวันให้ครบ ${d.slots} slot`);
   state.picks.forEach((p,i)=>{
     if(p.start&&p.end&&p.end<=p.start)e.push(`S${i+1}: เวลาสิ้นสุดต้องหลังเวลาเริ่ม`);
     if(p.ctsId&&p.start){const w=slotTime(p.date,p.ctsId,p.slot);
@@ -4148,12 +4181,15 @@ function upcDayBox(r,showCts,openAll){
     const ho=dayHo(d),hoc=ho.reduce((m,i)=>m+(hoTotal(i.ho)||+i.hoCases||0),0);
     return `<details class="upcdd"${openAll||di===0?' open':''}>
       <summary><b>${fmtDate(d.date)}</b>
-        ${sn.ctsId&&showCts?`<span class="ctschip" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">${
-          face(sn.ctsId,'xs')}<b>${byId(sn.ctsId).nick}</b></span>`:'<span class="pill miss">รอจัด CTS</span>'}
+        ${(()=>{const who=sn.ctsId?[...new Set((d.items||[]).map(it=>upcItemCts(it,sn)).filter(Boolean))]:[];
+          return who.length&&showCts?who.map(c=>`<span class="ctschip" style="--c:${pal(c).c};--ci:${pal(c).ci}">${
+            face(c,'xs')}<b>${byId(c).nick}</b></span>`).join('')
+          :sn.ctsId&&showCts?`<span class="ctschip" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">${
+            face(sn.ctsId,'xs')}<b>${byId(sn.ctsId).nick}</b></span>`:'<span class="pill miss">รอจัด CTS</span>';})()}
         <span class="muted">${(d.items||[]).length} คลินิก</span>
         ${prodTags(dayProds(d))||'<span class="pill miss">ยังไม่ระบุ product</span>'}
         ${ho.length?`<span class="hoflag">● Hands-on ${hoc||ho.length} เคส</span>`:''}</summary>
-      <div class="bd">${(d.items||[]).map((it,i)=>upcItemView(it,i)).join('')
+      <div class="bd">${(d.items||[]).map((it,i)=>upcItemView(it,i,sn)).join('')
         ||'<div class="muted">ยังไม่มีรายการ</div>'}</div>
     </details>`;}).join('');
 }
@@ -4365,7 +4401,7 @@ function saleRows(codes){
    จากคำขอที่ผูกอยู่ (reqId) หรือคิวที่ CTS ลงเอง (selfId) */
 const TP_PRODUCTS=['Ultherapy','Xeomin','Belotero','Radiesse'];
 const TP_COLOR={Ultherapy:'#FFD961',Xeomin:'#7C9CEC',Belotero:'#FF9FC6',Radiesse:'#8FE2FF'};
-const tpState=()=>state.pulse||(state.pulse={from:'',to:'',range:'all',cts:[],team:'',product:'',
+const tpState=()=>state.pulse||(state.pulse={from:'',to:'',range:'all',cts:[],team:'',product:'',module:'',
   pick:null,gran:'month',ctype:'all'});
 /* Chart.js โหลดตอนเปิดแท็บ Dashboard ครั้งแรกเท่านั้น — ไม่ถ่วงเวลาเปิดแอป */
 let _tpChartP=null;
@@ -4443,7 +4479,8 @@ function tpRows(all){
   return all.filter(r=>
     (!from||r.d>=from)&&(!to||r.d<=to)
     &&(!S.cts.length||S.cts.includes(r.cts)||S.cts.includes(r.code))&&(!S.team||r.team===S.team)
-    &&(!S.product||r.products.includes(S.product)));
+    &&(!S.product||r.products.includes(S.product))
+    &&(!S.module||r.module===S.module));
 }
 const tpCounts=rows=>{const c={Ultherapy:0,Xeomin:0,Belotero:0,Radiesse:0};
   rows.forEach(r=>r.products.forEach(p=>{if(c[p]!==undefined)c[p]++;}));return c;};
@@ -4489,6 +4526,7 @@ function renderDash(){
   const ctsRows=S.pick?rows.filter(r=>S.pick.includes(r[gf])):rows;
   const nick=[...new Set(all.map(r=>r[gf]))].sort();
   const teams=[...new Set(all.map(r=>r.team))].filter(t=>t!=='—').sort();
+  const mods=[...new Set(Object.keys(MODULES).concat(all.map(r=>r.module).filter(Boolean)))];
   const K=tpCounts(rows),tot=TP_PRODUCTS.reduce((n,p)=>n+K[p],0);
   const rc=tpCounts(ctsRows),rct=TP_PRODUCTS.reduce((n,p)=>n+rc[p],0);
   const kpi=[
@@ -4520,6 +4558,8 @@ function renderDash(){
         +teams.map(function(t){return opt(t,S.team);}).join('')+'</select></div>'}
       <div class="filter-group"><label>Product</label><select id="tpProd"><option value="">All Products</option>
         ${TP_PRODUCTS.map(function(p){return opt(p,S.product);}).join('')}</select></div>
+      <div class="filter-group"><label>Training Module</label><select id="tpModule"><option value="">All Modules</option>
+        ${mods.map(function(m){return opt(m,S.module);}).join('')}</select></div>
       <div class="filter-spacer"></div><button class="reset-link" id="tpReset">ล้างตัวกรอง</button></div>
 
     <div class="kpi-grid">${kpi.map(function(x){return '<div class="kpi-card accent" style="--bar-color:'+x[3]+'">'
@@ -4595,6 +4635,7 @@ function renderDash(){
   view().querySelectorAll('[data-tpctsx]').forEach(function(b){b.onclick=function(){set({cts:[]});};});
   const tpT=$('tpTeam');if(tpT)tpT.onchange=e=>set({team:e.target.value});
   $('tpProd').onchange=e=>set({product:e.target.value});
+  $('tpModule').onchange=e=>set({module:e.target.value});
   $('tpReset').onclick=()=>{state.pulse=null;renderDash();};
   view().querySelectorAll('[data-tpr]').forEach(b=>b.onclick=()=>{
     const v=b.dataset.tpr;

@@ -11,6 +11,7 @@ const el=()=>({innerHTML:'',classList:{add(){},remove(){},contains(){return fals
 const store={};
 const badge={n:0};   // จับ setAppBadge ที่แอปยิงออกมา
 const cache={};const G=id=>cache[id]||(cache[id]=el());   // คืน element เดิมทุกครั้ง จะได้อ่าน innerHTML กลับมาตรวจได้
+const sheet0=()=>G('sheetBody').innerHTML;
 const sheet=()=>G('sheetBody').innerHTML;
 const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
@@ -30,7 +31,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText,tpSupHTML,openSupClinic};';
 src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
-     + 'qJob,TRAIL_ACT,openSelfView});';
+     + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1156,4 +1157,114 @@ assert.ok(vsheet.includes('คลินิกวิว')&&vsheet.includes('C01')
 assert.ok(vsheet.includes(X.CTS.find(c=>c.id===B1).nick),'ต้องบอกว่าเป็น CTS คนใด');
 assert.ok(!/id="se(Save|Del)"/.test(vsheet)&&!vsheet.includes('data-edit'),'ต้องไม่มีปุ่มแก้ไข/ลบ');
 
-console.log('✓ ผ่านทั้ง 80 ข้อ');
+/* 81. เปลี่ยนตัว CTS รายคลินิก — KPI ย้ายตามวันจริง · ack คนเก่าหลุด · คนใหม่ถูกขอให้รับทราบ */
+{
+const T1=X.BOOKABLE_CTS()[0].id,T2=X.BOOKABLE_CTS()[1].id,T3=X.BOOKABLE_CTS()[2].id;
+const D1='2026-08-24',D2='2026-08-25';
+const mkIt=(c,st,en)=>({clinic:c,province:'กทม',map:'m',start:st,end:en,product:'Ultherapy',doctors:'2',topic:'t'});
+clean();
+X.state.role='cts';X.state.me=T1;
+X.state.requests=[{id:'TR-K1',team:'BOTH',area:'UPC',mode:'upc',status:'approved',module:'UPC Trip',
+  product:['Ultherapy'],topic:'',clinic:'',map:'',doctors:'',exp:'',handsOn:false,photos:[],
+  requester:'u',requesterId:'UPC1',dateFrom:D1,dateTo:D2,
+  days:[{date:D1,items:[mkIt('เอ','09:00','12:00'),mkIt('บี','13:00','16:00')]},
+        {date:D2,items:[mkIt('ซี','09:00','12:00')]}],
+  sessions:[{date:D1,slot:'day',ctsId:T1,fullDay:true},{date:D2,slot:'day',ctsId:T1,fullDay:true}],
+  ack:{[T1]:new Date().toISOString()}}];
+const R=X.state.requests[0];
+X.bookUPC(R);
+const kpi=()=>X.tpAllRows().filter(x=>x.reqId==='TR-K1')
+  .map(x=>x.date.slice(5)+'/'+x.clinic+'/'+x.cts).sort().join(' | ');
+const nickOf=id=>X.CTS.find(c=>c.id===id).nick;
+/* คนเดียวไปทั้งทริป = นับตามเงื่อนไขปกติ ทุกคลินิกเป็นของคนนั้น */
+assert.strictEqual(kpi(),['08-24/เอ/'+nickOf(T1),'08-24/บี/'+nickOf(T1),'08-25/ซี/'+nickOf(T1)].sort().join(' | '),
+  'คนเดียวทั้งทริป ต้องนับ KPI ให้คนนั้นทุกคลินิก');
+
+/* เปลี่ยนคลินิก "บี" (วันแรก) -> T2 และคลินิก "ซี" (วันที่สอง) -> T3 ในการบันทึกครั้งเดียว */
+X.openReqSession('TR-K1',0,{title:'',start:'09:00',end:'16:00',extra:[],main:T1,
+  its:{[D1+'#0']:'',[D1+'#1']:T2,[D2+'#0']:T3}});
+G('rsMain').value='';G('rsTitle').value='';G('rsStart').value='09:00';G('rsEnd').value='16:00';
+G('rsSave').onclick();
+
+/* KPI ต้องย้ายตามวันและคลินิกที่เปลี่ยน ไม่ใช่ย้ายทั้งทริป */
+assert.strictEqual(kpi(),['08-24/เอ/'+nickOf(T1),'08-24/บี/'+nickOf(T2),'08-25/ซี/'+nickOf(T3)].sort().join(' | '),
+  'KPI ต้องย้ายเฉพาะวัน/คลินิกที่เปลี่ยนตัว');
+assert.strictEqual(X.tpAllRows().filter(x=>x.reqId==='TR-K1').length,3,'จำนวนคิวรวมต้องเท่าเดิม ไม่นับซ้ำ');
+/* ปฏิทินและคิวว่างต้องตรงกับ KPI */
+assert.strictEqual(X.slotStatus(D1,T2,'pm'),'booked','คนใหม่ของวันแรกต้องถูกตัดคิวว่าง');
+assert.strictEqual(X.slotStatus(D2,T3,'am'),'booked','คนใหม่ของวันที่สองต้องถูกตัดคิวว่าง');
+assert.strictEqual(X.slotStatus(D2,T1,'am'),'free','คนเดิมที่ไม่เหลือคลินิกในวันนั้น ต้องได้คิวว่างคืน');
+
+/* ทุกคนที่มีคลินิกในทริป = ผู้เทรนของคำขอนี้ (เดิมนับแค่ผู้เทรนหลัก คนใหม่จึงกดรับทราบไม่ได้) */
+assert.ok(X.isTrainerOn(R,T2)&&X.isTrainerOn(R,T3),'ผู้เทรนรายคลินิกต้องนับเป็นผู้เทรนของคำขอด้วย');
+assert.ok(X.sessWho(R,R.sessions[1]).includes(T3),'sessWho ของวันที่สองต้องเป็นคนใหม่');
+/* คนเก่าที่ยังมีคลินิกอยู่ ไม่ต้องกดรับทราบซ้ำ · คนใหม่ยังไม่มี ack */
+assert.ok(R.ack[T1],'T1 ยังมีคลินิก "เอ" อยู่ ไม่ต้องล้างการรับทราบ');
+assert.ok(!R.ack[T2]&&!R.ack[T3],'คนใหม่ต้องยังไม่ถือว่ารับทราบ');
+X.state.me=T2;assert.strictEqual(X.needAck(R),true,'คนใหม่ต้องถูกขอให้กดรับทราบ');
+X.state.me=T1;assert.strictEqual(X.needAck(R),false,'คนที่รับทราบแล้วต้องไม่ถูกถามซ้ำ');
+assert.strictEqual(X.state.feed[0].r.id+'/'+X.state.feed[0].kind,'TR-K1/changed','ต้องเด้งแจ้งเตือนเปลี่ยนผู้เทรน');
+/* คนใหม่กดรับทราบได้จริง */
+X.state.me=T2;
+assert.ok(X.myRequests().some(x=>x.id==='TR-K1'),'ผู้เทรนรายคลินิกต้องเห็นคำขอนี้ในแท็บคำขอ');
+assert.strictEqual(X.ackList().length,1,'ต้องขึ้นรายการรอรับทราบให้คนใหม่');
+X.ackReq('TR-K1');
+assert.ok(R.ack[T2],'คนใหม่ต้องกดรับทราบได้');
+
+/* ย้ายคลินิกสุดท้ายของ T1 ออกด้วย -> T1 หลุดจากทริป ต้องล้างสถานะรับทราบทิ้ง */
+X.state.me=T1;
+X.openReqSession('TR-K1',0,{title:'',start:'09:00',end:'16:00',extra:[],main:T1,
+  its:{[D1+'#0']:T2,[D1+'#1']:T2,[D2+'#0']:T3}});
+G('rsMain').value='';G('rsTitle').value='';G('rsStart').value='09:00';G('rsEnd').value='16:00';
+G('rsSave').onclick();
+assert.strictEqual(X.isTrainerOn(R,T1),false,'T1 ไม่เหลือคลินิกแล้ว ต้องไม่ใช่ผู้เทรนของคำขอ');
+assert.ok(!R.ack[T1],'คนที่หลุดจากทริปต้องถูกล้างสถานะรับทราบ');
+assert.strictEqual(kpi(),['08-24/เอ/'+nickOf(T2),'08-24/บี/'+nickOf(T2),'08-25/ซี/'+nickOf(T3)].sort().join(' | '),
+  'KPI ต้องย้ายให้คนใหม่ครบทุกคลินิก');
+assert.strictEqual(X.slotStatus(D1,T1,'am'),'free','คนเดิมต้องได้คิวว่างคืนทั้งวัน');
+
+/* กล่องรายละเอียดจากคำขอต้องบอกผู้เทรนรายคลินิกที่เปลี่ยนแล้ว */
+const box=X.upcDayBox(R,true,true);
+assert.ok(box.includes(nickOf(T2))&&box.includes(nickOf(T3)),'รายละเอียดจากคำขอต้องโชว์ผู้เทรนคนใหม่');
+assert.ok(!box.includes('>'+nickOf(T1)+'<'),'ต้องไม่โชว์คนเดิมที่ไม่ได้ไปแล้ว');
+}
+
+/* 82. Module MSC+ โผล่ทุกที่ที่ให้เลือก · เข้าตาราง Record/Excel · กรองใน Dashboard ได้ */
+{
+assert.ok(Object.keys(X.MODULES).includes('MSC+'),'ต้องมี Module MSC+');
+/* MSC+ เป็นประเภทการเทรน ไม่ผูกจำนวน session — เลือกกี่วันก็ได้ อย่างน้อย 1 */
+assert.strictEqual(X.MODULES['MSC+'].free,true,'MSC+ ต้องไม่ล็อกจำนวน session');
+assert.strictEqual(X.MODULES['MAX-A'].free,undefined,'module เดิมต้องยังล็อกจำนวนเหมือนเดิม');
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.tbcMode=false;
+X.state.draft={...X.newDraft(),module:'MSC+',slots:1};
+assert.strictEqual(X.needSlots(),10,'MSC+ ต้องเลือกได้หลายวัน ไม่ติดเพดาน 1 slot');
+X.state.draft.module='MAX-Entry';X.state.draft.slots=1;
+assert.strictEqual(X.needSlots(),1,'MAX-Entry ต้องยังล็อก 1 slot');
+X.state.draft.module='MSC+';
+assert.ok(!X.pickBar().includes('/ 1'),'แถบสรุปต้องไม่โชว์ x / N ตอนเป็น MSC+');
+X.state.picks=[];X.openForm();
+assert.ok(!sheet0().includes('fSess'),'ฟอร์มต้องไม่มีช่องจำนวน session ตอนเลือก MSC+');
+assert.ok(sheet0().includes('ไม่ต้องระบุจำนวน session'),'ต้องบอกว่าเป็นประเภทการเทรน');
+clean();
+X.state.role='cts';X.state.me=B1;
+const mreq={id:'TR-M1',team:'A',area:'Champion',status:'approved',mode:'std',module:'MSC+',level:'Standard',
+  product:['Ultherapy'],topic:'t',clinic:'คลินิกเอ็ม',clinicType:'Single',map:'',doctors:2,exp:'',handsOn:false,photos:[],
+  requester:'a',requesterId:'C01',created:new Date(),ptopic:{Ultherapy:'Ultherapy MAX'},
+  sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
+X.state.requests=[mreq];
+X.state.sched[K]={[B1]:{am:{kind:'booked',title:'คลินิกเอ็ม',product:['Ultherapy'],reqId:'TR-M1',start:'09:00',end:'12:00'},pm:null}};
+const rrow=X.recTableRows([mreq])[0];
+assert.strictEqual(rrow[X.REC_COLS.indexOf('Module')],'MSC+','ตาราง Record/Excel ต้องมี MSC+');
+const trow=X.tpTableRows(X.tpAllRows().filter(r=>r.reqId==='TR-M1'))[0];
+assert.strictEqual(trow[X.TP_TCOLS.indexOf('Training Module')],'MSC+','ตารางข้อมูลการเทรนต้องมี MSC+');
+const S=X.tpState();S.from='';S.to='';S.range='all';S.cts=[];S.team='';S.product='';
+S.module='MSC+';
+assert.strictEqual(X.tpRows(X.tpAllRows()).every(r=>r.module==='MSC+'),true,'กรอง Module แล้วต้องเหลือแต่ MSC+');
+assert.ok(X.tpRows(X.tpAllRows()).some(r=>r.reqId==='TR-M1'),'คิว MSC+ ต้องอยู่ในผลลัพธ์');
+S.module='MAX-A';
+assert.strictEqual(X.tpRows(X.tpAllRows()).some(r=>r.reqId==='TR-M1'),false,'เลือก Module อื่นต้องไม่เห็นคิว MSC+');
+S.module='';
+}
+
+console.log('✓ ผ่านทั้ง 82 ข้อ');
