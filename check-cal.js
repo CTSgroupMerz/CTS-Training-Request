@@ -29,7 +29,8 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
      + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText,tpSupHTML,openSupClinic};';
 src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
-     + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries});';
+     + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
+     + 'qJob,TRAIL_ACT,openSelfView});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1055,35 +1056,45 @@ X.state.q='';
 
 /* 76. ทริป UPC: เปลี่ยนผู้เทรนแยกรายคลินิกในวันเดียวกัน */
 clean();
-const U1=X.BOOKABLE_CTS()[0].id,U2=X.BOOKABLE_CTS()[1].id;
+const U1=X.BOOKABLE_CTS()[0].id,U2=X.BOOKABLE_CTS()[1].id,U3=X.BOOKABLE_CTS()[2].id;
+const K2='2026-08-25';
 X.state.role='cts';X.state.me=U1;
 X.state.requests=[{id:'TR-U1',team:'BOTH',area:'UPC',mode:'upc',status:'approved',module:'UPC Trip',
   product:['Ultherapy'],topic:'',clinic:'',map:'',doctors:'',exp:'',handsOn:false,photos:[],
-  requester:'u',requesterId:'UPC1',dateFrom:K,dateTo:K,
+  requester:'u',requesterId:'UPC1',dateFrom:K,dateTo:K2,
   days:[{date:K,items:[{clinic:'คลินิกหนึ่ง',province:'กทม',map:'m',start:'09:00',end:'12:00',product:'Ultherapy',doctors:'2',topic:'a'},
-                       {clinic:'คลินิกสอง',province:'กทม',map:'m',start:'13:00',end:'16:00',product:'Xeomin',doctors:'1',topic:'b'}]}],
-  sessions:[{date:K,slot:'day',ctsId:U1,fullDay:true}]}];
+                       {clinic:'คลินิกสอง',province:'กทม',map:'m',start:'13:00',end:'16:00',product:'Xeomin',doctors:'1',topic:'b'}]},
+        {date:K2,items:[{clinic:'คลินิกสาม',province:'กทม',map:'m',start:'09:00',end:'12:00',product:'Ultherapy',doctors:'1',topic:'c'}]}],
+  sessions:[{date:K,slot:'day',ctsId:U1,fullDay:true},{date:K2,slot:'day',ctsId:U1,fullDay:true}]}];
 const ur=X.state.requests[0];
 X.bookUPC(ur);
 assert.strictEqual(X.dayEntries(K).filter(e=>e.job&&e.job.reqId==='TR-U1').length,1,'ยังไม่แยก = คิวเดียวทั้งวัน');
-assert.strictEqual(X.tpAllRows().filter(r=>r.reqId==='TR-U1').length,2,'นับ 2 คลินิก');
+assert.strictEqual(X.tpAllRows().filter(r=>r.reqId==='TR-U1').length,3,'นับ 3 คลินิกทั้งทริป');
 /* แยกคลินิกที่ 2 ให้อีกคน */
 X.openReqSession('TR-U1',0);
-assert.ok(/data-rsit="1"/.test(sheet()),'ต้องมีช่องเลือกผู้เทรนรายคลินิก');
-X.openReqSession('TR-U1',0,{title:'',start:'09:00',end:'16:00',extra:[],main:U1,its:['',U2]});
+assert.ok(sheet().includes('data-rsit="'+K+'#1"'),'ต้องมีช่องเลือกผู้เทรนรายคลินิกของวันแรก');
+assert.ok(sheet().includes('data-rsit="'+K2+'#0"'),'เปิดจากวันแรก ต้องเห็นคลินิกของวันอื่นในทริปด้วย');
+X.openReqSession('TR-U1',0,{title:'',start:'09:00',end:'16:00',extra:[],main:U1,
+  its:{[K+'#0']:'',[K+'#1']:U2,[K2+'#0']:U3}});
 /* mock element ถูก cache ไว้ทั้งไฟล์ — ล้าง rsMain ที่เทสก่อนหน้าตั้งค้างไว้ (ของจริงไม่มีช่องนี้เมื่อไม่ใช่หัวหน้า) */
 G('rsMain').value='';
 G('rsTitle').value='';G('rsStart').value='09:00';G('rsEnd').value='16:00';
 G('rsSave').onclick();
 assert.strictEqual(ur.days[0].items[1].ctsId,U2,'คลินิกที่ 2 ต้องเปลี่ยนผู้เทรนได้');
 assert.strictEqual(ur.days[0].items[0].ctsId,undefined,'คลินิกที่ 1 ต้องยังใช้ผู้เทรนหลัก');
+assert.strictEqual(ur.days[1].items[0].ctsId,U3,'วันที่สองต้องเปลี่ยนผู้เทรนได้จากใบเดียวกัน');
+assert.strictEqual(X.slotStatus(K2,U3,'am'),'booked','ผู้เทรนของวันที่สองต้องถูกตัดคิวว่าง');
+const ue2=X.dayEntries(K2).filter(e=>e.job&&e.job.reqId==='TR-U1');
+assert.strictEqual(ue2.length,1,'วันที่สองมีคลินิกเดียว = 1 กล่อง');
+assert.strictEqual(ue2[0].who[0],U3,'กล่องวันที่สองต้องเป็นคนใหม่');
 /* array ที่สร้างในบริบท vm คนละ prototype กับของไฟล์เทส — เทียบเป็นสตริงแทน */
 assert.strictEqual(X.upcDayWho(ur,ur.sessions[0]).slice().sort().join(','),[U1,U2].sort().join(','),'ต้องตัดคิวว่างของทั้งสองคน');
 const ue=X.dayEntries(K).filter(e=>e.job&&e.job.reqId==='TR-U1');
 assert.strictEqual(ue.length,2,'แยกผู้เทรนแล้วต้องเป็น 2 กล่องในปฏิทิน');
 assert.ok(ue.some(e=>e.who[0]===U2&&e.job.title==='คลินิกสอง'),'กล่องของคนที่ 2 ต้องเป็นคลินิกสอง');
 assert.strictEqual(X.slotStatus(K,U2,'pm'),'booked','คนที่รับคลินิกที่ 2 ต้องถูกตัดคิวว่าง');
-assert.strictEqual(X.tpAllRows().filter(r=>r.reqId==='TR-U1').length,2,'KPI ต้องยังนับ 2 คลินิก ไม่นับซ้ำ');
+assert.strictEqual(X.tpAllRows().filter(r=>r.reqId==='TR-U1').length,3,'KPI ต้องยังนับ 3 คลินิกทั้งทริป ไม่นับซ้ำ');
+assert.strictEqual(X.tpAllRows().filter(r=>r.reqId==='TR-U1'&&r.date===K).length,2,'วันแรกนับ 2 คลินิก');
 assert.ok((ur.trail||[]).some(t=>t.act==='changed-trainer'),'ต้องบันทึกการเปลี่ยนตัวใน trail');
 
 /* 77. ตัวเลือกใหม่ที่ขอเพิ่ม + กติกาคิวว่างที่ผ่อนให้ */
@@ -1109,4 +1120,40 @@ assert.strictEqual(X.isUrgent(near),true,'วันในระยะ 5 วั�
 assert.strictEqual(X.isUrgent(FUT(0)),false,'วันไกลๆ ต้องไม่ใช่คิวด่วน');
 
 }
-console.log('✓ ผ่านทั้ง 77 ข้อ');
+/* 78. Search จับรหัส Sale / PS Area ของคิวนั้นได้ */
+clean();
+X.state.role='cts';X.state.me=ME;
+X.state.selfEvents=[{id:'SE-Q1',date:K,dateEnd:'',allDay:false,start:'09:00',end:'12:00',
+  title:'งานเอ',detail:'',product:[],topics:[],attendees:[ME],owner:ME,psArea:'C04'},
+  {id:'SE-Q2',date:K,dateEnd:'',allDay:false,start:'13:00',end:'15:00',
+  title:'งานบี',detail:'',product:[],topics:[],attendees:[ME],owner:ME,psArea:'W02'}];
+X.state.selfEvents.forEach(e=>X.syncSelf(e));
+X.state.q='C04';
+const qhits=X.dayEntries(K).filter(e=>e.job&&X.qJob(e));
+assert.strictEqual(qhits.length,1,'ค้นด้วยรหัส Sale ต้องเหลือคิวเดียว');
+assert.strictEqual(qhits[0].job.title,'งานเอ','ต้องเป็นคิวของรหัสนั้น');
+X.state.q='';
+
+/* 79. ป้ายใน Approval Status Tracking มีชื่อ/คลาสสีของตัวเอง */
+assert.strictEqual(X.TRAIL_ACT.cancelled,'Cancelled','คิวยกเลิกต้องมีป้ายของตัวเอง');
+assert.strictEqual(X.TRAIL_ACT.acknowledged,'Acknowledge','รับทราบต้องมีป้ายของตัวเอง');
+assert.strictEqual(X.TRAIL_ACT['changed-trainer'],'Changed-Trainer','เปลี่ยนผู้เทรนต้องมีป้ายของตัวเอง');
+
+/* 80. ชื่อ CTS ในปฏิทินฝั่งขายเป็นกรอบฟ้า · คิวที่ CTS ลงเองกดดูรายละเอียดได้ แต่ไม่มีปุ่มแก้ */
+clean();
+X.state.role='cts';X.state.me=B1;
+X.state.selfEvents=[{id:'SE-V1',date:K,dateEnd:'',allDay:false,start:'09:00',end:'12:00',
+  title:'Ultherapy @ คลินิกวิว',detail:'จอดรถหลังตึก',product:['Ultherapy'],topics:[],attendees:[B1],owner:B1,
+  psArea:'C01',clinic:'คลินิกวิว',clinicType:'Single',doctors:'2',module:'MAX-Entry'}];
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
+const vchip=X.smChip(X.smEntries(K)[0],true);
+assert.ok(vchip.includes('class="ctsb"'),'ชื่อ CTS ต้องอยู่ในกรอบฟ้า');
+assert.ok(vchip.includes('data-selfview="SE-V1"'),'คิวที่ CTS ลงเองต้องกดดูได้');
+assert.ok(!vchip.includes('data-smreq'),'คิวที่ CTS ลงเองต้องไม่เปิดหน้าคำขอ');
+X.openSelfView('SE-V1');
+const vsheet=sheet();
+assert.ok(vsheet.includes('คลินิกวิว')&&vsheet.includes('C01'),'ต้องเห็นรายละเอียดคิว');
+assert.ok(vsheet.includes(X.CTS.find(c=>c.id===B1).nick),'ต้องบอกว่าเป็น CTS คนใด');
+assert.ok(!/id="se(Save|Del)"/.test(vsheet)&&!vsheet.includes('data-edit'),'ต้องไม่มีปุ่มแก้ไข/ลบ');
+
+console.log('✓ ผ่านทั้ง 80 ข้อ');

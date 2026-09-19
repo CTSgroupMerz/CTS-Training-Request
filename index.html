@@ -335,6 +335,8 @@ h3{font-size:14.5px;margin:0 0 10px;font-weight:700}
 
 /* ============ CALENDAR ============ */
 .calbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.upcday{border:1px solid var(--line);border-radius:12px;padding:8px 11px 10px;margin-bottom:8px}
+.upcday.on{border-color:#C9B6F2;background:var(--brand-soft)}
 .calsearch{display:flex;gap:7px;align-items:center;margin:-6px 0 12px}
 .calsearch .in{flex:1;min-width:0}
 .seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:3px;box-shadow:var(--sh1)}
@@ -671,6 +673,9 @@ textarea.in{min-height:76px;resize:vertical}
 .supbox b{font-size:14px}
 .supbox .big{font-family:var(--mono);font-size:17px;font-weight:700;color:#C0521A}
 /* เส้นทางการอนุมัติใน Record — 1 บรรทัด = 1 ขั้นที่เกิดขึ้นจริง */
+/* ชื่อผู้เทรนในปฏิทินฝั่งขาย — ต้องเด่นกว่าข้อความอื่นในชิป */
+.ctsb{display:inline-block;border:1.5px solid #3B82C4;background:#EAF3FB;color:#14538C;
+  border-radius:6px;padding:0 5px;font-weight:800;font-size:10px;line-height:1.55;white-space:nowrap}
 .trail{margin-top:10px;border-left:2.5px solid var(--line);padding-left:11px;display:grid;gap:7px}
 .trail .tstep{font-size:12px;line-height:1.4}
 .trail .tstep b{font-family:var(--sans)}
@@ -679,6 +684,9 @@ textarea.in{min-height:76px;resize:vertical}
 .trail .tact.approved{background:var(--ok-soft);color:var(--ok)}
 .trail .tact.rejected{background:var(--bad-soft);color:var(--bad)}
 .trail .tact.request{background:#E5E0F5;color:#5F4FB0}
+.trail .tact.cancelled{background:var(--bad-soft);color:var(--bad)}
+.trail .tact.acknowledged{background:#EAF3FB;color:#14538C}
+.trail .tact.changed-trainer,.trail .tact.assigned{background:#E5E0F5;color:#5F4FB0}
 .trail .tnote{color:var(--ink2);font-style:italic}
 .status.expired{background:#F2F1F6;color:var(--ink3);border:1px solid var(--line)}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
@@ -691,9 +699,9 @@ textarea.in{min-height:76px;resize:vertical}
   background:var(--ok-soft);color:#15734F;font:800 11.5px/1.25 var(--sans);cursor:pointer;text-align:center;letter-spacing:.02em}
 .upcfree:hover{background:#D8F3E6}
 .upcfree.on{background:var(--ok);color:#fff;border-color:var(--ok)}
-.upcfree.sp{border-style:dashed;border-color:var(--ink3);color:var(--ink3);background:transparent}
-.upcfree.sp:hover{background:#F0EEF6}
-.upcfree.sp.on{background:var(--ink3);color:#fff}
+.upcfree.sp{border-style:dashed;border-color:#DCD8E4;color:#ABA7B5;background:transparent;font-weight:600}
+.upcfree.sp:hover{background:#F4F2F7;color:var(--ink3)}
+.upcfree.sp.on{background:var(--ink3);color:#fff;border-color:var(--ink3)}
 .salecode{display:inline-block;background:#EDE4FF;border:1px solid #C9B6F2;color:var(--brand-deep);
   border-radius:7px;padding:1px 7px;font-weight:800;letter-spacing:.3px}
 @media(max-width:520px){.horow{grid-template-columns:1fr 1fr;gap:6px}.horow .tag{grid-column:1/-1}}
@@ -1413,7 +1421,8 @@ const tfOn=()=>state.tfilter.size>0;
 const qTx=()=>String(state.q||'').trim().toLowerCase();
 const qHit=(...v)=>{const q=qTx();return !q||v.filter(Boolean).join(' ').toLowerCase().includes(q);};
 const qJob=e=>qHit(e.job.title,e.job.detail,prodList(e.job.product).join(' '),
-  (e.job.topics||[]).join(' '),(e.who||[]).map(i=>byId(i)?byId(i).nick:'').join(' '));
+  (e.job.topics||[]).join(' '),e.job.code,e.job.area,
+  (e.who||[]).map(i=>byId(i)?byId(i).nick:'').join(' '));
 const jobTypeOk=j=>!tfOn()||(j.topics||[]).some(t=>state.tfilter.has(t));
 const maTypeOk=()=>!tfOn()||state.tfilter.has('MA');
 const isCustom=(k,cid,slot)=>{const t=slotTime(k,cid,slot),d=SLOT_DEF[slot];return t.start!==d.start||t.end!==d.end;};
@@ -1784,7 +1793,7 @@ function renderCal(){
     <div class="calbar">${seg}${period}
       <div class="navbtns"><button id="pv">‹</button><button class="wide" id="tdy">วันนี้</button><button id="nx">›</button></div></div>
     ${isUPC()?'':`<div class="calsearch"><input class="in" id="calQ" value="${esc(state.q||'')}"
-      placeholder="ค้นหาคิวงาน — ชื่อคลินิก · product · หัวข้อ · ชื่อ CTS · รหัส Sale">${
+      placeholder="ค้นหาคิวงาน — คลินิก · product · หัวข้อ · ชื่อ CTS · รหัส Sale · PS Area">${
       state.q?'<button class="btn sm" id="calQx">ล้าง</button>':''}</div>`}
     ${canSeeNames()?filterBar():''}
     <div class="calshell" id="calshell"></div>
@@ -1849,6 +1858,7 @@ function renderCal(){
   shell.querySelectorAll('[data-ev]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEventDetail(b.dataset.ev);});
   /* ชิปคิวเทรนของตัวเองในปฏิทิน Sale (ตอนยังไม่เลือก Product) */
   shell.querySelectorAll('[data-smreq]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSMReq(b.dataset.smreq);});
+  shell.querySelectorAll('[data-selfview]').forEach(b=>b.onclick=e=>{e.stopPropagation();openSelfView(b.dataset.selfview);});
   bindMail(shell);   // Admin แตะ ✓ บนคิวในปฏิทินได้เลย
   shell.querySelectorAll('[data-d]').forEach(el=>el.onkeydown=e=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
@@ -2125,13 +2135,41 @@ const smWho=e=>e.self?(e.self.attendees||[]).map(i=>byId(i)?byId(i).nick:i).join
 const smChip=(e,one)=>{
   const cl=esc(reqClinicOn(e.r,e.s.date)||e.r.id),who=smWho(e);
   const cx=e.cxl?'✕ Cancel · ':'';
-  /* คิวที่ CTS ลงเอง ไม่มีคำขอให้เปิดดู — เป็นป้ายอ่านอย่างเดียว */
-  const t=e.self?'span':'button',at=e.self?'':` data-smreq="${e.r.id}"`;
-  return `<${t} class="evchip ${one?'one':'two'}"${at} style="${SM_STYLE[SM_STAT(e.r)]}"
+  const wb=who?`<span class="ctsb">${esc(who)}</span>`:'';
+  /* คิวที่ CTS ลงเอง เปิดดูรายละเอียดได้ แต่แก้ไม่ได้ — คนละหน้ากับคำขอของ Sales */
+  const at=e.self?` data-selfview="${e.r.id}"`:` data-smreq="${e.r.id}"`;
+  return `<button class="evchip ${one?'one':'two'}"${at} style="${SM_STYLE[SM_STAT(e.r)]}"
     title="${esc(e.code+' · '+cx+(reqClinicOn(e.r,e.s.date)||e.r.id)+(who?' · CTS '+who:'')+' · '+e.r.status)}">${one
-      ? `<b>${e.code}</b> ${cx}${cl}${who?' · '+esc(who):''}`
+      ? `<b>${e.code}</b> ${cx}${cl} ${wb}`
       : `<span class="l1"><span class="sl">${smTime(e)||'—'}</span><span class="who">${e.code}</span></span>
-         <span class="etx">${cx}${cl}${who?' · CTS '+esc(who):''}</span>`}</${t}>`;};
+         <span class="etx">${cx}${cl} ${wb}</span>`}</button>`;};
+/* คิวที่ CTS ลงเอง เมื่อไปโผล่ในปฏิทินของ Sale — ดูได้อย่างเดียว ปุ่มแก้/ลบอยู่ที่ปฏิทินของ CTS เท่านั้น */
+function openSelfView(id){
+  const ev=state.selfEvents.find(x=>x.id===id);if(!ev)return;
+  const who=(ev.attendees||[]).map(i=>byId(i)?byId(i).nick:i);
+  openSheet(`<div class="eyebrow">คิวที่ CTS ลงเอง · <span class="salecode">${esc(ev.psArea||'—')}</span></div>
+    <h2>${esc(ev.title||'คิวงาน')}</h2>`,
+  `<div class="card">
+    <div class="row" style="flex-wrap:wrap;gap:6px">${prodTags(ev.product)}
+      ${(ev.topics||[]).map(t=>`<span class="pill n">${esc(t)}</span>`).join('')}</div>
+    <div class="note pl" style="display:flex;align-items:center;gap:10px;margin-top:10px">
+      <b style="font-size:15px">${ev.allDay?'ทั้งวัน':esc((ev.start||'')+'–'+(ev.end||''))}</b>
+      <span>${fmtDate(ev.date)}${ev.dateEnd&&ev.dateEnd!==ev.date?' – '+fmtDate(ev.dateEnd):''}</span></div>
+    <div class="row" style="margin-top:11px;gap:6px;flex-wrap:wrap;align-items:center">
+      <span class="muted" style="font-size:12px">ผู้เทรน</span>
+      ${who.map(n=>`<span class="ctsb">${esc(n)}</span>`).join('')||'<span class="muted">—</span>'}</div>
+    <dl class="kv" style="margin-top:12px">
+      <dt>คลินิก</dt><dd>${ev.clinic?esc(ev.clinic):'—'}</dd>
+      <dt>Module</dt><dd>${ev.module?esc(ev.module)+(ev.level?' · '+esc(ev.level):''):'—'}</dd>
+      <dt>หัวข้อ</dt><dd>${ev.topic?esc(ev.topic):'—'}</dd>
+      <dt>แพทย์</dt><dd>${+ev.doctors>0?ev.doctors+' ท่าน':'—'}</dd>
+      <dt>PS Area</dt><dd>${esc(ev.psArea||'—')}</dd>
+    </dl>
+    ${ev.detail?`<div class="note" style="white-space:pre-wrap">${esc(ev.detail)}</div>`:''}
+    <div class="note">คิวนี้ CTS เป็นคนลงเอง — ดูได้อย่างเดียว</div>
+  </div>
+  <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
+}
 
 function smMonthHTML(){
   const y=state.month.getFullYear(),mo=state.month.getMonth();
@@ -2208,6 +2246,7 @@ function renderSMCal(){
   $('nx').onclick=()=>{shift(1);renderSMCal();};
   $('tdy').onclick=()=>{state.month=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);state.weekStart=mondayOf(TODAY);renderSMCal();};
   view().querySelectorAll('[data-smreq]').forEach(b=>b.onclick=()=>openSMReq(b.dataset.smreq));
+  view().querySelectorAll('[data-selfview]').forEach(b=>b.onclick=()=>openSelfView(b.dataset.selfview));
   view().querySelectorAll('[data-ev]').forEach(b=>b.onclick=()=>openEventDetail(b.dataset.ev));
 }
 
@@ -2346,7 +2385,7 @@ function upcChip(o){
   return `<button class="evchip two" data-upc="${o.day.date}"
     style="--c:${pr?PRODHEX[pr]:'#E4E0F3'};--ci:${pr?pink(pr):'var(--brand-deep)'}">
     <span class="l1"><span class="cdot"></span><span class="sl">${first.start||'—'}–${first.end||'—'}</span>
-      <span class="who">${who?'✓ '+esc(who):o.r.status==='approved'?'✓':'◷'}</span></span>
+      <span class="who">${who?'✓ <span class="ctsb">'+esc(who)+'</span>':o.r.status==='approved'?'✓':'◷'}</span></span>
     <span class="etx">${esc(first.clinic||'ยังไม่ระบุคลินิก')}${items.length>1?` +${items.length-1}`:''}</span></button>`;
 }
 /* UPC ขอ MILK/PAM ไปเทรนเองได้ด้วย (เฉพาะ UPC) — ไม่กระทบการนับคิวว่างของ Sale ปกติ ที่ยังใช้ BOOKABLE_IDS เท่านั้น */
@@ -2367,7 +2406,7 @@ const upcFree=(k,cid)=>{
 };
 const upcFreeBtn=(k,picked)=>{const f=state.upcCts&&upcFree(k,state.upcCts);
   return f?`<button class="upcfree${picked?' on':''}${f==='special'?' sp':''}" data-upcpick="${k}">${
-    picked?'✓ เลือกแล้ว':f==='special'?'ขอคิวพิเศษ':'ว่าง'}</button>`:'';};
+    picked?'✓ เลือกแล้ว':f==='special'?'ติดต่อ CTS':'ว่าง'}</button>`:'';};
 function upcGate(){
   const able=upcAble(),cts=state.upcCts;
   return `<div class="card" style="margin-bottom:14px">
@@ -2450,7 +2489,7 @@ function upcWeekHTML(){
           style="--c:${prodMain(it.product)?PRODHEX[prodMain(it.product)]:'#E4E0F3'};--ci:${prodMain(it.product)?pink(prodMain(it.product)):'var(--brand-deep)'}">
           <span class="slb">${it.start||'—'}–${it.end||'—'}</span>
           <span class="etx2">${esc(it.clinic||'ยังไม่ระบุคลินิก')}${it.province?' · '+esc(it.province):''}${
-            o.r.status==='approved'&&upcWho(o.r,k)?' · CTS '+esc(upcWho(o.r,k)):''}</span></button>`).join('');
+            o.r.status==='approved'&&upcWho(o.r,k)?' <span class="ctsb">'+esc(upcWho(o.r,k))+'</span>':''}</span></button>`).join('');
       }).join('')}
       ${selfEntries(k).map(e=>smChip(e,true)).join('')}
       ${upcFreeBtn(k,state.upcPick.includes(k))}
@@ -2552,12 +2591,14 @@ function openReqSession(reqId,sIdx,keep){
   const s=r.sessions[+sIdx];if(!s)return;
   const p0=reqJobPayload(r,s);
   const auto=p0.title;
-  const uday=upcDayOf(r,s.date),uits=(uday&&uday.items)||[];
-  const perItem=r.mode==='upc'&&uits.length>0;
+  const uall=r.mode==='upc'?(r.days||[]).filter(d=>(d.items||[]).length):[];
+  const perItem=uall.length>0;
+  const itKey=(d,ix)=>d.date+'#'+ix;
+  const itsNow=()=>Object.fromEntries(uall.flatMap(d=>d.items.map((it,ix)=>[itKey(d,ix),it.ctsId||''])));
   const D=keep||{title:s.sTitle||'',start:s.start||p0.start,
-    end:s.end||p0.end,extra:(s.extra||[]).slice(),main:s.ctsId,
-    its:uits.map(it=>it.ctsId||'')};
-  if(!D.its)D.its=uits.map(it=>it.ctsId||'');
+    end:s.end||p0.end,extra:(s.extra||[]).slice(),main:s.ctsId,its:itsNow()};
+  if(!D.its)D.its=itsNow();
+  const mainOf=date=>(r.sessions.find(x=>x.date===date)||{}).ctsId;
   if(!D.main)D.main=s.ctsId;   // keep ที่ส่งมาจากรอบก่อนอาจยังไม่มีฟิลด์นี้
   /* 13. คิวที่อนุมัติแล้วยังเปลี่ยนตัวผู้เทรนหลักได้ เผื่อคนเดิมป่วย/ติดธุระกะทันหัน */
   const chgMain=isLead()||isMgr()||state.role==='admin';
@@ -2571,15 +2612,17 @@ function openReqSession(reqId,sIdx,keep){
       <div><label class="f">ถึง</label>${t24('rsEnd',D.end,s.slot)}</div></div>
     ${chgMain?`<label class="f">ผู้เทรนหลัก <span>· เปลี่ยนตัวได้ คิวในปฏิทินจะย้ายตาม</span></label>
     <select class="in" id="rsMain">${CTS.map(c=>`<option value="${c.id}" ${D.main===c.id?'selected':''}>${c.nick} — ${c.name}</option>`).join('')}</select>`:''}
-    ${perItem?`<label class="f">ผู้เทรนรายคลินิกของวันนี้ <span>· 1 วันไปได้หลายที่ — เปลี่ยนตัวแยกรายคลินิกได้</span></label>
-    ${uits.map((it,ix)=>`<div class="row" style="gap:8px;margin-bottom:7px;align-items:flex-start">
-      <span class="idx">${ix+1}</span>
-      <div class="grow"><div style="font-weight:700;font-size:13px">${esc(it.clinic||'ยังไม่ระบุคลินิก')}</div>
-        <div class="muted" style="font-size:11.5px">${it.start||'—'}–${it.end||'—'}${it.province?' · '+esc(it.province):''}</div></div>
-      <select class="in" data-rsit="${ix}" style="max-width:158px">
-        <option value="">ตามผู้เทรนหลัก</option>
-        ${CTS.map(c=>`<option value="${c.id}" ${D.its[ix]===c.id?'selected':''}>${c.nick}</option>`).join('')}</select>
-    </div>`).join('')}
+    ${perItem?`<label class="f">ผู้เทรนรายคลินิก <span>· ทั้งทริป ${uall.length} วัน — เปลี่ยนตัวได้ทุกวันทุกคลินิก</span></label>
+    ${uall.map(d=>`<div class="upcday${d.date===s.date?' on':''}">
+      <div class="eyebrow">${fmtDate(d.date)}${mainOf(d.date)?' · ผู้เทรนหลัก '+byId(mainOf(d.date)).nick:''}</div>
+      ${d.items.map((it,ix)=>`<div class="row" style="gap:8px;margin:7px 0 0;align-items:flex-start">
+        <span class="idx">${ix+1}</span>
+        <div class="grow"><div style="font-weight:700;font-size:13px">${esc(it.clinic||'ยังไม่ระบุคลินิก')}</div>
+          <div class="muted" style="font-size:11.5px">${it.start||'—'}–${it.end||'—'}${it.province?' · '+esc(it.province):''}</div></div>
+        <select class="in" data-rsit="${itKey(d,ix)}" style="max-width:158px">
+          <option value="">ตามผู้เทรนหลัก</option>
+          ${CTS.map(c=>`<option value="${c.id}" ${D.its[itKey(d,ix)]===c.id?'selected':''}>${c.nick}</option>`).join('')}</select>
+      </div>`).join('')}</div>`).join('')}
     <div class="note">ที่ไหนไม่ได้เลือก จะใช้ผู้เทรนหลักของวันนั้น · คิวในปฏิทินจะแยกกล่องตามคนที่รับผิดชอบ</div>`:''}
     <label class="f">ใครไปงานนี้บ้าง <span>· เลือกได้หลายคน สีจะรวมกันในปฏิทิน</span></label>
     <div class="chips"><span class="chip attchip" aria-pressed="true" style="--cc:${pal(D.main).c};--ct:${pal(D.main).ci};opacity:.75">
@@ -2595,7 +2638,7 @@ function openReqSession(reqId,sIdx,keep){
   const B=$('sheetBody');
   const grab=()=>{D.title=$('rsTitle').value;D.start=$('rsStart').value;D.end=$('rsEnd').value;
     const m=$('rsMain');if(m&&m.value)D.main=m.value;
-    B.querySelectorAll('[data-rsit]').forEach(sl=>{D.its[+sl.dataset.rsit]=sl.value;});
+    B.querySelectorAll('[data-rsit]').forEach(sl=>{D.its[sl.dataset.rsit]=sl.value;});
     D.extra=D.extra.filter(i=>i!==D.main);};
   B.querySelectorAll('[data-rsit]').forEach(sl=>sl.onchange=()=>{grab();openReqSession(reqId,sIdx,D);});
   const mn=$('rsMain');if(mn)mn.onchange=()=>{grab();openReqSession(reqId,sIdx,D);};
@@ -2607,32 +2650,44 @@ function openReqSession(reqId,sIdx,keep){
     grab();
     const e=$('rsErr');
     if(toMin(D.end)<=toMin(D.start)){e.hidden=false;e.textContent='เวลาสิ้นสุดต้องหลังเวลาเริ่ม';return;}
-    const newIts=perItem?D.its.filter(Boolean):[];
-    const busy=[...new Set(D.extra.concat(D.main===s.ctsId?[]:[D.main]).concat(newIts))]
-      .filter(id=>slotsOf(s.slot).some(sl=>{const j=jobOf(s.date,id,sl);return j&&j.reqId!==r.id;}));
+    /* ชนคิวอื่นไหม — ต้องเช็คราย "วันของคลินิกนั้น" ไม่ใช่เช็ครวมที่วันที่เปิดหน้าจอนี้ */
+    const busy=D.extra.concat(D.main===s.ctsId?[]:[D.main])
+      .filter(id=>slotsOf(s.slot).some(sl=>{const j=jobOf(s.date,id,sl);return j&&j.reqId!==r.id;}))
+      .map(id=>byId(id).nick);
+    if(perItem)uall.forEach(d=>d.items.forEach((it,ix)=>{
+      const v=D.its[itKey(d,ix)]||'';
+      if(!v||v===mainOf(d.date))return;
+      if(['am','pm'].some(sl=>{const j=jobOf(d.date,v,sl);return j&&j.reqId!==r.id;}))
+        busy.push(byId(v).nick+' ('+fmtDate(d.date)+')');}));
     if(busy.length){e.hidden=false;
-      e.textContent='ติดคิวอื่นอยู่แล้ว: '+busy.map(id=>byId(id).nick).join(', ');return;}
-    const prev=r.mode==='upc'?upcDayWho(r,s):reqWho(s);
+      e.textContent='ติดคิวอื่นอยู่แล้ว: '+[...new Set(busy)].join(', ');return;}
+    /* คนเดิมของ "ทุกวัน" ในทริป ต้องจำไว้ก่อนแก้ ไม่งั้นคนที่ถูกเปลี่ยนออกจะยังติดคิวค้าง */
+    const prevAll={};r.sessions.forEach(sn=>prevAll[sn.date]=r.mode==='upc'?upcDayWho(r,sn):reqWho(sn));
     const swapped=D.main!==s.ctsId;
     if(swapped){logTrail(r,'changed-trainer',byId(s.ctsId).nick+' → '+byId(D.main).nick);s.ctsId=D.main;}
-    /* ผู้เทรนรายคลินิกของวันนี้ — เก็บไว้ที่ตัว item เอง จะได้ไม่กระทบวันอื่นในทริปเดียวกัน */
-    let chg='';
-    if(perItem)uits.forEach((it,ix)=>{
-      const v=D.its[ix]||'',old=it.ctsId||'';
-      if(v===old)return;
-      if(v)it.ctsId=v;else delete it.ctsId;
-      chg+=(chg?' · ':'')+(it.clinic||'คลินิก '+(ix+1))+': '+(old?byId(old).nick:'ผู้เทรนหลัก')
-          +' → '+(v?byId(v).nick:'ผู้เทรนหลัก');});
-    if(chg)logTrail(r,'changed-trainer',fmtDate(s.date)+' · '+chg);
+    /* ผู้เทรนรายคลินิกเก็บที่ตัว item เอง — แก้ได้ทุกวันในใบเดียว */
+    const chg=[];
+    if(perItem)uall.forEach(d=>{const one=[];
+      d.items.forEach((it,ix)=>{
+        const v=D.its[itKey(d,ix)]||'',old=it.ctsId||'';
+        if(v===old)return;
+        if(v)it.ctsId=v;else delete it.ctsId;
+        one.push((it.clinic||'คลินิก '+(ix+1))+': '+(old?byId(old).nick:'ผู้เทรนหลัก')
+          +' → '+(v?byId(v).nick:'ผู้เทรนหลัก'));});
+      if(one.length)chg.push(fmtDate(d.date)+' · '+one.join(' · '));});
+    if(chg.length)logTrail(r,'changed-trainer',chg.join(' | '));
     s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.filter(i=>i!==s.ctsId);
     stampNow(s);
     if(r.mode==='upc'){
-      prev.forEach(id=>['am','pm'].forEach(sl=>{const jb=jobOf(s.date,id,sl);if(jb&&jb.reqId===r.id)setJob(s.date,id,sl,null);}));
-      const pl=reqJobPayload(r,s);
-      upcDayWho(r,s).forEach(id=>['am','pm'].forEach(sl=>setJob(s.date,id,sl,stampNow({...pl}))));
-    }else syncReqJob(r,s,prev);
+      /* ล้างคิวเดิมของทั้งทริปก่อน แล้วลงใหม่ทุกวัน — วันที่ไม่ได้แก้ก็ได้ของเดิมกลับมาเหมือนเดิม */
+      r.sessions.forEach(sn=>(prevAll[sn.date]||[]).forEach(id=>['am','pm'].forEach(sl=>{
+        const jb=jobOf(sn.date,id,sl);if(jb&&jb.reqId===r.id)setJob(sn.date,id,sl,null);})));
+      r.sessions.forEach(sn=>{if(!sn.ctsId)return;const pl=reqJobPayload(r,sn);
+        upcDayWho(r,sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,stampNow({...pl}))));});
+    }else syncReqJob(r,s,prevAll[s.date]);
     closeSheet();render();
-    toast(chg?'เปลี่ยนผู้เทรนรายคลินิกแล้ว':swapped?'เปลี่ยนผู้เทรนหลักเป็น '+byId(s.ctsId).nick+' แล้ว':'บันทึกคิวงานแล้ว');
+    toast(chg.length?'เปลี่ยนผู้เทรนรายคลินิกแล้ว '+chg.length+' วัน'
+      :swapped?'เปลี่ยนผู้เทรนหลักเป็น '+byId(s.ctsId).nick+' แล้ว':'บันทึกคิวงานแล้ว');
   };
 }
 function clearSelf(id){
@@ -3005,7 +3060,7 @@ function dayEntries(k,pool){
   state.selfEvents.forEach(ev=>{
     if(!dateRange(ev.date,ev.dateEnd||ev.date).includes(k))return;
     put('se-'+ev.id,{kind:'busy',title:ev.title,detail:ev.detail||'',product:ev.product||null,topics:ev.topics||[],
-      selfId:ev.id,emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:kpiList(ev.kpi),upBy:ev.upBy,upAt:ev.upAt,
+      selfId:ev.id,code:ev.psArea||'',emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:kpiList(ev.kpi),upBy:ev.upBy,upAt:ev.upAt,
       start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
   });
   state.requests.forEach(r=>{
@@ -3030,7 +3085,7 @@ function dayEntries(k,pool){
             title:(a.clinic||'ยังไม่ระบุคลินิก')+(list.length>1?' +'+(list.length-1):''),
             detail:list.map(x=>x.topic).filter(Boolean).join(' · '),
             product:pickProds(null,r.product,[...new Set(list.flatMap(x=>prodList(x.product)))]),
-            reqId:r.id,sIdx:i,items:ixs,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
+            reqId:r.id,sIdx:i,items:ixs,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
             start:a.start||SLOT_DEF.am.start,end:b.end||SLOT_DEF.pm.end},
             [cid].concat(cid===s.ctsId?(s.extra||[]):[]));});
         return;
@@ -3041,7 +3096,7 @@ function dayEntries(k,pool){
         /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
         detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
         product:pickProds(s.sProduct,r.product,day?dayProds(day):it.product),
-        reqId:r.id,sIdx:i,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
+        reqId:r.id,sIdx:i,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
@@ -4505,7 +4560,9 @@ function renderDash(){
     ${SC.sale&&!SC.sm?'':'<div class="panel"><div class="panel-head"><div>'
       +'<h2>By PS Team</h2><div class="sub">เรียงตามจำนวน training</div></div>'
       +'<span class="tag">'+new Set(rows.map(function(r){return r.team;})).size+' teams</span></div>'
-      +tpRankHTML(rows,'team')+'</div>'}
+      +tpRankHTML(rows,'team')
+      +(S.team?'<div class="eyebrow" style="margin:18px 0 4px">แยกราย PS Area · ทีม '+esc(S.team)+'</div>'
+        +tpRankHTML(rows,'code'):'')+'</div>'}
 
     <div class="panel"><div class="panel-head"><div>
         <h2>Clinics with Repeat Training Requests</h2>
@@ -5034,7 +5091,8 @@ function fallbackCopy(txt,done){
 /* ========================= NOTIFICATIONS ========================= */
 /* แจ้งเตือน — 1 คำขอ = 1 การ์ด อัปเดตสถานะทับของเดิม ไม่สะสมซ้ำ */
 /* ===== หลักฐานการอนุมัติ (Record) ===== */
-const TRAIL_ACT={request:'Requested',approved:'Approved',rejected:'Rejected',cancelled:'Cancelled'};
+const TRAIL_ACT={request:'Requested',approved:'Approved',rejected:'Rejected',cancelled:'Cancelled',
+  acknowledged:'Acknowledge','changed-trainer':'Changed-Trainer',assigned:'Assigned'};
 const fmtStamp=iso=>{const d=new Date(iso);return isNaN(d)?'—'
   :d.toLocaleString('th-TH',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})+' น.';};
 /* เส้นทางทั้งหมดของคำขอ: ใครทำอะไร เมื่อไหร่ พร้อมคอมเมนต์ — ใช้อ้างอิงย้อนหลังได้ */
