@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1310,4 +1310,25 @@ assert.ok(X.canSeeRecord(mine)&&!X.canSeeRecord(other),'CTS ต้องเห�
 X.state.events=[];X.state.tab='cal';
 }
 
-console.log('✓ ผ่านทั้ง 83 ข้อ');
+/* 84. คิวในปฏิทินฝั่งขายโชว์รหัส Sale + Product · รายละเอียด MA รูปขึ้นก่อน · กดแถว MA ท้ายปฏิทินได้ */
+{
+clean();
+X.state.role='sm';X.state.sm='Champion';
+const std={id:'TR-P1',status:'approved',mode:'std',requesterId:'C01',product:['Ultherapy'],clinic:'คลินิกพี',
+  sessions:[{date:K,slot:'am',ctsId:B1}]};
+const upc={id:'TR-P2',status:'approved',mode:'upc',requesterId:'UPC6',
+  days:[{date:K,items:[{clinic:'คลินิกยู',product:['Belotero Soft']},{clinic:'คลินิกวี',product:'Radiesse'}]}],
+  sessions:[{date:K,slot:'day',ctsId:B1}]};
+const c1=X.smChip({r:std,s:std.sessions[0],i:0,code:'C01'},true);
+assert.ok(c1.includes('C01')&&c1.includes('Ultherapy'),'ชิปคิวต้องมีรหัส Sale + Product');
+assert.strictEqual(X.prodOn({r:upc,s:upc.sessions[0]}),'Belotero Soft, Radiesse','UPC ต้องอ่าน Product ราย item ของวันนั้น');
+X.state.events=[{id:'EV-Q',date:K,title:'งานคิว',type:'Workshop',slot:'pm',cts:'all',
+  detail:'รายละเอียดล่าง',photos:[{url:'https://x.test/q.jpg',path:'q.jpg'}]}];
+X.openEventDetail('EV-Q');
+assert.ok(sheet0().indexOf('https://x.test/q.jpg')<sheet0().indexOf('รายละเอียดล่าง'),'รูปต้องขึ้นก่อนรายละเอียด');
+X.state.view='month';X.state.month=new Date(+K.slice(0,4),+K.slice(5,7)-1,1);
+assert.ok(X.maCard().includes('data-ev="EV-Q"'),'แถว MA ท้ายปฏิทินต้องกดเปิดรายละเอียดได้');
+X.state.events=[];
+}
+
+console.log('✓ ผ่านทั้ง 84 ข้อ');

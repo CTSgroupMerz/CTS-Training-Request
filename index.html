@@ -966,6 +966,7 @@ table.rawtb tbody tr:nth-child(even){background:#FAF9FD}
 .evrow{display:flex;gap:10px;align-items:center;background:var(--ma-soft);border:1px solid var(--ma-edge);
   border-radius:13px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--ma-ink)}
 .evrow .muted{color:#C7D6F2}
+.evrow[data-ev]{cursor:pointer}
 .evrow.hol,.evrow.hol .muted{color:var(--hol-ink)}
 .evrow.hol{background:var(--hol-bg);border-color:var(--hol-edge)}
 .evrow.hol .d{color:var(--hol-ink)}
@@ -1882,9 +1883,10 @@ function renderCal(){
     if(e.key==='Enter'||e.key===' '){e.preventDefault();openDay(el.dataset.d);}});
 
   const be=$('btnEv');if(be)be.onclick=()=>openEventForm();
-  view().querySelectorAll('[data-editev]').forEach(b=>b.onclick=()=>openEventForm(b.dataset.editev));
+  bindMaRows();
+  view().querySelectorAll('[data-editev]').forEach(b=>b.onclick=e=>{e.stopPropagation();openEventForm(b.dataset.editev);});
   /* กล่องเดียวอาจคุมงานเดียวกันหลายวัน — id/วันที่มาเป็นชุดคั่นด้วยจุลภาค ลบทีเดียวทั้งชุด */
-  view().querySelectorAll('[data-delev]').forEach(b=>b.onclick=()=>{
+  view().querySelectorAll('[data-delev]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const ids=b.dataset.delev.split(',');
     if(!confirm(`ยืนยันลบงานกลาง MA${ids.length>1?' ('+ids.length+' วัน)':''}? ลบแล้วกู้คืนไม่ได้`))return;
     state.events=state.events.filter(e=>!ids.includes(e.id));render();toast('ลบงานกลางแล้ว');});
@@ -1925,6 +1927,12 @@ function filterBar(){
     ${TYPE_FILTERS.map(t=>`<button class="fchip" data-tf="${t}" aria-pressed="${state.tfilter.has(t)}"
       style="--c:${TYPE_HEX[t][0]};--ci:${TYPE_HEX[t][1]}">${t==='MA'?'งานกลาง MA':t}<span class="dot"></span></button>`).join('')}</div>`;
 }
+/* แถวงานกลาง MA ในรายการท้ายปฏิทิน — กดแล้วเปิดหน้าเดียวกับกดคิว MA ในปฏิทิน */
+function bindMaRows(){
+  view().querySelectorAll('.evrow[data-ev]').forEach(el=>{
+    el.onclick=()=>openEventDetail(el.dataset.ev);
+    el.onkeydown=e=>{if(e.target===el&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openEventDetail(el.dataset.ev);}};});
+}
 function maCard(){
   const inRange=e=>{const d=parse(e.date);
     if(state.view==='month')return d.getMonth()===state.month.getMonth()&&d.getFullYear()===state.month.getFullYear();
@@ -1939,7 +1947,7 @@ function maCard(){
       <div class="d">${dBox(r)}</div>
       <div class="grow"><b>${esc(r.head.name)}</b><br><span class="muted">วันหยุด · ${spanLabel(r)} — ปิดรับคิวทั้งวัน</span></div>
       ${state.role==='admin'?`<button data-delhol="${r.items.map(h=>h.date).join(',')}">ลบ${r.items.length>1?' ('+r.items.length+' วัน)':''}</button>`:''}</div>`).join('')}
-      ${evs.length?evs.map(r=>{const e=r.head;return `<div class="evrow">
+      ${evs.length?evs.map(r=>{const e=r.head;return `<div class="evrow" data-ev="${e.id}" role="button" tabindex="0">
       <div class="d">${dBox(r)}</div>
       <div class="grow"><b>${esc(e.title)}</b><br><span class="muted">${e.type} · ${spanLabel(r)} · ${e.slot==='all'?'ทั้งวัน':e.slot==='am'?'ช่วงเช้า':'ช่วงบ่าย'}${canSeeNames()?' · '+(e.cts==='all'?'CTS ทุกคน':e.cts.map(i=>byId(i).nick).join(', ')):''}</span></div>
       ${state.role==='admin'?`<button data-editev="${e.id}">แก้ไข</button><button data-delev="${r.items.map(x=>x.id).join(',')}">ลบ${r.items.length>1?' ('+r.items.length+' วัน)':''}</button>`:''}</div>`;}).join('')
@@ -2160,18 +2168,22 @@ const reqClinicOn=(r,date)=>{
 /* คิวที่อนุมัติแล้ว = รู้ตัวผู้เทรนแน่นอน — ฝั่งขายต้องเห็นว่าใครไป */
 const smWho=e=>e.self?(e.self.attendees||[]).map(i=>byId(i)?byId(i).nick:i).join(', ')
   :e.r.status==='approved'?reqWho(e.s).map(i=>byId(i)?byId(i).nick:i).join(', '):'';
+/* Product ของคิวนั้น — คิวที่ CTS ลงเองอ่านจาก selfEvent · ทริป UPC อ่านราย item ของวันนั้น */
+const prodOn=e=>(e.self?prodList(e.self.product)
+  :e.r.mode==='upc'?[...new Set((((e.r.days||[]).find(d=>d.date===e.s.date)||{}).items||[]).flatMap(i=>prodList(i.product)))]
+  :prodList(e.r.product)).join(', ');
 const smChip=(e,one)=>{
-  const cl=esc(reqClinicOn(e.r,e.s.date)||e.r.id),who=smWho(e);
+  const cl=esc(reqClinicOn(e.r,e.s.date)||e.r.id),who=smWho(e),pd=prodOn(e),pt=pd?`<b>${esc(pd)}</b> · `:'';
   const cx=e.cxl?'✕ Cancel · ':'';
   const wb=who?`<span class="ctsb">${esc(who)}</span>`:'';
   /* คิวที่ CTS ลงเอง เปิดดูรายละเอียดได้ แต่แก้ไม่ได้ — คนละหน้ากับคำขอของ Sales */
   const at=e.self?` data-selfview="${e.r.id}"`:` data-smreq="${e.r.id}"`;
   const st=SM_STAT(e.r),byCode=state.role==='sm'&&st!=='cxl',dot=byCode?stDot(st):'';
   return `<button class="evchip ${one?'one':'two'}"${at} style="${byCode?codeStyle(e.code):SM_STYLE[st]}"
-    title="${esc(e.code+' · '+cx+(reqClinicOn(e.r,e.s.date)||e.r.id)+(who?' · CTS '+who:'')+' · '+e.r.status)}">${one
-      ? `${dot}<b>${e.code}</b> ${cx}${cl} ${wb}`
+    title="${esc(e.code+' · '+(pd?pd+' · ':'')+cx+(reqClinicOn(e.r,e.s.date)||e.r.id)+(who?' · CTS '+who:'')+' · '+e.r.status)}">${one
+      ? `${dot}<b>${e.code}</b> ${pt}${cx}${cl} ${wb}`
       : `<span class="l1"><span class="sl">${smTime(e)||'—'}</span><span class="who">${dot}${e.code}</span></span>
-         <span class="etx">${cx}${cl} ${wb}</span>`}</button>`;};
+         <span class="etx">${pt}${cx}${cl} ${wb}</span>`}</button>`;};
 /* คิวที่ CTS ลงเอง เมื่อไปโผล่ในปฏิทินของ Sale — ดูได้อย่างเดียว ปุ่มแก้/ลบอยู่ที่ปฏิทินของ CTS เท่านั้น */
 function openSelfView(id){
   const ev=state.selfEvents.find(x=>x.id===id);if(!ev)return;
@@ -2271,7 +2283,8 @@ function renderSMCal(){
       <span class="lr">${stDot('wait')}รอ CTS ยืนยัน</span>
       <span class="lr">${stDot('tbc')}TBC</span>
       <span class="lr"><i style="background:var(--ma-soft);box-shadow:inset 0 0 0 1px var(--ma-edge)"></i>งานกลาง MA</span>
-      <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span></div>`);
+      <span class="lr"><i style="background:var(--hol-bg);box-shadow:inset 0 0 0 1px var(--hol-edge)"></i>วันหยุด</span></div>
+    ${maCard()}`);
   view().querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{state.view=b.dataset.v;renderSMCal();});
   $('pv').onclick=()=>{shift(-1);renderSMCal();};
   $('nx').onclick=()=>{shift(1);renderSMCal();};
@@ -2420,7 +2433,7 @@ function upcChip(o){
     style="--c:${pr?PRODHEX[pr]:'#E4E0F3'};--ci:${pr?pink(pr):'var(--brand-deep)'}">
     <span class="l1"><span class="cdot"></span><span class="sl">${first.start||'—'}–${first.end||'—'}</span>
       <span class="who">${who?'✓ <span class="ctsb">'+esc(who)+'</span>':o.r.status==='approved'?'✓':'◷'}</span></span>
-    <span class="etx">${esc(first.clinic||'ยังไม่ระบุคลินิก')}${items.length>1?` +${items.length-1}`:''}</span></button>`;
+    <span class="etx"><b>${esc(saleCode(o.r))}</b> · ${esc([...new Set(items.flatMap(i=>prodList(i.product)))].join(', ')||'—')} · ${esc(first.clinic||'ยังไม่ระบุคลินิก')}${items.length>1?` +${items.length-1}`:''}</span></button>`;
 }
 /* UPC ขอ MILK/PAM ไปเทรนเองได้ด้วย (เฉพาะ UPC) — ไม่กระทบการนับคิวว่างของ Sale ปกติ ที่ยังใช้ BOOKABLE_IDS เท่านั้น */
 const upcPool=()=>BOOKABLE_CTS().concat(LEAD_IDS.map(byId));
@@ -2522,7 +2535,7 @@ function upcWeekHTML(){
         return items.map(it=>`<button class="half job" data-upc="${k}"
           style="--c:${prodMain(it.product)?PRODHEX[prodMain(it.product)]:'#E4E0F3'};--ci:${prodMain(it.product)?pink(prodMain(it.product)):'var(--brand-deep)'}">
           <span class="slb">${it.start||'—'}–${it.end||'—'}</span>
-          <span class="etx2">${esc(it.clinic||'ยังไม่ระบุคลินิก')}${it.province?' · '+esc(it.province):''}${
+          <span class="etx2"><b>${esc(saleCode(o.r))}</b> · ${esc(prodList(it.product).join(', ')||'—')} · ${esc(it.clinic||'ยังไม่ระบุคลินิก')}${it.province?' · '+esc(it.province):''}${
             o.r.status==='approved'&&upcWho(o.r,k)?' <span class="ctsb">'+esc(upcWho(o.r,k))+'</span>':''}</span></button>`).join('');
       }).join('')}
       ${selfEntries(k).map(e=>smChip(e,true)).join('')}
@@ -3330,13 +3343,13 @@ function openEventDetail(id){
   const slotTxt=e.slot==='all'?'ทั้งวัน':e.slot==='am'?'ช่วงเช้า':'ช่วงบ่าย';
   openSheet(`<div class="eyebrow">${esc(e.type||'งานกลาง MA')}</div><h2>${esc(e.title)}</h2>`,
   `<div class="card" style="border-left:6px solid var(--ma)">
+    ${(e.photos||[]).length?`<div class="evphotos" style="margin:0 0 12px">${e.photos.map(p=>
+      `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="รูปงานกลาง MA" loading="lazy"></a>`).join('')}</div>`:''}
     <div class="row" style="gap:14px;flex-wrap:wrap">
       <div><div class="eyebrow">วันที่</div><b style="font-size:15px">${fmtDate(e.date)}</b></div>
       <div><div class="eyebrow">ช่วงเวลา</div><b style="font-size:15px">${slotTxt}</b></div></div>
     <div class="muted" style="margin-top:8px">${esc(e.type||'งานกลาง MA')}</div>
     ${e.detail?`<div class="note" style="white-space:pre-wrap;margin-top:10px">${esc(e.detail)}</div>`:''}
-    ${(e.photos||[]).length?`<div class="evphotos">${e.photos.map(p=>
-      `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="รูปงานกลาง MA" loading="lazy"></a>`).join('')}</div>`:''}
     <div class="chips" style="margin-top:10px">${members.map(c=>
       `<button class="chip sm2" style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci};cursor:default">${face(c.id,'xs')} ${c.nick}</button>`).join('')}</div>
     <div class="note ma" style="margin-top:12px">งานกลางจะขึ้นสีฟ้าในปฏิทินและจองช่วงนั้นไม่ได้</div>
