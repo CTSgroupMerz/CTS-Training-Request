@@ -27,11 +27,12 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      + 'renderCal,monthHTML,weekHTML,openDay,openSelfEntry,openEventForm,openJob,reqCard,dayAnon,dayNamed,maCard,'+
      'PRODUCTS,PRODHEX,LEAD_IDS,BOOKABLE_CTS,skillOf,setSkill,canTrain,needsSenior,freeIds,renderSkills,'+
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
-     'assign,confirmTBC,holidayOf,prodText,togglePick,maDay,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
+     'assign,confirmTBC,holidayOf,prodText,togglePick,maSlot,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
      + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText,tpSupHTML,openSupClinic};';
 src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
-     + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft});';
+     + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -120,13 +121,16 @@ assert.ok(/Ultherapy/.test(screens.reqCard)&&/Belotero/.test(screens.reqCard),'�
 /* 8. คำเดิมที่สั่งให้ตัดออก ต้องไม่เหลือในไฟล์ */
 assert.ok(!/จองได้ตามตกลง/.test(html),'ต้องไม่เหลือคำว่า \"จองได้ตามตกลง\"');
 
-/* 9. ปุ่มลบคำขอ ขึ้นเฉพาะ CTS */
+/* 9. ปุ่มลบคำขอ ขึ้นเฉพาะ BELLE / PAM / MILK */
 X.state.role='admin';
 assert.ok(!/data-del=/.test(X.reqCard(X.state.requests[0],true)),'Admin ต้องไม่เห็นปุ่มลบคำขอ');
 X.state.role='sales';
 assert.ok(!/data-del=/.test(X.reqCard(X.state.requests[0],false)),'Sales ต้องไม่เห็นปุ่มลบคำขอ');
 X.state.role='cts';
-assert.ok(/data-del=/.test(X.reqCard(X.state.requests[0],false)),'CTS ต้องเห็นปุ่มลบคำขอ');
+['belle','parichat','kanwara'].forEach(id=>{X.state.me=id;
+  assert.ok(/data-del=/.test(X.reqCard(X.state.requests[0],false)),id+' ต้องเห็นปุ่มลบคำขอ');});
+X.state.me=X.BOOKABLE_CTS()[0].id;
+assert.ok(!/data-del=/.test(X.reqCard(X.state.requests[0],false)),'CTS ทั่วไปต้องไม่เห็นปุ่มลบคำขอ');
 
 /* 10. เครื่องหมาย ✓ Email Approved โผล่ในปฏิทิน */
 assert.ok(/class="okmk/.test(X.weekHTML()),'คิวที่ Email Approved แล้วต้องมีเครื่องหมาย ✓ ในปฏิทิน');
@@ -314,14 +318,18 @@ assert.ok(/data-anon="am"/.test(holDay)&&!/data-anon="am"[^>]*disabled/.test(hol
   'วันหยุดยังกดขอคิวได้เหมือนเสาร์–อาทิตย์');
 X.state.holidays=[];
 
-/* 28. วัน MA — ฝั่ง Sales ตัดคิวทั้งวัน แม้งานกลางระบุแค่ครึ่งวัน */
+/* 28. วัน MA — ฝั่ง Sales ตัดคิวเฉพาะช่วงที่งานกลางลงไว้ (เช้า MA -> บ่ายยังว่าง) */
 clean();
 X.state.events=[{id:'MA-T',date:K,title:'Workshop',type:'Workshop',slot:'am',cts:'all'}];
 X.state.role='sales';X.state.area='Champion';X.state.draft={product:['Ultherapy'],slots:1};
 X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
-assert.ok(X.maDay(K),'ต้องรู้ว่าวันนี้มีงานกลาง MA');
+assert.ok(X.maSlot(K,'am')&&!X.maSlot(K,'pm'),'MA ช่วงเช้าต้องปิดแค่ช่วงเช้า');
 const maHtml=X.dayAnon(K);
-assert.strictEqual((maHtml.match(/ติดงานกลาง MA/g)||[]).length,2,'MA ต้องตัดทั้งเช้าและบ่าย');
+assert.strictEqual((maHtml.match(/ติดงานกลาง MA/g)||[]).length,1,'MA เช้าต้องตัดแค่ช่วงเช้า');
+assert.ok(/data-anon="pm"/.test(maHtml)&&!/disabled data-anon="pm"/.test(maHtml.replace(/\s+/g,' ')),'ช่วงบ่ายต้องจองได้');
+X.state.events[0].slot='all';
+assert.strictEqual((X.dayAnon(K).match(/ติดงานกลาง MA/g)||[]).length,2,'MA ทั้งวันต้องตัดทั้งเช้าและบ่าย');
+X.state.events[0].slot='am';
 /* CTS ยังลงคิวงานในวัน MA ได้ */
 X.state.role='cts';X.state.me=B1;
 const maJob={id:'SE-MA',date:K,dateEnd:'',allDay:false,title:'งานวัน MA',detail:'',
@@ -1267,4 +1275,39 @@ assert.strictEqual(X.tpRows(X.tpAllRows()).some(r=>r.reqId==='TR-M1'),false,'เ
 S.module='';
 }
 
-console.log('✓ ผ่านทั้ง 82 ข้อ');
+/* 83. รอบ 30 ก.ย. — MA ขึ้นทุกปฏิทินฝั่งขาย · บ่าย 14:00 · Record เฉพาะคิวตัวเอง · สีตามรหัส Sale · รายละเอียด/รูป MA */
+{
+clean();
+assert.strictEqual(X.SLOT_DEF.pm.start+'-'+X.SLOT_DEF.pm.end,'14:00-17:30','ช่วงบ่ายต้องเป็น 14:00–17:30');
+/* งานกลางที่มีแค่ PAM (ไม่อยู่ใน 6 คนที่จองได้) ต้องขึ้นในปฏิทิน Sale / SM ด้วย */
+X.state.events=[{id:'EV-P',date:K,title:'งานของ PAM',type:'Workshop',slot:'pm',cts:['parichat'],
+  detail:'ห้องประชุมชั้น 3',photos:[{url:'https://x.test/a.jpg',path:'a.jpg'}]}];
+X.state.role='sales';X.state.area='Champion';X.state.tab='cal';
+assert.strictEqual(X.dayEvents(K).length,1,'Sale ต้องเห็นงานกลางที่มีแค่ PAM');
+assert.ok(!X.maSlot(K,'pm'),'งานที่มีแค่ PAM ต้องไม่ปิดคิวว่างของ Sale');
+X.state.role='sm';X.state.sm='Champion';
+assert.strictEqual(X.dayEvents(K).length,1,'SM ต้องเห็นงานกลางที่มีแค่ PAM');
+assert.ok(/งานของ PAM/.test(X.smWeekHTML()),'ปฏิทิน SM ต้องมีงานกลางนี้');
+/* หน้ารายละเอียดงานกลางโชว์รายละเอียด + รูป · ไม่ใช่ Admin ไม่มีปุ่มแก้ */
+X.openEventDetail('EV-P');
+assert.ok(sheet0().includes('ห้องประชุมชั้น 3'),'ต้องโชว์รายละเอียดสั้น');
+assert.ok(sheet0().includes('https://x.test/a.jpg'),'ต้องโชว์รูป preview');
+assert.ok(!sheet0().includes('evDetailEdit'),'SM ต้องแก้งานกลางไม่ได้');
+X.state.role='admin';X.openEventForm('EV-P');
+assert.ok(sheet0().includes('evPh')&&sheet0().includes('data-evrmph'),'Admin ต้องอัปโหลด/ลบรูปได้');
+assert.ok(sheet0().includes('ห้องประชุมชั้น 3'),'ฟอร์มแก้ไขต้องมีรายละเอียดเดิม');
+/* สีคิวในปฏิทิน SM ต่างกันตามรหัส Sale */
+X.state.role='sm';
+const codes=['C01','C02','C03'].map(X.codeStyle);
+assert.strictEqual(new Set(codes).size,3,'รหัส Sale ต่างกันต้องได้สีต่างกัน');
+/* Record: CTS ทั่วไปเห็นเฉพาะคำขอที่ตัวเองเป็นผู้เทรน · BELLE/PAM/MILK เห็นหมด */
+const mine={id:'TR-R1',status:'approved',mode:'std',sessions:[{date:K,slot:'am',ctsId:B1}]};
+const other={id:'TR-R2',status:'approved',mode:'std',sessions:[{date:K,slot:'am',ctsId:X.BOOKABLE_CTS()[1].id}]};
+X.state.role='cts';X.state.me=B1;
+assert.ok(X.canSeeRecord(mine)&&!X.canSeeRecord(other),'CTS ต้องเห็นแค่ Record ของตัวเอง');
+['belle','parichat','kanwara'].forEach(id=>{X.state.me=id;
+  assert.ok(X.canSeeRecord(mine)&&X.canSeeRecord(other)&&X.canDelReq(),id+' ต้องเห็นทุก Record และลบได้');});
+X.state.events=[];X.state.tab='cal';
+}
+
+console.log('✓ ผ่านทั้ง 83 ข้อ');
