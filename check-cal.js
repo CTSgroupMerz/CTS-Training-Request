@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1331,4 +1331,25 @@ assert.ok(X.maCard().includes('data-ev="EV-Q"'),'แถว MA ท้ายปฏ
 X.state.events=[];
 }
 
-console.log('✓ ผ่านทั้ง 84 ข้อ');
+/* 85. คำขอ MSC+ ลงปฏิทินแล้วได้หัวข้อ MSC อัตโนมัติ (CTS เลือกเองทับได้) · หน้าแก้ไขคำขอมี Module + เพิ่ม/ลบ session */
+{
+clean();
+X.state.role='cts';X.state.me=B1;
+const r={id:'TR-M1',status:'approved',mode:'std',module:'MSC+',product:['Ultherapy'],clinic:'คลินิกเอ็ม',photos:[],
+  sessions:[{date:K,slot:'am',ctsId:B1},{date:K,slot:'pm',ctsId:B1}]};
+X.state.requests=[r];
+const e=X.dayEntries(K).find(x=>x.job.reqId==='TR-M1');
+assert.deepStrictEqual([...e.job.topics],['MSC'],'คำขอ MSC+ ต้องได้หัวข้อ MSC อัตโนมัติ');
+X.state.tfilter=new Set(['MSC']);
+assert.ok(X.jobTypeOk(e.job),'กรองหัวข้อ MSC ต้องเห็นคิวนี้');
+X.state.tfilter=new Set();
+r.sessions[0].sTopics=['KUD'];
+assert.deepStrictEqual([...X.reqTopics(r,r.sessions[0])],['KUD'],'CTS เลือกหัวข้อเองแล้วต้องใช้ตามที่เลือก');
+assert.deepStrictEqual([...X.reqTopics({module:'MAX-A'},{date:K})],[],'module อื่นไม่ต้องติดหัวข้อ');
+X.openEdit('TR-M1');
+assert.ok(sheet().includes('data-emod="MSC+"')&&sheet().includes('data-edel="1"')&&sheet().includes('id="eAdd"'),
+  'หน้าแก้ไขคำขอต้องเลือก Module และเพิ่ม/ลบ session ได้');
+X.state.requests=[];
+}
+
+console.log('✓ ผ่านทั้ง 85 ข้อ');

@@ -2606,6 +2606,8 @@ const reqWho=s=>[s.ctsId].concat(s.extra||[]).filter(Boolean);
 /* UPC จองทั้งวัน — slot 'day' ไม่มีใน SLOT_DEF และในตาราง jobs (มีแค่ am/pm) */
 const slotDef=sl=>SLOT_DEF[sl]||{start:SLOT_DEF.am.start,end:SLOT_DEF.pm.end};
 const slotsOf=sl=>sl==='day'?['am','pm']:[sl];
+/* หัวข้อที่เกี่ยวข้องของคิวจากคำขอ — CTS เลือกเองแล้ว (sTopics) ใช้ตามนั้น · ยังไม่เลือก: module MSC+ ตกหัวข้อ MSC ให้อัตโนมัติ */
+const reqTopics=(r,s)=>s.sTopics||((r.module==='MSC+'||((upcDayOf(r,s.date)||{}).items||[]).some(i=>i.module==='MSC+'))?['MSC']:[]);
 /* วันเดียวของทริป UPC ไปได้หลายคลินิก — product/เคส hands-on ต้องรวมทั้งวัน ไม่ใช่เอาแค่คลินิกแรก */
 const dayProds=d=>[...new Set(((d&&d.items)||[]).flatMap(i=>prodList(i.product)))];
 const dayHo=d=>((d&&d.items)||[]).filter(i=>i.handsOn);
@@ -2647,8 +2649,9 @@ function openReqSession(reqId,sIdx,keep){
   const itKey=(d,ix)=>d.date+'#'+ix;
   const itsNow=()=>Object.fromEntries(uall.flatMap(d=>d.items.map((it,ix)=>[itKey(d,ix),it.ctsId||''])));
   const D=keep||{title:s.sTitle||'',start:s.start||p0.start,
-    end:s.end||p0.end,extra:(s.extra||[]).slice(),main:s.ctsId,its:itsNow()};
+    end:s.end||p0.end,extra:(s.extra||[]).slice(),main:s.ctsId,its:itsNow(),topics:reqTopics(r,s).slice()};
   if(!D.its)D.its=itsNow();
+  if(!D.topics)D.topics=reqTopics(r,s).slice();
   const mainOf=date=>(r.sessions.find(x=>x.date===date)||{}).ctsId;
   if(!D.main)D.main=s.ctsId;   // keep ที่ส่งมาจากรอบก่อนอาจยังไม่มีฟิลด์นี้
   /* 13. คิวที่อนุมัติแล้วยังเปลี่ยนตัวผู้เทรนหลักได้ เผื่อคนเดิมป่วย/ติดธุระกะทันหัน */
@@ -2661,6 +2664,8 @@ function openReqSession(reqId,sIdx,keep){
     <div class="formgrid">
       <div><label class="f">เริ่ม</label>${t24('rsStart',D.start,s.slot)}</div>
       <div><label class="f">ถึง</label>${t24('rsEnd',D.end,s.slot)}</div></div>
+    <label class="f">หัวข้อที่เกี่ยวข้อง <span>· เลือกได้หลายอัน</span></label>
+    <div class="chips">${TOPIC_TAGS.map(t=>`<button class="chip" data-rstt="${t}" aria-pressed="${D.topics.includes(t)}">${t}</button>`).join('')}</div>
     ${chgMain?`<label class="f">ผู้เทรนหลัก <span>· เปลี่ยนตัวได้ คิวในปฏิทินจะย้ายตาม</span></label>
     <select class="in" id="rsMain">${CTS.map(c=>`<option value="${c.id}" ${D.main===c.id?'selected':''}>${c.nick} — ${c.name}</option>`).join('')}</select>`:''}
     ${perItem?`<label class="f">ผู้เทรนรายคลินิก <span>· ทั้งทริป ${uall.length} วัน — เปลี่ยนตัวได้ทุกวันทุกคลินิก</span></label>
@@ -2696,6 +2701,9 @@ function openReqSession(reqId,sIdx,keep){
   B.querySelectorAll('[data-rsa]').forEach(b=>b.onclick=()=>{grab();
     const i=D.extra.indexOf(b.dataset.rsa);i>=0?D.extra.splice(i,1):D.extra.push(b.dataset.rsa);
     openReqSession(reqId,sIdx,D);});
+  B.querySelectorAll('[data-rstt]').forEach(b=>b.onclick=()=>{grab();
+    const i=D.topics.indexOf(b.dataset.rstt);i>=0?D.topics.splice(i,1):D.topics.push(b.dataset.rstt);
+    openReqSession(reqId,sIdx,D);});
   $('rsCancel').onclick=closeSheet;
   $('rsSave').onclick=()=>{
     grab();
@@ -2728,7 +2736,7 @@ function openReqSession(reqId,sIdx,keep){
       if(one.length)chg.push(fmtDate(d.date)+' · '+one.join(' · '));});
     if(chg.length)logTrail(r,'changed-trainer',chg.join(' | '));
     const whoBefore=[...new Set(Object.values(prevAll).flat())];
-    s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.filter(i=>i!==s.ctsId);
+    s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.filter(i=>i!==s.ctsId);s.sTopics=D.topics.slice();
     stampNow(s);
     if(r.mode==='upc'){
       /* ล้างคิวเดิมของทั้งทริปก่อน แล้วลงใหม่ทุกวัน — วันที่ไม่ได้แก้ก็ได้ของเดิมกลับมาเหมือนเดิม */
@@ -3148,7 +3156,7 @@ function dayEntries(k,pool){
             title:(a.clinic||'ยังไม่ระบุคลินิก')+(list.length>1?' +'+(list.length-1):''),
             detail:list.map(x=>x.topic).filter(Boolean).join(' · '),
             product:pickProds(null,r.product,[...new Set(list.flatMap(x=>prodList(x.product)))]),
-            reqId:r.id,sIdx:i,items:ixs,cts:cid,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
+            topics:reqTopics(r,s),reqId:r.id,sIdx:i,items:ixs,cts:cid,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
             start:a.start||SLOT_DEF.am.start,end:b.end||SLOT_DEF.pm.end},
             [cid].concat(cid===exHost?(s.extra||[]).filter(x=>x!==cid):[]));});
         return;
@@ -3159,7 +3167,7 @@ function dayEntries(k,pool){
         /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
         detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
         product:pickProds(s.sProduct,r.product,day?dayProds(day):it.product),
-        reqId:r.id,sIdx:i,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
+        topics:reqTopics(r,s),reqId:r.id,sIdx:i,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
@@ -4142,6 +4150,8 @@ function openEdit(id){
   if(!r.ptopic&&String(r.topic||'').trim()&&!r.topicNote)r.topicNote=r.topic;
   const eSel=prodList(r.product);
   const miss=missingOf(r);
+  /* จำนวน session ต้องอยู่ในกรอบของ Module (MSC+ ไม่ล็อก) — ไม่ตรงก็บันทึกไม่ได้ */
+  const rule=MODULES[r.module],modOk=!rule||(r.sessions.length>=rule.min&&r.sessions.length<=rule.max);
   openSheet(`<div class="eyebrow">${r.id} · ${r.status.toUpperCase()}</div><h2>แก้ไข / เพิ่มข้อมูล</h2>`,
   `${miss.length?`<div class="warn" style="margin-top:0"><b>ยังขาด ${miss.length} รายการ</b><br>${miss.map(x=>'• '+x).join('<br>')}</div>`:'<div class="note" style="margin-top:0">ข้อมูลครบแล้ว — แก้ไขเพิ่มเติมได้ตามต้องการ</div>'}
   <div class="card"><h3>Product และหัวข้อ</h3><div class="chips">${prodChips}</div>
@@ -4178,10 +4188,15 @@ function openEdit(id){
         <input type="file" id="ePhoto" accept="image/*" multiple>
         <div class="thumbs">${r.photos.map(ph=>`<img src="${ph.url}" alt="">`).join('')}</div></div></div></div></div>
 
+  <div class="card"><h3>Module Training และจำนวน Session</h3>
+    <div class="chips">${Object.keys(MODULES).map(m=>`<button class="chip" data-emod="${m}" aria-pressed="${r.module===m}">${m}</button>`).join('')}</div>
+    <div class="${modOk?'muted':'warn'}" style="margin-top:8px">${rule?rule.note+' · ':''}ตอนนี้ ${r.sessions.length} session${modOk?'':' — ยังไม่ตรงกับ Module ที่เลือก'}</div></div>
+
   <div class="card"><h3>เวลาเทรนแต่ละ session</h3>
     ${r.sessions.map((sn,i)=>`<div class="picked-row" style="margin-bottom:12px">
       <div class="picked-item"><span class="idx">S${i+1}</span>${sn.ctsId?face(sn.ctsId,'xs'):''}
-        <span class="grow">${sn.slot==='am'?'ช่วงเช้า':'ช่วงบ่าย'}${sn.ctsId?' · '+byId(sn.ctsId).nick:''}</span></div>
+        <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+byId(sn.ctsId).nick:' · รอจัด CTS'}</span>
+        ${r.sessions.length>1?`<button class="btn ghost" data-edel="${i}" style="padding:4px 10px">ลบ</button>`:''}</div>
       <div class="timerow"><span class="tl">วันที่</span>
         <input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${sn.date}" style="min-width:140px"></div>
       <div class="timerow"><span class="tl">เวลาเทรน</span>
@@ -4193,7 +4208,11 @@ function openEdit(id){
           style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${sn.sProduct===pr}">${pr}</button>`).join('')}</div>
         <input class="in" id="es${i}t" value="${esc(sn.sTopic||'')}" placeholder="หัวข้อของ session นี้ (ถ้ามี)" style="margin-top:7px">
       </div>`:''}</div>`).join('')}
-    <div class="muted">เปลี่ยนวันได้ที่นี่ · เปลี่ยนตัว CTS ที่ปุ่ม "จัด / เปลี่ยน CTS" ของ Senior Leader</div></div>
+    <div class="timerow"><span class="tl">เพิ่ม session</span>
+      <input class="in tin" type="date" lang="en-GB" id="eAddD" style="min-width:140px">
+      <select class="in" id="eAddS" style="max-width:110px"><option value="am">ช่วงเช้า</option><option value="pm">ช่วงบ่าย</option></select>
+      <button class="btn" id="eAdd">+ เพิ่ม</button></div>
+    <div class="muted">เปลี่ยนวันได้ที่นี่ · session ที่เพิ่มใหม่ต้องให้ Senior Leader "จัด / เปลี่ยน CTS" ก่อนถึงจะขึ้นปฏิทิน</div></div>
 
   <div class="card"><h3>ผู้ขอ</h3>
     <label class="f">ชื่อผู้ขอ</label><input class="in" id="eReq" value="${esc(r.requester)}">
@@ -4218,11 +4237,21 @@ function openEdit(id){
     i>=0?l.splice(i,1):l.push(b.dataset.ep);r.product=l;openEdit(id);});
   $('sheetBody').querySelectorAll('[data-esp]').forEach(b=>b.onclick=()=>{g();const [i,pr]=b.dataset.esp.split('|');
     const sn=r.sessions[+i];sn.sProduct=sn.sProduct===pr?null:pr;openEdit(id);});
+  $('sheetBody').querySelectorAll('[data-emod]').forEach(b=>b.onclick=()=>{g();r.module=b.dataset.emod;openEdit(id);});
+  /* ลบ session = ปล่อยคิวของทุกคนที่ไปงานนั้นคืนระบบทันที */
+  $('sheetBody').querySelectorAll('[data-edel]').forEach(b=>b.onclick=()=>{g();const sn=r.sessions[+b.dataset.edel];
+    reqWho(sn).forEach(p=>slotsOf(sn.slot).forEach(sl=>{const j=jobOf(sn.date,p,sl);if(j&&j.reqId===r.id)setJob(sn.date,p,sl,null);}));
+    r.sessions.splice(+b.dataset.edel,1);openEdit(id);});
+  $('eAdd').onclick=()=>{g();const d=$('eAddD').value;
+    if(!d||holidayOf(d)||!isWorkday(parse(d))){toast('เลือกวันทำงานที่ไม่ใช่วันหยุดก่อน');return;}
+    r.sessions.push({date:d,slot:$('eAddS').value,ctsId:null});openEdit(id);};
   $('eHO').onchange=e=>{g();r.handsOn=e.target.checked;openEdit(id);};
   const ph=$('ePhoto');if(ph)ph.onchange=e=>{g();[...e.target.files].forEach(f=>r.photos.push({name:f.name,url:URL.createObjectURL(f)}));openEdit(id);};
   $('eCancel').onclick=closeSheet;
   $('eSave').onclick=()=>{
     g();
+    const ru=MODULES[r.module];
+    if(ru&&(r.sessions.length<ru.min||r.sessions.length>ru.max)){toast(`${r.module}: ${ru.note} — ตอนนี้มี ${r.sessions.length} session`);return;}
     const left=missingOf(r);
     if(r.status==='approved'){
       r.missingAtApproval=left;
