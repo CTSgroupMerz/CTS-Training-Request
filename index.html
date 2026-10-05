@@ -1307,9 +1307,10 @@ const toMin=t=>{const [h,m]=String(t).split(':').map(Number);return h*60+m;};
 const toHM=v=>`${String(Math.floor(v/60)).padStart(2,'0')}:${String(v%60).padStart(2,'0')}`;
 const availOf=(k,cid,slot)=>(state.avail[k]&&state.avail[k][cid])?state.avail[k][cid][slot]:null;
 /* undefined = ไม่มีคิวข้างเคียง ใช้เวลามาตรฐาน · null = เวลาไม่พอ · object = หน้าต่างเวลาที่คำนวณได้ */
-function autoWindow(k,cid,slot){
+function autoWindow(k,cid,slot,skip){
   const R=AUTO_RULE;
-  const es=entriesOf(k,cid).filter(e=>!e.job.allDay);
+  /* skip = {reqId,sIdx} ไม่นับคิวของ session ที่กำลังแก้อยู่ (ใช้ตอน Sale แก้วัน/เวลาคำขอ) */
+  const es=entriesOf(k,cid).filter(e=>!e.job.allDay&&!(skip&&e.job.reqId===skip.reqId&&e.job.sIdx===skip.sIdx));
   if(slot==='pm'){
     /* ดูคิวที่แตะช่วงเช้า แล้วเอาอันที่เลิกช้าที่สุด — คิวเช้าอาจมีหลายอัน */
     const ends=es.filter(e=>toMin(e.start)<toMin(SLOT_DEF.am.end)).map(e=>toMin(e.end));
@@ -1352,6 +1353,17 @@ function slotTime(k,cid,slot){
   return SLOT_DEF[slot];
 }
 const isAuto=(k,cid,slot)=>!!slotTime(k,cid,slot).auto;
+/* ช่วงที่ผู้เทรนหลักทุกคนของ session นี้ว่างตรงกันในวัน k (ไม่นับคิวของ session นี้เอง) · null = วันนั้นไม่ว่าง
+   วันเดิมของ session ช่องนั้นเป็นคิวของตัวเองอยู่ จึงไม่เช็ค slotStatus */
+function sessWin(r,i,k){
+  const s=r.sessions[i];let a=0,b=24*60;
+  for(const cid of mainsOf(s)){
+    if(k!==s.date&&slotStatus(k,cid,s.slot)!=='free')return null;
+    const av=availOf(k,cid,s.slot),w=av&&!av.closed?av:autoWindow(k,cid,s.slot,{reqId:r.id,sIdx:i});
+    if(w===null)return null;
+    const t=w||SLOT_DEF[s.slot];a=Math.max(a,toMin(t.start));b=Math.min(b,toMin(t.end));}
+  return a<b?{start:toHM(a),end:toHM(b)}:null;
+}
 
 /* ---- ช่องเลือกเวลาแบบ 24 ชั่วโมง (ชั่วโมง : นาที) ---- */
 const T24_H=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
@@ -4182,6 +4194,13 @@ function bindSM(scope){
 
 /* แก้ไข / เพิ่มข้อมูลของคำขอที่ส่งไปแล้ว — ทำได้ทั้งตอน pending และ approved
    (วันและ CTS แก้ผ่าน "จัด / เปลี่ยน CTS" ของ Senior Leader เท่านั้น) */
+/* วันที่ Sale ย้าย session ไปได้ = วันเดิม + จันทร์–ศุกร์ 60 วันข้างหน้าที่ผู้เทรนหลักทุกคนว่างช่วงนั้น */
+function eDates(r,i){
+  const out=[r.sessions[i].date],d=new Date(TODAY);
+  for(let n=0;n<60;n++){d.setDate(d.getDate()+1);const k=key(d);
+    if(k!==out[0]&&d.getDay()%6&&!holidayOf(k)&&sessWin(r,i,k))out.push(k);}   // ไม่รวมเสาร์–อาทิตย์ (ต้องตกลงกับ CTS เอง)
+  return out.sort();
+}
 function openEdit(id){
   const r=state.requests.find(x=>x.id===id);
   const prodChips=PRODUCTS.map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${prodList(r.product).includes(pr)}">${pr}</button>`).join('');
@@ -4236,11 +4255,15 @@ function openEdit(id){
       <div class="picked-item"><span class="idx">S${i+1}</span>${sn.ctsId?mainsFace(sn):''}
         <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+mainsTxt(sn):' · รอจัด CTS'}</span></div>
       <div class="timerow"><span class="tl">วันที่</span>
-        <input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${sn.date}" style="min-width:140px"></div>
+        ${sn.ctsId&&sn.slot!=='day'?`<select class="in" id="es${i}d" style="min-width:140px">${eDates(r,i).map(d=>{const w=sessWin(r,i,d);
+          return `<option value="${d}" ${d===sn.date?'selected':''}>${fmtDate(d)}${w?' · ว่าง '+w.start+'–'+w.end:''}</option>`;}).join('')}</select>`
+        :`<input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${sn.date}" style="min-width:140px">`}</div>
       <div class="timerow"><span class="tl">เวลาเทรน</span>
         ${t24(`es${i}s`,sn.start||SLOT_DEF[sn.slot].start)}
         <span class="tl">ถึง</span>
         ${t24(`es${i}e`,sn.end||SLOT_DEF[sn.slot].end)}</div>
+      ${sn.ctsId&&sn.slot!=='day'?`<div class="muted">${(w=>w?`${mainsTxt(sn)} ว่าง ${w.start}–${w.end} (วันที่ ${fmtDate(sn.date)}) — เวลาเทรนต้องอยู่ในช่วงนี้ · ย้ายวันแล้วดูช่วงว่างในรายการวันที่`
+        :'วันนี้ผู้เทรนไม่มีช่วงว่าง')(sessWin(r,i,sn.date))}</div>`:''}
       ${r.sessions.length>1?`<div class="sdetail">
         <div class="chips">${PRODUCTS.map(pr=>`<button class="chip prodchip sm2" data-esp="${i}|${pr}"
           style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${sn.sProduct===pr}">${pr}</button>`).join('')}</div>
@@ -4279,6 +4302,16 @@ function openEdit(id){
     /* เช็คก่อน g() — บันทึกไม่ผ่านต้องไม่มีเวลา/วันที่ค้างใน r โดยไม่ได้ส่งเข้าปฏิทิน CTS */
     const ru=MODULES[r.module];
     if(ru&&(r.sessions.length<ru.min||r.sessions.length>ru.max)){toast(`${r.module}: ${ru.note} — ตอนนี้มี ${r.sessions.length} session`);return;}
+    /* วัน/เวลาที่แก้ ต้องอยู่ในช่วงว่างของผู้เทรนหลักทุกคน — เช็คเฉพาะ session ที่เปลี่ยนจริง (ข้อมูลเก่าไม่โดนบล็อก) */
+    for(let i=0;i<r.sessions.length;i++){const sn=r.sessions[i];
+      if(!sn.ctsId||sn.slot==='day')continue;
+      const k=$('es'+i+'d').value||sn.date,st=$('es'+i+'s').value,en=$('es'+i+'e').value;
+      const st0=sn.start||SLOT_DEF[sn.slot].start,en0=sn.end||SLOT_DEF[sn.slot].end;
+      if(k===sn.date&&st===st0&&en===en0)continue;
+      const w=sessWin(r,i,k);
+      if(!w)return toast(`S${i+1}: ${fmtDate(k)} ผู้เทรนไม่ว่าง — เลือกวันอื่น`);
+      if(!(st<en))return toast(`S${i+1}: เวลาเริ่มต้องก่อนเวลาจบ`);
+      if(st<w.start||en>w.end)return toast(`S${i+1}: ${mainsTxt(sn)} ว่าง ${w.start}–${w.end} — เวลาเทรนต้องอยู่ในช่วงนี้`);}
     g();
     const left=missingOf(r);
     if(r.status==='approved'){

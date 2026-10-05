@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1466,4 +1466,29 @@ assert.strictEqual(r.sessions[0].start,'10:00','บันทึกไม่ผ�
 X.state.requests=[];
 }
 
-console.log('✓ ผ่านทั้ง 91 ข้อ');
+/* 92. หน้าแก้ไขคำขอ: เวลา/วันที่ต้องอยู่ในช่วงว่างของผู้เทรนที่ถูกจัด */
+{
+clean();
+const D=FUT(0);let D2,n=1;do{D2=FUT(n++);}while([0,6].includes(new Date(D2).getDay()));   // D2 ต้องเป็นวันธรรมดา ไม่งั้นเทส eDates ผ่านเพราะเป็นเสาร์-อาทิตย์
+const r=mkReq('TR-W1','approved',B1);r.sessions[0].date=D;X.state.requests=[r];
+X.state.sched[D]={[B1]:{am:{kind:'booked',reqId:'TR-W1',start:'09:00',end:'12:00'},pm:null}};
+assert.strictEqual(JSON.stringify(X.sessWin(r,0,D)),'{"start":"09:00","end":"12:00"}','ช่วงว่างวันเดิมต้องไม่นับคิวตัวเอง');
+/* คิวบ่ายของคนอื่น 13:00 → ต้องเผื่อ 2 ชม. ช่วงเช้าเหลือ 09:00–11:00 */
+X.state.selfEvents=[{id:'SE-W',date:D,start:'13:00',end:'16:00',attendees:[B1],title:'x'}];
+assert.strictEqual(X.sessWin(r,0,D).end,'11:00','ต้องเผื่อเวลาเดินทางก่อนคิวบ่าย');
+X.state.role='sales';X.openEdit('TR-W1');
+G('es0d').value=D;G('es0s').value='10:00';G('es0e').value='11:30';
+G('eSave').onclick();
+assert.strictEqual(r.sessions[0].end||'12:00','12:00','เวลาเกินช่วงว่างต้องบันทึกไม่ได้');
+G('es0e').value='11:00';G('eSave').onclick();
+assert.strictEqual(r.sessions[0].end,'11:00','อยู่ในช่วงว่างต้องบันทึกได้');
+/* วันที่: วันที่ผู้เทรนไม่ว่างต้องไม่อยู่ในรายการ */
+X.state.sched[D2]={[B1]:{am:{kind:'busy',start:'09:00',end:'12:00'},pm:null}};
+assert.ok(!X.eDates(r,0).includes(D2),'วันที่ผู้เทรนไม่ว่างต้องเลือกไม่ได้');
+assert.ok(X.eDates(r,0).includes(D),'วันเดิมต้องอยู่ในรายการเสมอ');
+X.openEdit('TR-W1');G('es0d').value=D2;G('eSave').onclick();
+assert.strictEqual(r.sessions[0].date,D,'ย้ายไปวันที่ไม่ว่างต้องไม่ผ่าน');
+X.state.requests=[];X.state.selfEvents=[];
+}
+
+console.log('✓ ผ่านทั้ง 92 ข้อ');
