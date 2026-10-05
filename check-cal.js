@@ -29,7 +29,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
      'canApprove,missingRequired,sweepTBC,tbcLeft,openForm,prodGate,SLOT_HOURS,t24,upLabel,whoAmI,setAvail,isClosed,openAvail,submit,submitTBC,'+
      'assign,confirmTBC,holidayOf,prodText,togglePick,maSlot,badgeCount,syncBadge,renderFeed,notify,pendingCount,render,tabsFor,mailTag,okMark,openReqSession,reqWho,adoptJob,clearSelf,tpAllRows,psTeam,myRequests,ackReq,needAck,ackedJob,upcAble,upcFree,upcMissing,submitUPC,snap,SAVED,newId,TODAY,runsOf,spanLabel,maSpans,maSid,holSid,seniorsFree,approve,saleRows,toRow,fromRow,ackList,ST_LABEL,notify,jobOf,upcCard,smReqCard,upcDayBox,bookUPC,isBookable,prodList,'
      + 'renderDash,dashScope,tpTableRows,TP_TCOLS,recTableRows,REC_COLS,reqClinicOn,smChip,canSwapCts,smMonthHTML,csvText,tpSupHTML,openSupClinic};';
-src += '\nObject.assign(__x,{lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
+src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
      + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk});';
@@ -358,14 +358,12 @@ assert.strictEqual(tbc.sessions.length,3,'คิว TBC ต้องล็อก
 /* 30. หัวหน้าเปลี่ยน CTS ของคิว TBC รายวันได้ แล้วส่งกลับว่าตรวจแล้ว */
 X.state.role='admin';X.state.me=null;X.state.tbcMode=false;
 X.confirmTBC(tbc.id);
-assert.ok(/data-sess="0"/.test(sheet())&&/data-sess="2"/.test(sheet()),
+assert.ok(/data-as="0\|/.test(sheet())&&/data-as="2\|/.test(sheet()),
   'ต้องเปลี่ยน CTS ได้ทุกวันที่ล็อกไว้');
 assert.ok(/ตรวจคิว TBC/.test(sheet()),'ปุ่มต้องเป็นการส่งกลับว่าตรวจคิว TBC แล้ว');
 /* จำลองการเลือกคนใหม่ในวันแรก แล้วกดบันทึก */
 const day0=tbc.sessions[0], newCts=X.BOOKABLE_CTS().find(c=>c.id!==day0.ctsId).id;
-const sels=[{dataset:{sess:'0'},value:newCts},{dataset:{sess:'1'},value:tbc.sessions[1].ctsId||''},
-            {dataset:{sess:'2'},value:tbc.sessions[2].ctsId||''}];
-cache.sheetBody.querySelectorAll=q=>q==='[data-sess]'?sels:[];
+X.assign(tbc.id,[[newCts],[tbc.sessions[1].ctsId].filter(Boolean),[tbc.sessions[2].ctsId].filter(Boolean)]);
 cache.saveRe.onclick();
 assert.strictEqual(tbc.sessions[0].ctsId,newCts,'ต้องเปลี่ยน CTS ของวันแรกได้');
 assert.strictEqual(X.state.sched[tbc.sessions[0].date][newCts].am.kind,'tbc',
@@ -603,8 +601,9 @@ X.state.requests=[mkReq('TR-B1','approved',B1)];
 const bs=X.state.requests[0].sessions[0];
 X.state.role='admin';X.state.tab='cal';
 X.openReqSession('TR-B1',0);
-assert.ok(/id="rsMain"/.test(sheet()),'Admin ต้องเห็นช่องเปลี่ยนผู้เทรนหลัก');
-G('rsMain').value=B2;G("rsTitle").value='';G("rsStart").value='09:00';G("rsEnd").value='12:00';
+assert.ok(/data-rsm=/.test(sheet()),'Admin ต้องเห็นช่องเปลี่ยนผู้เทรนหลัก');
+G("rsTitle").value='';G("rsStart").value='09:00';G("rsEnd").value='12:00';
+X.openReqSession('TR-B1',0,{title:'',start:'09:00',end:'12:00',extra:[],mains:[B2],topics:[]});
 G("rsSave").onclick();
 assert.strictEqual(bs.ctsId,B2,'ต้องเปลี่ยนผู้เทรนหลักได้');
 assert.strictEqual(X.entriesOf(K,B2).length,1,'คิวต้องย้ายไปคนใหม่');
@@ -613,7 +612,7 @@ assert.ok((X.state.requests[0].trail||[]).some(t=>t.act==='changed-trainer'),'�
 /* CTS ธรรมดาเปลี่ยนไม่ได้ */
 X.state.role='cts';X.state.me=B1;
 X.openReqSession('TR-B1',0);
-assert.ok(!/id="rsMain"/.test(sheet()),'CTS ธรรมดาต้องไม่เห็นช่องเปลี่ยนผู้เทรนหลัก');
+assert.ok(!/data-rsm=/.test(sheet()),'CTS ธรรมดาต้องไม่เห็นช่องเปลี่ยนผู้เทรนหลัก');
 
 /* 42. Sale UPC — เลือก product ก่อน -> เห็น CTS ที่ไปได้ -> ปฏิทินโชว์วันว่างเป็นรายวัน */
 clean();
@@ -914,8 +913,7 @@ const SW={id:'TR9001',team:'A',area:'Champion',requesterId:'C01',requester:'เ�
 X.state.requests=[SW];X.state.feed=[];
 X.state.role='cts';X.state.me=X.LEAD_IDS[0];
 assert.ok(X.canSwapCts(SW),'Senior Leader ต้องเปลี่ยนตัวผู้เทรนของคิวที่อนุมัติแล้วได้');
-X.assign(SW.id);
-G('sheetBody').querySelectorAll=sel=>sel==='[data-sess]'?[{dataset:{sess:'0'},value:NEW}]:[];
+X.assign(SW.id,[[NEW]]);
 G('saveRe').onclick();
 assert.strictEqual(SW.sessions[0].ctsId,NEW,'ผู้เทรนต้องถูกเปลี่ยนเป็นคนใหม่');
 assert.ok(!SW.ack[OLD],'ต้องลบสถานะรับทราบของคนเก่าทิ้ง');
@@ -1352,4 +1350,102 @@ assert.ok(sheet().includes('data-emod="MSC+"')&&sheet().includes('data-edel="1"'
 X.state.requests=[];
 }
 
-console.log('✓ ผ่านทั้ง 85 ข้อ');
+/* 86. ผู้เทรนหลักหลายคน — จัด/เปลี่ยนได้หลายคน · ลงคิวทุกคน · KPI ทุกคน · ทุกคนต้องกดรับทราบเอง */
+{
+clean();
+const r=mkReq('TR-MM','pending',B1);X.state.requests=[r];
+X.state.role='admin';X.state.me=null;
+X.assign('TR-MM',[[B1,B2]]);
+assert.ok(/data-as="0\|/.test(sheet()),'หน้าจัด CTS ต้องเป็นชิปเลือกได้หลายคน');
+G('saveRe').onclick();
+const s=r.sessions[0];
+assert.strictEqual(X.mainsOf(s).join(','),B1+','+B2,'จัดผู้เทรนหลักได้ 2 คน');
+assert.ok(X.jobOf(K,B1,'am')&&X.jobOf(K,B2,'am'),'คิวต้องลงให้ทั้ง 2 คน');
+r._ack=true;X.approve('TR-MM');
+assert.strictEqual(r.status,'approved','Admin อนุมัติแล้วต้องเป็น approved');
+assert.strictEqual(X.jobOf(K,B2,'am').kind,'booked','ผู้เทรนหลักคนที่ 2 ต้องได้คิว booked ด้วย');
+const e=X.dayEntries(K,[B1,B2]).find(x=>x.job.reqId==='TR-MM');
+assert.strictEqual(e.job.kpi.join(','),B1+','+B2,'KPI ต้องนับผู้เทรนหลักทุกคน');
+X.state.role='cts';X.state.me=B2;
+assert.ok(X.needAck(r),'ผู้เทรนหลักคนที่ 2 ต้องกดรับทราบเอง');
+X.ackReq('TR-MM');
+assert.ok(!X.ackedJob({reqId:'TR-MM',sIdx:0}),'รับทราบคนเดียวยังไม่ขึ้น ✓ — ต้องครบทุกคน');
+X.state.me=B1;X.ackReq('TR-MM');
+assert.ok(X.ackedJob({reqId:'TR-MM',sIdx:0}),'ครบทุกคนแล้วต้องขึ้น ✓');
+X.state.role='admin';X.state.me=null;
+X.openReqSession('TR-MM',0);
+assert.ok(/data-rsm="[^"]+" aria-pressed="true"[\s\S]*data-rsm="[^"]+" aria-pressed="true"/.test(sheet()),
+  'แก้ไขคิวงานนี้ต้องเห็นผู้เทรนหลัก 2 คนที่เลือกไว้');
+G('rsTitle').value='';G('rsStart').value='09:00';G('rsEnd').value='12:00';
+X.openReqSession('TR-MM',0,{title:'',start:'09:00',end:'12:00',extra:[],mains:[B1],topics:[]});
+G('rsSave').onclick();
+assert.strictEqual(X.mainsOf(s).join(','),B1,'เอาผู้เทรนหลักออกได้ที่แก้ไขคิวงานนี้');
+assert.ok(!X.jobOf(K,B2,'am'),'คนที่ถูกเอาออกต้องไม่เหลือคิวค้าง');
+X.state.requests=[];
+}
+
+/* 87. คิว TBC หมดอายุ — หายจากทุกปฏิทิน แต่ยังอยู่ในคำขอ/Record พร้อมป้าย Expired กรอบแดง */
+{
+clean();
+const r=mkReq('TR-X1','tbc',B1);r.tbcAt=new Date(Date.now()-5*864e5).toISOString();
+X.state.requests=[r];
+assert.ok(X.dayEntries(K,[B1]).some(e=>e.job&&e.job.reqId==='TR-X1'),'ก่อนหมดอายุคิว TBC ต้องอยู่ในปฏิทิน');
+X.sweepTBC();
+assert.strictEqual(r.status,'expired','ครบ 3 วันต้องหมดอายุ');
+assert.ok(!X.dayEntries(K,[B1]).some(e=>e.job&&e.job.reqId==='TR-X1'),'หมดอายุแล้วต้องหายจากปฏิทิน CTS');
+X.state.role='admin';
+assert.ok(!X.smEntries(K).some(e=>e.r.id==='TR-X1'),'หมดอายุแล้วต้องหายจากปฏิทิน Sale/SM');
+const h=X.reqCard(r,false);
+assert.ok(/class="status expired">Expired</.test(h),'การ์ดคำขอต้องมีป้าย Expired');
+assert.ok(/class="note xp">คิว TBC หมดอายุ/.test(h),'ข้อความหมดอายุต้องเป็นกรอบแดง');
+assert.ok(X.recTableRows([r])[0].includes('Expired'),'Record ยังต้องเห็นคำขอที่หมดอายุ');
+X.state.requests=[];
+}
+
+/* 88. แก้เวลาว่าง / ปิดรับคิว ได้เฉพาะ MILK · PAM · BELLE · Admin */
+{
+X.state.role='cts';X.state.me=B1;
+assert.ok(!X.canEditAvail(),'CTS ทั่วไปต้องแก้เวลาว่างไม่ได้');
+['kanwara','parichat','belle'].forEach(m=>{X.state.me=m;assert.ok(X.canEditAvail(),m+' ต้องแก้ได้');});
+X.state.role='admin';X.state.me=null;assert.ok(X.canEditAvail(),'Admin ต้องแก้ได้');
+X.state.role='sales';assert.ok(!X.canEditAvail(),'Sale ต้องแก้ไม่ได้');
+X.state.role='cts';X.state.me=B1;G('sheetBody').innerHTML='';
+X.openAvail(K,B1);
+assert.ok(!/avSave/.test(sheet()),'CTS ทั่วไปต้องเปิดหน้าแก้เวลาไม่ได้');
+}
+
+/* 89. ฟอร์มรายละเอียดการเทรน ล็อก Product ตามที่เลือกตอนดูคิวว่าง (รวมคิว TBC) */
+{
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.tab='cal';
+X.state.draft=X.newDraft();X.state.draft.product=['Ultherapy'];
+X.openForm();
+assert.ok(!/data-p="/.test(sheet()),'Sale ต้องเพิ่ม/เปลี่ยน Product ในฟอร์มไม่ได้');
+assert.ok(sheet().includes('🔒 Ultherapy'),'ต้องโชว์ Product ที่ล็อกไว้');
+X.state.tbcMode=true;X.openForm();
+assert.ok(!/data-p="/.test(sheet()),'คิว TBC ต้องล็อกเหมือนกัน');
+X.state.tbcMode=false;
+X.state.role='admin';X.state.tab='cal';X.openForm();
+assert.ok(/data-p="Xeomin"/.test(sheet()),'นอกปฏิทิน Sale ยังเลือก Product ได้ตามเดิม');
+X.state.draft=null;
+}
+
+/* 90. กดคิวจากคำขอในปฏิทิน Sale — พรีวิวเวลา/วันที่ตัวใหญ่ + รูปผู้เทรน (เหมือนคิวที่ CTS ลงเอง) */
+{
+clean();
+const nick=id=>X.CTS.find(c=>c.id===id).nick;
+const r=mkReq('TR-P1','approved',B1);r.sessions[0].co=[B2];X.state.requests=[r];
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';
+X.openSMReq('TR-P1',K);
+const h=sheet();
+assert.ok(/class="pvwhen"><b>09:00–12:00<\/b>/.test(h),'เวลาเทรนต้องเป็นตัวใหญ่');
+assert.ok(/class="ava m"/.test(h)&&h.includes('<b>'+nick(B1)+'</b>')&&h.includes('<b>'+nick(B2)+'</b>'),
+  'ต้องเห็นรูปและชื่อผู้เทรนหลักทุกคน');
+r.status='mgr';X.openSMReq('TR-P1',K);
+assert.ok(/ยังไม่ยืนยันผู้เทรน/.test(sheet()),'ยังไม่อนุมัติครบ ไม่โชว์ผู้เทรน');
+const ch=X.smChip({r,s:r.sessions[0],i:0,code:'C01',cxl:false},true);
+assert.ok(ch.includes('data-smd="'+K+'"'),'ชิปในปฏิทินต้องส่งวันที่ของคิวไปด้วย');
+X.state.requests=[];
+}
+
+console.log('✓ ผ่านทั้ง 90 ข้อ');
