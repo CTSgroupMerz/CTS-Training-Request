@@ -13,7 +13,7 @@ const badge={n:0};   // จับ setAppBadge ที่แอปยิงออ�
 const cache={};const G=id=>cache[id]||(cache[id]=el());   // คืน element เดิมทุกครั้ง จะได้อ่าน innerHTML กลับมาตรวจได้
 const sheet0=()=>G('sheetBody').innerHTML;
 const sheet=()=>G('sheetBody').innerHTML;
-const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
+const ctx={console,structuredClone,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
   localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v,removeItem:k=>delete store[k]},
   window:{innerWidth:1200,addEventListener(){}},
@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1505,4 +1505,27 @@ assert.ok(!/id="es0s"[^>]*value="10:00"/.test(sheet())&&r.sessions[0].start==='0
 X.state.requests=[];
 }
 
-console.log('✓ ผ่านทั้ง 93 ข้อ');
+/* 94. ปิดหน้าแก้ไขโดยไม่บันทึก = ย้อนชิปทั้งหมด · บันทึกแล้วไม่ย้อน · เสาร์–อาทิตย์อยู่กลุ่มแยก (ไม่เสนอ) */
+{
+clean();
+const r=mkReq('TR-U1','approved',B1);r.sessions[0].date=FUT(0);X.state.requests=[r];
+X.state.role='sales';X.openEdit('TR-U1');
+r.product=['Ultherapy','Xeomin'];r.module='MSC+';r.handsOn=true;   // เหมือนกดชิป
+X.closeSheet();
+const r2=X.state.requests[0];
+assert.ok(r2===r,'ต้องคืนค่าใส่ object เดิม (feed อ้างถึงตัวเดิม)');
+assert.strictEqual(r.product.join(','),'Ultherapy','ยกเลิกแล้ว Product ต้องย้อน');
+assert.strictEqual(r.module,'MAX-Entry','ยกเลิกแล้ว Module ต้องย้อน');
+assert.ok(!r.handsOn,'ยกเลิกแล้ว Hands-on ต้องย้อน');
+X.openEdit('TR-U1');r.module='MSC+';G('es0d').value=r.sessions[0].date;G('es0s').value=r.sessions[0].start||'09:00';G('es0e').value=r.sessions[0].end||'12:00';
+G('eSave').onclick();
+assert.strictEqual(r.module,'MSC+','บันทึกแล้วปิดหน้าต้องไม่ย้อน');
+/* เสาร์–อาทิตย์ */
+let W,n=0;do{W=FUT(n++);}while(![0,6].includes(new Date(W).getDay()));
+X.openEdit('TR-U1');
+const h=sheet(),g=h.indexOf('<optgroup label="เสาร์–อาทิตย์');
+assert.ok(g>0&&h.indexOf('value="'+W+'"')>g,'เสาร์–อาทิตย์ต้องเลือกได้ แต่อยู่ในกลุ่มแยกท้ายรายการ');
+X.closeSheet();X.state.requests=[];
+}
+
+console.log('✓ ผ่านทั้ง 94 ข้อ');

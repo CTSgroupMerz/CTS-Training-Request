@@ -1519,7 +1519,9 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clear
    ใช้หัวเรื่องเป็นตัวบอกว่าใบเดิมหรือใบใหม่ — ฟอร์มเดียวกันเรนเดอร์ซ้ำหัวเรื่องไม่เปลี่ยน ส่วนใบใหม่ต้องเริ่มที่บนสุด */
 function openSheet(h,b){const s=$('sheet'),y=s.classList.contains('on')&&s._h===h?s.scrollTop:0;s._h=h;
   $('sheetHead').innerHTML=h;$('sheetBody').innerHTML=b;s.classList.add('on');$('scrim').classList.add('on');s.scrollTop=y;}
-function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.remove('on');}
+let sheetUndo=null;   // ตั้งโดย openEdit — ปิดหน้าโดยไม่บันทึกแล้วคืนค่าคำขอ
+function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.remove('on');
+  const u=sheetUndo;sheetUndo=null;if(u)u();}
 /* ponytail: บนมือถือทั้งหน้าเว็บคือตัวเลื่อน — พอเขียน innerHTML ทับ เนื้อหาหายไปชั่วขณะ
    เบราว์เซอร์เลยดีด scroll กลับขึ้นบนสุด (กดชิปเลือกข้อมูลทีไรหน้าเด้ง)
    ทุกจุดที่เรนเดอร์ใหม่ต้องเขียนผ่าน setHTML — จำตำแหน่งไว้แล้วคืนทีเดียวตอนเรนเดอร์ครบทั้งชุด
@@ -4194,19 +4196,22 @@ function bindSM(scope){
 
 /* แก้ไข / เพิ่มข้อมูลของคำขอที่ส่งไปแล้ว — ทำได้ทั้งตอน pending และ approved
    (วันและ CTS แก้ผ่าน "จัด / เปลี่ยน CTS" ของ Senior Leader เท่านั้น) */
-/* วันที่ Sale ย้าย session ไปได้ = วันเดิม + จันทร์–ศุกร์ 60 วันข้างหน้าที่ผู้เทรนหลักทุกคนว่างช่วงนั้น */
+/* วันที่ Sale ย้าย session ไปได้ = วันเดิม + 60 วันข้างหน้าที่ผู้เทรนหลักทุกคนว่างช่วงนั้น (รวมเสาร์–อาทิตย์ — หน้าจอแยกกลุ่มไว้ ไม่เสนอ) */
 function eDates(r,i){
   const out=[r.sessions[i].date],d=new Date(TODAY);
   for(let n=0;n<60;n++){d.setDate(d.getDate()+1);const k=key(d);
-    if(k!==out[0]&&d.getDay()%6&&!holidayOf(k)&&sessWin(r,i,k))out.push(k);}   // ไม่รวมเสาร์–อาทิตย์ (ต้องตกลงกับ CTS เอง)
+    if(k!==out[0]&&!holidayOf(k)&&sessWin(r,i,k))out.push(k);}
   return out.sort();
 }
 /* วัน/เวลาที่กำลังแก้ เก็บแยกจาก r จนกว่าจะกด "บันทึกข้อมูล" — กดชิปแล้วกดยกเลิกต้องไม่มีค่าค้างในคำขอ */
 let eDraft=null;
+/* ปิดหน้าแก้ไขโดยไม่บันทึก (ยกเลิก / Esc / กดพื้นหลัง) = คืนคำขอเป็นสำเนาตอนเปิด (sheetUndo) — ชิปที่กดไปแล้วย้อนกลับหมด */
 function openEdit(id,keep){
   const r=state.requests.find(x=>x.id===id);
-  if(!keep||!eDraft||eDraft.id!==id)eDraft={id,s:r.sessions.map(sn=>({d:sn.date,
+  if(!keep||!eDraft||eDraft.id!==id){eDraft={id,s:r.sessions.map(sn=>({d:sn.date,
     s:sn.start||slotDef(sn.slot).start,e:sn.end||slotDef(sn.slot).end}))};
+    const snap=structuredClone(r);
+    sheetUndo=()=>{Object.keys(r).forEach(k=>delete r[k]);Object.assign(r,snap);render();};}
   const dr=eDraft.s;
   const prodChips=PRODUCTS.map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${prodList(r.product).includes(pr)}">${pr}</button>`).join('');
   /* คำขอเก่าที่กรอกหัวข้อเป็นข้อความอิสระ — ย้ายมาไว้ช่อง "รายละเอียดเพิ่มเติม" ไม่ให้ข้อมูลหาย */
@@ -4260,8 +4265,11 @@ function openEdit(id,keep){
       <div class="picked-item"><span class="idx">S${i+1}</span>${sn.ctsId?mainsFace(sn):''}
         <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+mainsTxt(sn):' · รอจัด CTS'}</span></div>
       <div class="timerow"><span class="tl">วันที่</span>
-        ${sn.ctsId&&sn.slot!=='day'?`<select class="in" id="es${i}d" style="min-width:140px">${eDates(r,i).map(d=>{const w=sessWin(r,i,d);
-          return `<option value="${d}" ${d===dr[i].d?'selected':''}>${fmtDate(d)}${w?' · ว่าง '+w.start+'–'+w.end:''}</option>`;}).join('')}</select>`
+        ${sn.ctsId&&sn.slot!=='day'?(()=>{const all=eDates(r,i),wk=all.filter(d=>isWeekend(parse(d))&&d!==sn.date);
+          const opt=(d,tx)=>`<option value="${d}" ${d===dr[i].d?'selected':''}>${fmtDate(d)}${tx}</option>`;
+          return `<select class="in" id="es${i}d" style="min-width:140px">${all.filter(d=>!wk.includes(d)).map(d=>{const w=sessWin(r,i,d);
+            return opt(d,w?' · ว่าง '+w.start+'–'+w.end:'');}).join('')}${
+            wk.length?`<optgroup label="เสาร์–อาทิตย์ — ต้องคุยกับ CTS ก่อน">${wk.map(d=>opt(d,'')).join('')}</optgroup>`:''}</select>`;})()
         :`<input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${dr[i].d}" style="min-width:140px">`}</div>
       <div class="timerow"><span class="tl">เวลาเทรน</span>
         ${t24(`es${i}s`,dr[i].s)}
@@ -4319,7 +4327,7 @@ function openEdit(id,keep){
       if(st<w.start||en>w.end)return toast(`S${i+1}: ${mainsTxt(sn)} ว่าง ${w.start}–${w.end} — เวลาเทรนต้องอยู่ในช่วงนี้`);}
     g();
     r.sessions.forEach((sn,i)=>{sn.start=dr[i].s;sn.end=dr[i].e;if(dr[i].d!==sn.date)sn._newDate=dr[i].d;});
-    eDraft=null;
+    eDraft=null;sheetUndo=null;   // บันทึกแล้ว — ปิดหน้าต้องไม่ย้อนค่า
     const left=missingOf(r);
     if(r.status==='approved'){
       r.missingAtApproval=left;
