@@ -4201,8 +4201,13 @@ function eDates(r,i){
     if(k!==out[0]&&d.getDay()%6&&!holidayOf(k)&&sessWin(r,i,k))out.push(k);}   // ไม่รวมเสาร์–อาทิตย์ (ต้องตกลงกับ CTS เอง)
   return out.sort();
 }
-function openEdit(id){
+/* วัน/เวลาที่กำลังแก้ เก็บแยกจาก r จนกว่าจะกด "บันทึกข้อมูล" — กดชิปแล้วกดยกเลิกต้องไม่มีค่าค้างในคำขอ */
+let eDraft=null;
+function openEdit(id,keep){
   const r=state.requests.find(x=>x.id===id);
+  if(!keep||!eDraft||eDraft.id!==id)eDraft={id,s:r.sessions.map(sn=>({d:sn.date,
+    s:sn.start||slotDef(sn.slot).start,e:sn.end||slotDef(sn.slot).end}))};
+  const dr=eDraft.s;
   const prodChips=PRODUCTS.map(pr=>`<button class="chip prodchip" data-ep="${pr}" style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${prodList(r.product).includes(pr)}">${pr}</button>`).join('');
   /* คำขอเก่าที่กรอกหัวข้อเป็นข้อความอิสระ — ย้ายมาไว้ช่อง "รายละเอียดเพิ่มเติม" ไม่ให้ข้อมูลหาย */
   if(!r.ptopic&&String(r.topic||'').trim()&&!r.topicNote)r.topicNote=r.topic;
@@ -4256,12 +4261,12 @@ function openEdit(id){
         <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+mainsTxt(sn):' · รอจัด CTS'}</span></div>
       <div class="timerow"><span class="tl">วันที่</span>
         ${sn.ctsId&&sn.slot!=='day'?`<select class="in" id="es${i}d" style="min-width:140px">${eDates(r,i).map(d=>{const w=sessWin(r,i,d);
-          return `<option value="${d}" ${d===sn.date?'selected':''}>${fmtDate(d)}${w?' · ว่าง '+w.start+'–'+w.end:''}</option>`;}).join('')}</select>`
-        :`<input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${sn.date}" style="min-width:140px">`}</div>
+          return `<option value="${d}" ${d===dr[i].d?'selected':''}>${fmtDate(d)}${w?' · ว่าง '+w.start+'–'+w.end:''}</option>`;}).join('')}</select>`
+        :`<input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${dr[i].d}" style="min-width:140px">`}</div>
       <div class="timerow"><span class="tl">เวลาเทรน</span>
-        ${t24(`es${i}s`,sn.start||SLOT_DEF[sn.slot].start)}
+        ${t24(`es${i}s`,dr[i].s)}
         <span class="tl">ถึง</span>
-        ${t24(`es${i}e`,sn.end||SLOT_DEF[sn.slot].end)}</div>
+        ${t24(`es${i}e`,dr[i].e)}</div>
       ${sn.ctsId&&sn.slot!=='day'?`<div class="muted">${(w=>w?`${mainsTxt(sn)} ว่าง ${w.start}–${w.end} (วันที่ ${fmtDate(sn.date)}) — เวลาเทรนต้องอยู่ในช่วงนี้ · ย้ายวันแล้วดูช่วงว่างในรายการวันที่`
         :'วันนี้ผู้เทรนไม่มีช่วงว่าง')(sessWin(r,i,sn.date))}</div>`:''}
       ${r.sessions.length>1?`<div class="sdetail">
@@ -4287,16 +4292,16 @@ function openEdit(id){
     r.doctors=v('eDoc');r.exp=v('eExp');r.requester=v('eReq');
     if(r.handsOn){r.ho=hoGrab('eHO_');r.hoProduct=hoSum(r.ho);r.hoCases=hoTotal(r.ho)||'';}
     r.sessions.forEach((sn,i)=>{const a=$('es'+i+'s'),b2=$('es'+i+'e'),dt=$('es'+i+'d'),tp=$('es'+i+'t');
-      if(a&&a.value)sn.start=a.value; if(b2&&b2.value)sn.end=b2.value;
+      if(a&&a.value)dr[i].s=a.value; if(b2&&b2.value)dr[i].e=b2.value;
       if(tp)sn.sTopic=tp.value;
-      if(dt&&dt.value&&dt.value!==sn.date)sn._newDate=dt.value;});};
+      if(dt&&dt.value)dr[i].d=dt.value;});};
   $('sheetBody').querySelectorAll('[data-ep]').forEach(b=>b.onclick=()=>{g();const l=prodList(r.product),i=l.indexOf(b.dataset.ep);
-    i>=0?l.splice(i,1):l.push(b.dataset.ep);r.product=l;openEdit(id);});
+    i>=0?l.splice(i,1):l.push(b.dataset.ep);r.product=l;openEdit(id,1);});
   $('sheetBody').querySelectorAll('[data-esp]').forEach(b=>b.onclick=()=>{g();const [i,pr]=b.dataset.esp.split('|');
-    const sn=r.sessions[+i];sn.sProduct=sn.sProduct===pr?null:pr;openEdit(id);});
-  $('sheetBody').querySelectorAll('[data-emod]').forEach(b=>b.onclick=()=>{g();r.module=b.dataset.emod;openEdit(id);});
-  $('eHO').onchange=e=>{g();r.handsOn=e.target.checked;openEdit(id);};
-  const ph=$('ePhoto');if(ph)ph.onchange=e=>{g();[...e.target.files].forEach(f=>r.photos.push({name:f.name,url:URL.createObjectURL(f)}));openEdit(id);};
+    const sn=r.sessions[+i];sn.sProduct=sn.sProduct===pr?null:pr;openEdit(id,1);});
+  $('sheetBody').querySelectorAll('[data-emod]').forEach(b=>b.onclick=()=>{g();r.module=b.dataset.emod;openEdit(id,1);});
+  $('eHO').onchange=e=>{g();r.handsOn=e.target.checked;openEdit(id,1);};
+  const ph=$('ePhoto');if(ph)ph.onchange=e=>{g();[...e.target.files].forEach(f=>r.photos.push({name:f.name,url:URL.createObjectURL(f)}));openEdit(id,1);};
   $('eCancel').onclick=closeSheet;
   $('eSave').onclick=()=>{
     /* เช็คก่อน g() — บันทึกไม่ผ่านต้องไม่มีเวลา/วันที่ค้างใน r โดยไม่ได้ส่งเข้าปฏิทิน CTS */
@@ -4313,6 +4318,8 @@ function openEdit(id){
       if(!(st<en))return toast(`S${i+1}: เวลาเริ่มต้องก่อนเวลาจบ`);
       if(st<w.start||en>w.end)return toast(`S${i+1}: ${mainsTxt(sn)} ว่าง ${w.start}–${w.end} — เวลาเทรนต้องอยู่ในช่วงนี้`);}
     g();
+    r.sessions.forEach((sn,i)=>{sn.start=dr[i].s;sn.end=dr[i].e;if(dr[i].d!==sn.date)sn._newDate=dr[i].d;});
+    eDraft=null;
     const left=missingOf(r);
     if(r.status==='approved'){
       r.missingAtApproval=left;

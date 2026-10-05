@@ -1491,4 +1491,18 @@ assert.strictEqual(r.sessions[0].date,D,'ย้ายไปวันที่ไ
 X.state.requests=[];X.state.selfEvents=[];
 }
 
-console.log('✓ ผ่านทั้ง 92 ข้อ');
+/* 93. แก้เวลาแล้วกดชิป (วาดหน้าใหม่) แล้วกดยกเลิก — เวลาต้องไม่ค้างในคำขอ แต่ระหว่างแก้ชิปต้องไม่ทำเวลาที่พิมพ์หาย */
+{
+clean();
+const r=mkReq('TR-D1','approved',B1);r.sessions[0].start='09:00';r.sessions[0].end='12:00';X.state.requests=[r];
+X.state.role='sales';X.openEdit('TR-D1');
+G('es0d').value=K;G('es0s').value='10:00';G('es0e').value='11:00';
+G('eHO').onchange({target:{checked:true}});            // กดชิป Hands-on → วาดหน้าใหม่
+assert.strictEqual(r.sessions[0].start,'09:00','กดชิปแล้วเวลาต้องยังไม่เข้าคำขอ');
+assert.ok(sheet().includes('es0s')&&/value="10:00"/.test(sheet()),'วาดหน้าใหม่แล้วต้องยังเห็นเวลาที่พิมพ์ไว้');
+X.openEdit('TR-D1');                                     // ยกเลิกแล้วเปิดใหม่
+assert.ok(!/id="es0s"[^>]*value="10:00"/.test(sheet())&&r.sessions[0].start==='09:00','ยกเลิกแล้วเวลาต้องกลับเป็นของเดิม');
+X.state.requests=[];
+}
+
+console.log('✓ ผ่านทั้ง 93 ข้อ');
