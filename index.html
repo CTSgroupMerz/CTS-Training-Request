@@ -644,6 +644,9 @@ textarea.in{min-height:76px;resize:vertical}
 .chip.attchip .adot{width:11px;height:11px;border-radius:50%;flex:none}
 .chip.attchip[aria-pressed="true"]{background:var(--cc);border-color:var(--ct);color:var(--ct)}
 .chip.attchip[aria-pressed="true"] .adot{background:var(--ct)!important;opacity:.55}
+/* คนที่ไม่ว่าง/เลือกไม่ได้ = แถบเทา ให้เห็นชัดว่าใครว่าง */
+.chip.attchip:disabled{background:#ECECEC;border-color:#D6D6D6;color:#9A9A9A;cursor:not-allowed}
+.chip.attchip:disabled .adot{background:#BDBDBD!important}
 .thumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .thumbs img{width:66px;height:66px;object-fit:cover;border-radius:11px;border:1px solid var(--line)}
 /* รูปงานกลาง MA — ในฟอร์ม Admin มีปุ่ม ✕ มุมรูป · หน้ารายละเอียดโชว์เต็มกว้าง กดเปิดรูปจริง */
@@ -4231,8 +4234,7 @@ function openEdit(id){
   <div class="card"><h3>เวลาเทรนแต่ละ session</h3>
     ${r.sessions.map((sn,i)=>`<div class="picked-row" style="margin-bottom:12px">
       <div class="picked-item"><span class="idx">S${i+1}</span>${sn.ctsId?mainsFace(sn):''}
-        <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+mainsTxt(sn):' · รอจัด CTS'}</span>
-        ${r.sessions.length>1?`<button class="btn ghost" data-edel="${i}" style="padding:4px 10px">ลบ</button>`:''}</div>
+        <span class="grow">${sn.slot==='am'?'ช่วงเช้า':sn.slot==='pm'?'ช่วงบ่าย':'ทั้งวัน'}${sn.ctsId?' · '+mainsTxt(sn):' · รอจัด CTS'}</span></div>
       <div class="timerow"><span class="tl">วันที่</span>
         <input class="in tin" type="date" lang="en-GB" id="es${i}d" value="${sn.date}" style="min-width:140px"></div>
       <div class="timerow"><span class="tl">เวลาเทรน</span>
@@ -4244,11 +4246,7 @@ function openEdit(id){
           style="--cc:${PRODHEX[pr]};--ct:${pink(pr)}" aria-pressed="${sn.sProduct===pr}">${pr}</button>`).join('')}</div>
         <input class="in" id="es${i}t" value="${esc(sn.sTopic||'')}" placeholder="หัวข้อของ session นี้ (ถ้ามี)" style="margin-top:7px">
       </div>`:''}</div>`).join('')}
-    <div class="timerow"><span class="tl">เพิ่ม session</span>
-      <input class="in tin" type="date" lang="en-GB" id="eAddD" style="min-width:140px">
-      <select class="in" id="eAddS" style="max-width:110px"><option value="am">ช่วงเช้า</option><option value="pm">ช่วงบ่าย</option></select>
-      <button class="btn" id="eAdd">+ เพิ่ม</button></div>
-    <div class="muted">เปลี่ยนวันได้ที่นี่ · session ที่เพิ่มใหม่ต้องให้ Senior Leader "จัด / เปลี่ยน CTS" ก่อนถึงจะขึ้นปฏิทิน</div></div>
+    <div class="muted">จำนวน session ล็อกตามที่ขอไว้ตอนแรก · เปลี่ยนวันและเวลาได้ — บันทึกแล้วคิวในปฏิทิน CTS อัปเดตตาม</div></div>
 
   <div class="card"><h3>ผู้ขอ</h3>
     <label class="f">ชื่อผู้ขอ</label><input class="in" id="eReq" value="${esc(r.requester)}">
@@ -4274,20 +4272,14 @@ function openEdit(id){
   $('sheetBody').querySelectorAll('[data-esp]').forEach(b=>b.onclick=()=>{g();const [i,pr]=b.dataset.esp.split('|');
     const sn=r.sessions[+i];sn.sProduct=sn.sProduct===pr?null:pr;openEdit(id);});
   $('sheetBody').querySelectorAll('[data-emod]').forEach(b=>b.onclick=()=>{g();r.module=b.dataset.emod;openEdit(id);});
-  /* ลบ session = ปล่อยคิวของทุกคนที่ไปงานนั้นคืนระบบทันที */
-  $('sheetBody').querySelectorAll('[data-edel]').forEach(b=>b.onclick=()=>{g();const sn=r.sessions[+b.dataset.edel];
-    reqWho(sn).forEach(p=>slotsOf(sn.slot).forEach(sl=>{const j=jobOf(sn.date,p,sl);if(j&&j.reqId===r.id)setJob(sn.date,p,sl,null);}));
-    r.sessions.splice(+b.dataset.edel,1);openEdit(id);});
-  $('eAdd').onclick=()=>{g();const d=$('eAddD').value;
-    if(!d||holidayOf(d)||!isWorkday(parse(d))){toast('เลือกวันทำงานที่ไม่ใช่วันหยุดก่อน');return;}
-    r.sessions.push({date:d,slot:$('eAddS').value,ctsId:null});openEdit(id);};
   $('eHO').onchange=e=>{g();r.handsOn=e.target.checked;openEdit(id);};
   const ph=$('ePhoto');if(ph)ph.onchange=e=>{g();[...e.target.files].forEach(f=>r.photos.push({name:f.name,url:URL.createObjectURL(f)}));openEdit(id);};
   $('eCancel').onclick=closeSheet;
   $('eSave').onclick=()=>{
-    g();
+    /* เช็คก่อน g() — บันทึกไม่ผ่านต้องไม่มีเวลา/วันที่ค้างใน r โดยไม่ได้ส่งเข้าปฏิทิน CTS */
     const ru=MODULES[r.module];
     if(ru&&(r.sessions.length<ru.min||r.sessions.length>ru.max)){toast(`${r.module}: ${ru.note} — ตอนนี้มี ${r.sessions.length} session`);return;}
+    g();
     const left=missingOf(r);
     if(r.status==='approved'){
       r.missingAtApproval=left;

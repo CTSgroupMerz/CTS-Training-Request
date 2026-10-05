@@ -1345,8 +1345,8 @@ r.sessions[0].sTopics=['KUD'];
 assert.deepStrictEqual([...X.reqTopics(r,r.sessions[0])],['KUD'],'CTS เลือกหัวข้อเองแล้วต้องใช้ตามที่เลือก');
 assert.deepStrictEqual([...X.reqTopics({module:'MAX-A'},{date:K})],[],'module อื่นไม่ต้องติดหัวข้อ');
 X.openEdit('TR-M1');
-assert.ok(sheet().includes('data-emod="MSC+"')&&sheet().includes('data-edel="1"')&&sheet().includes('id="eAdd"'),
-  'หน้าแก้ไขคำขอต้องเลือก Module และเพิ่ม/ลบ session ได้');
+assert.ok(sheet().includes('data-emod="MSC+"')&&!sheet().includes('data-edel=')&&!sheet().includes('id="eAdd"'),
+  'หน้าแก้ไขคำขอเลือก Module ได้ แต่จำนวน session ล็อกตามที่ขอไว้ (ไม่มีเพิ่ม/ลบ)');
 X.state.requests=[];
 }
 
@@ -1448,4 +1448,22 @@ assert.ok(ch.includes('data-smd="'+K+'"'),'ชิปในปฏิทินต�
 X.state.requests=[];
 }
 
-console.log('✓ ผ่านทั้ง 90 ข้อ');
+/* 91. หน้าแก้ไขคำขอ: แก้เวลาเทรนแล้วคิวในปฏิทิน CTS ต้องเปลี่ยนตาม */
+{
+clean();
+const r=mkReq('TR-T1','approved',B1);X.state.requests=[r];
+X.state.role='sales';X.openEdit('TR-T1');
+G('es0d').value=K;G('es0s').value='10:00';G('es0e').value='11:30';
+G('eSave').onclick();
+assert.strictEqual(X.jobOf(K,B1,'am').start+'-'+X.jobOf(K,B1,'am').end,'10:00-11:30','คิวใน sched ต้องได้เวลาใหม่');
+const e=X.dayEntries(K,[B1]).find(x=>x.job.reqId==='TR-T1');
+assert.strictEqual(e.start+'-'+e.end,'10:00-11:30','ปฏิทิน CTS ต้องโชว์เวลาใหม่');
+assert.strictEqual(r.sessions.length,1,'จำนวน session ต้องคงเดิม');
+/* จำนวน session ไม่ตรง Module → บันทึกไม่ผ่าน ต้องไม่มีเวลาใหม่ค้างใน r */
+r.module='MAX-A';X.openEdit('TR-T1');G('es0s').value='09:30';
+G('eSave').onclick();
+assert.strictEqual(r.sessions[0].start,'10:00','บันทึกไม่ผ่านต้องไม่แก้เวลาในคำขอ');
+X.state.requests=[];
+}
+
+console.log('✓ ผ่านทั้ง 91 ข้อ');
