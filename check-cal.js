@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -629,10 +629,54 @@ assert.strictEqual(X.upcAble().length,8,'เปิด Skills ครบ ต้อ
 const U=workday(20);
 X.state.upcCts=B1;
 assert.ok(X.upcFree(U,B1),'วันทำงานที่ว่างทั้งวันต้องกดเลือกได้');
-assert.ok(!X.upcFree(workday(3),B1),'วันที่ยังไม่ถึง 14 วัน ต้องเลือกไม่ได้ (กติกา UPC)');
+assert.strictEqual(X.upcFree(workday(3),B1),'special','ไม่ถึง 14 วัน = ไม่โชว์ว่าง แต่กดขอได้ (เหมือนเสาร์–อาทิตย์)');
+assert.ok(!X.upcFree(kof(new Date(Date.now()-86400000)),B1),'วันที่ผ่านไปแล้วต้องเลือกไม่ได้');
 X.state.sched[U]={[B1]:{am:{kind:'busy',title:'x',attendees:[B1],start:'09:00',end:'12:00'},pm:null}};
 assert.ok(!X.upcFree(U,B1),'ติดคิวครึ่งเช้า = ไม่นับว่าว่างทั้งวัน');
 X.state.sched[U]=undefined;
+
+/* 95. รอบ 8 ต.ค. — ปิดรับคิว/คิวจริง · Online · พรีวิวทริป UPC · 24 ชม. */
+{
+  X.setAvail(U,B1,'am',{closed:true,start:'09:00',end:'12:00'});
+  assert.strictEqual(X.slotStatus(U,B1,'am'),'closed','ปิดไว้และไม่มีคิว = ปิดรับคิว');
+  X.state.sched[U]={[B1]:{am:{kind:'booked',title:'x',start:'09:00',end:'11:00'},pm:null}};
+  assert.strictEqual(X.slotStatus(U,B1,'am'),'booked','ปิดรับคิวไว้แต่มีคิวจริง ต้องขึ้นสถานะคิว ไม่ใช่ "ปิดรับคิว"');
+  X.state.sched[U]=undefined;X.state.avail={};
+  const tr={mode:'upc',requesterId:'UPC1',days:[{date:U,items:[{province:'ลำปาง'},{province:'เชียงใหม่'}]},
+    {date:U,items:[{province:'ลำปาง'},{province:' '}]}]};
+  assert.strictEqual(X.upcTrip(tr),'UPC1 Trip at ลำปาง - เชียงใหม่','พรีวิวทริป = รหัส Sale + จังหวัดไม่ซ้ำ คั่นด้วย -');
+  assert.strictEqual(X.upcTrip({requesterId:'UPC2',days:[]}),'UPC2 Trip','ยังไม่กรอกจังหวัด ไม่ต้องมี at');
+  const jl=X.jobLine({trip:'T',title:'คลินิก',product:['Ultherapy']},'');
+  assert.ok(jl.endsWith('T')&&jl.includes('caric')&&!jl.includes('Ultherapy'),'มี trip ต้องโชว์ไอคอนรถ + trip แทนชื่อคลินิก/product');
+  assert.ok(!/\u{1F699}/u.test(jl),'ไม่ใช้ emoji');
+  assert.ok(X.jobLine({online:true,title:'A'},'').includes('onltag'),'คิว Online ต้องมีกรอบ Online');
+  assert.ok(!X.jobLine({title:'A'},'').includes('onltag'),'คิวปกติไม่มีกรอบ Online');
+  assert.ok(X.DAY_VIEW.from===0&&X.DAY_VIEW.to===1440,'ตารางรายวันต้องครบ 24 ชม.');
+  assert.ok(X.SLOT_HOURS.pm[1]>=23&&X.SLOT_HOURS.am[0]===0,'เลือกเวลาคิวดึก/เช้ามืดได้');
+  /* คำขอ Online ขึ้นป้ายในปฏิทิน CTS (dayEntries) และการ์ดคำขอ */
+  const r={id:'TR-ONL',mode:'sale',status:'approved',team:'A',area:'BKK1',requesterId:'BKK1',module:'MAX-Entry',online:true,product:['Ultherapy'],
+    clinic:'C',photos:[],sessions:[{date:U,slot:'am',ctsId:B1,start:'09:00',end:'11:00'}]};
+  X.state.requests=[r];
+  const e=X.dayEntries(U,[B1]).find(x=>x.job.reqId==='TR-ONL');
+  assert.ok(e&&e.job.online&&!e.job.trip,'คิวจากคำขอ Online ต้องติดธง online');
+  assert.ok(X.reqCard(r).includes('onltag'),'การ์ดคำขอ Online ต้องมีป้าย');
+  /* หน้าแก้ไขคำขอ: เอาติ๊ก Online ออกแล้วบันทึก */
+  X.openEdit('TR-ONL');
+  assert.ok(sheet().includes('id="eOnline" checked'),'หน้าแก้ไขต้องมีช่อง Online ติ๊กไว้ตามคำขอ');
+  G('eOnline').checked=false;G('es0d').value=r.sessions[0].date;G('es0s').value='09:00';G('es0e').value='11:00';
+  G('eSave').onclick();
+  assert.strictEqual(r.online,false,'บันทึกแล้วค่า Online ต้องเปลี่ยนตาม');
+  X.closeSheet();delete cache.eOnline;
+  /* ฟอร์ม UPC: ติ๊ก Online แล้วส่ง */
+  X.state.upcDraft=null;X.state.upcPick=[U];X.state.upcCts=B1;X.openUPCForm(null);
+  assert.ok(sheet().includes('id="uOnline"'),'ฟอร์ม UPC ต้องมีช่อง Online');
+  G('uOnline').checked=true;G('uSend').onclick();
+  const ur=X.state.requests.find(x=>x.mode==='upc');
+  assert.ok(ur&&ur.online===true,'คำขอ UPC ต้องเก็บค่า Online');
+  assert.ok(X.upcCard(ur).includes('onltag'),'การ์ด UPC ต้องมีป้าย Online');
+  X.clearUPC(ur);X.state.upcPick=[];X.state.upcCts=null;delete cache.uOnline;
+  X.state.requests=[];
+}
 
 /* 43. คำขอ UPC — product หลายตัว + หัวข้อราย product + hands-on ราย product */
 const mkIt=()=>({province:'เชียงใหม่',clinic:'ค',clinicType:'Single',map:'m',module:'MAX-Entry',level:'Standard',
