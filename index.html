@@ -5810,11 +5810,16 @@ let evReady=true;   // ตาราง events รับ id/client จากห�
    (ทำแบบเดียวกับที่ saveEvents ทำกับ evReady อยู่ก่อนแล้ว) */
 const SETUP_ERR=['42P01','42501','42703','428C9','PGRST106','PGRST204','PGRST205'];
 const skipPart={};
+/* ล็อกอินอยู่ (CTS/Admin/SM) แต่โดน 42501 = token หมดอายุแล้ว supabase-js ต่ออายุไม่ทัน (มือถือพักแอปไว้นาน)
+   -> คำขอถูกส่งไปแบบ anon ซึ่งเขียน events ไม่ได้ ไม่ใช่เรื่องตั้งค่า ห้ามข้ามถาวร
+   (เดิมข้ามจนกว่าจะเปิดแอปใหม่ = อาการ "ลงงานแล้วไม่ขึ้น ต้องออกแล้วเข้าใหม่") */
+const AUTH_ERR=['42501','PGRST301','PGRST303'];
+const signedIn=()=>!!SB&&needPw(auth.role);
 async function savePart(name,label,fn){
   if(skipPart[name])return;
   try{await fn();}
   catch(e){
-    if(!SETUP_ERR.includes(e.code))throw e;
+    if(!SETUP_ERR.includes(e.code)||(AUTH_ERR.includes(e.code)&&signedIn()))throw e;
     skipPart[name]=true;
     console.error('save skipped: '+name,e);
     toast(label+' ยังบันทึกขึ้นเซิร์ฟเวอร์ไม่ได้ ('+(e.code||'')+') — ต้องตั้งค่าที่ Supabase ก่อน');
@@ -5973,6 +5978,12 @@ async function save(){
     failStreak++;
     syncChip('bad','⚠ ยังไม่ได้บันทึก'+(e.code?' ['+e.code+']':'')+' — กำลังลองใหม่'+(failStreak>1?' ครั้งที่ '+failStreak:''));
     if(failStreak===1)toast('บันทึกไม่สำเร็จ — '+(e.message||e.code||'จะลองใหม่อัตโนมัติ'));
+    /* token หมดอายุ -> ต่ออายุก่อนรอบ retry · ต่อไม่ได้ (เน็ตยังไม่มา / session ตายจริง) ก็ยัง retry ต่อ แต่บอกทางออกไว้ */
+    if(AUTH_ERR.includes(e.code)&&signedIn()){
+      const r=await SB.auth.refreshSession().catch(err=>({error:err}));
+      if(r.error||!r.data||!r.data.session)
+        syncChip('bad','⚠ ยังไม่ได้บันทึก — หมดเวลาเข้าสู่ระบบ ถ้าค้างนานให้ออกแล้วเข้าใหม่');
+    }
   }finally{
     saving=false;
     /* มีการแก้ระหว่างกำลังบันทึก หรือบันทึกพลาด → ลองใหม่

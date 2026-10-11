@@ -31,6 +31,8 @@ const fakeSB={from(t){
   ['upsert','insert','delete','update'].forEach(m=>o[m]=v=>{writes.push([t,m,v]);
     return failTable===t?mkErr(failCode):mkQ([{id:1}]);});
   return o;}};
+let refreshed=0;
+fakeSB.auth={refreshSession:()=>{refreshed++;return Promise.resolve({data:{session:{}},error:null});}};
 
 const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},Date,Math,JSON,Object,Array,String,Number,Set,Map,Promise,
   URL:{createObjectURL:()=>''},
@@ -42,7 +44,7 @@ const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},D
   fetch:()=>Promise.resolve({json:()=>Promise.resolve({})})};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
-src+='\n__x={state,load,save,snap,dirty,render,CTS,newId};';
+src+='\n__x={state,load,save,snap,dirty,render,CTS,newId,setRole:r=>{auth={role:r};}};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 X.state.role='cts';X.state.me=X.CTS[0].id;X.state.authed=true;X.state.tab='cal';
@@ -106,6 +108,21 @@ const mkReq=id=>({id,mode:'normal',status:'pending',team:'A',area:'C01',product:
   assert.ok(/23503/.test(G('syncchip').textContent),'ป้ายต้องบอกรหัส error จะได้ไล่ต่อได้');
   assert.strictEqual(X.dirty(),true,'ของที่ยังไม่ขึ้นเซิร์ฟเวอร์ ต้องถือว่าค้างอยู่');
   failTable=null;
+
+  /* 9. CTS ล็อกอินอยู่แต่ token หมดอายุ -> คำขอไปแบบ anon -> events ตอบ 42501
+        ต้องไม่ข้ามส่วน events ถาวร (อาการ "ลงงานแล้วไม่ขึ้น ต้องออกแล้วเข้าใหม่") */
+  await X.save();                      // เคลียร์ TR-FK ที่ค้างจากข้อ 8 ก่อน
+  X.setRole('cts');
+  failTable='events';failCode='42501';
+  X.state.selfEvents.push({id:'SE-900AB',date:'2027-01-06',attendees:[X.CTS[0].id],title:'ลงงานตอน token หมด'});
+  await X.save();
+  assert.strictEqual(X.dirty(),true,'token หมดอายุ ห้ามถือว่าคิวที่ลงเองบันทึกแล้ว');
+  assert.ok(refreshed>0,'ต้องต่ออายุ session ก่อนลองใหม่');
+  failTable=null;
+  await X.save();
+  assert.ok(writes.some(w=>w[0]==='events'&&JSON.stringify(w[2]).includes('SE-900AB')&&w[1]==='upsert'),
+    'ต่ออายุแล้วรอบถัดไปต้องบันทึกคิวขึ้นได้ ไม่ต้องออกแล้วเข้าใหม่');
+  assert.strictEqual(X.dirty(),false,'บันทึกแล้วต้องไม่เหลือของค้าง');
 
   console.log('check-sync: ผ่านหมด');
   process.exit(0);   // แอปตั้ง setInterval ไว้ ถ้าไม่ exit เทสจะค้าง
