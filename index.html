@@ -697,6 +697,7 @@ textarea.in{min-height:76px;resize:vertical}
 .trail .tact.changed-trainer,.trail .tact.assigned{background:#E5E0F5;color:#5F4FB0}
 .trail .tnote{color:var(--ink2);font-style:italic}
 .status.expired{background:#FDECEC;color:#C62828;border:2px solid #E53935;font-weight:800}
+.note.smc{background:#EAF4FD;border-color:#B9D9F5;color:#14538C}
 .note.xp{background:#FDECEC;border:2px solid #E53935;color:#B71C1C;font-weight:700}
 table.rawtb td.xp{background:#FDECEC;color:#C62828;font-weight:800;outline:2px solid #E53935;outline-offset:-2px}
 .half.job.tbcjob,.slot.tbc{background:repeating-linear-gradient(45deg,#EDE4FF 0 7px,#F7F2FF 7px 14px);color:#5B3E9E}
@@ -763,6 +764,9 @@ table.rawtb td.xp{background:#FDECEC;color:#C62828;font-weight:800;outline:2px s
 .tp .tp-ytd b{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
 .tp .view-toggle{display:flex;gap:5px;flex-wrap:wrap}
 .tp canvas{max-width:100%}
+/* กล่องกราฟสูงคงที่ — เดิมความสูงผูกกับความกว้าง พอเป็นมือถือกราฟเส้น/แท่งเตี้ยเหลือ ~60px */
+.tp .tp-ch{position:relative;height:300px}
+.tp .tp-ch.ring{height:260px}
 .tp .dna-bar-wrap{width:100%;background:var(--tp-line);border-radius:6px;overflow:hidden;height:26px}
 .tp .dna-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;min-width:4px}
 .tp .dna-seg{height:100%;display:flex;align-items:center;justify-content:center;
@@ -832,6 +836,8 @@ table.rawtb th{background:var(--brand-soft);color:var(--brand-deep);font-weight:
 table.rawtb tbody tr:nth-child(even){background:#FAF9FD}
 @media(max-width:980px){.tp .kpi-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.tp{padding:12px}.tp .kpi-grid{grid-template-columns:1fr 1fr}
+  .tp .panel{padding:14px 12px}.tp .panel-head h2{font-size:17px}
+  .tp .tp-ch{height:230px}.tp .tp-ch.ring{height:220px}
   .tp .rank-row{grid-template-columns:20px 70px 1fr 54px}
   .tp .cts-av{width:70px}.tp .cts-av img{width:36px;height:36px}}
 .alertx{color:var(--bad);font-weight:600}
@@ -1150,7 +1156,7 @@ const hoTotal=o=>HO_FAMS.reduce((n,p)=>n+(+((o||{})[p]||{}).cases||0),0);
 /* Product ที่เทรนได้ — สียึดตามตระกูล (Belotero 5 ตัวสีชมพูเหมือนกัน, Radiesse 2 ตัวสีฟ้า)
    ชื่อเก่า 4 ตัว (Belotero/Radiesse เฉยๆ) ยังอยู่ในตาราง เพื่อให้คำขอเก่าที่บันทึกไว้แล้วแสดงผลได้ปกติ */
 const PRODUCTS=['Ultherapy','Xeomin',
-  'Belotero Revive','Belotero Soft','Belotero Balance','Belotero Intense','Belotero Volume',
+  'Belotero Revive','Belotero Soft','Belotero Balance','Belotero Intense','Belotero Volume','Belotero All SKU',
   'Radiesse Classic','Radiesse Plus','Radiesse Hybrid'];
 const LEGACY_PRODUCTS=['Belotero','Radiesse'];
 const prodFamily=p=>String(p||'').split(' ')[0];
@@ -1237,6 +1243,9 @@ const myStep=()=>state.role==='sm'?'SM '+state.sm
 function logTrail(r,act,note){
   (r.trail||(r.trail=[])).push({at:new Date().toISOString(),by:whoAmI(),step:myStep(),act,note:note||''});
 }
+/* คอมเมนต์ที่ SM (ทุกทีม รวม SM KA / SM UPC) พิมพ์ตอน Approve / Reject — โชว์ในรายละเอียดคำขอ */
+const smNoteBox=r=>(r.trail||[]).filter(t=>/^SM /.test(t.step||'')&&t.note&&(t.act==='approved'||t.act==='rejected'))
+  .map(t=>`<div class="note smc">คอมเมนต์จาก <b>${esc(t.step)}</b> ${t.act==='approved'?'อนุมัติ':'ไม่อนุมัติ'} · ${fmtStamp(t.at)}<br>${esc(t.note)}</div>`).join('');
 /* ผู้ที่ต้องพิจารณาขั้นถัดไป — ใช้บอก Sales ว่าคำขอค้างอยู่ที่ใคร */
 const waitingFor=r=>r.status==='sm'?'SM '+(smOfArea(r.area)||r.area)
   :r.status==='pending'||r.status==='tbc'?leadsOf(r.team).map(l=>l.nick).join(' / ')
@@ -2710,6 +2719,12 @@ function openReqSession(reqId,sIdx,keep){
   if(!D.topics)D.topics=reqTopics(r,s).slice();
   const mainOf=date=>(r.sessions.find(x=>x.date===date)||{}).ctsId;
   if(!D.mains)D.mains=mainsOf(s);   // keep ที่ส่งมาจากรอบก่อนอาจยังไม่มีฟิลด์นี้
+  /* ผู้เทรนหลักราย Product — คิวที่เทรน 2 product ขึ้นไปและไปกันหลายคน แบ่งกันเทรนได้ KPI จะนับตามนี้
+     ไม่ได้เลือก = ผู้เทรนหลักทุกคนของคิวนี้ (เหมือนเดิม) · Sale ขอมาไม่ต้องเลือก ตั้งได้เฉพาะที่นี่ */
+  if(!D.pm)D.pm=JSON.parse(JSON.stringify(s.pmain||{}));
+  const prods=prodList(p0.product);
+  const perProd=!perItem&&prods.length>1&&D.mains.length>1;
+  const pmOf=pr=>(D.pm[pr]||[]).filter(i=>D.mains.includes(i));
   /* 13. คิวที่อนุมัติแล้วยังเปลี่ยนตัวผู้เทรนหลักได้ เผื่อคนเดิมป่วย/ติดธุระกะทันหัน */
   const chgMain=isLead()||isMgr()||state.role==='admin';
   openSheet(`<div class="eyebrow">${r.id} · ${fmtDate(s.date)}</div><h2>แก้ไขคิวงานนี้</h2>
@@ -2725,6 +2740,12 @@ function openReqSession(reqId,sIdx,keep){
     ${chgMain?`<label class="f">ผู้เทรนหลัก <span>· เลือกได้หลายคน ทุกคนนับ KPI · คิวในปฏิทินจะย้ายตาม</span></label>
     <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-rsm="${c.id}" aria-pressed="${D.mains.includes(c.id)}"
       style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${D.mains.includes(c.id)?'✓ ':''}${c.nick}</button>`).join('')}</div>`:''}
+    ${chgMain&&perProd?`<label class="f">ผู้เทรนหลักแยกราย Product <span>· ไม่เลือก = ผู้เทรนหลักทุกคน · KPI นับตามนี้</span></label>
+    ${prods.map(pr=>`<div class="row" style="gap:8px;margin:7px 0 0;flex-wrap:wrap">
+      <span class="tag" style="background:${PRODHEX[pr]||'#DDD'};color:${pink(pr)};min-width:120px">${esc(pr)}</span>
+      <div class="chips grow">${D.mains.map(m=>`<button class="chip attchip" data-rspm="${esc(pr)}|${m}" aria-pressed="${pmOf(pr).includes(m)}"
+        style="--cc:${pal(m).c};--ct:${pal(m).ci}"><span class="adot" style="background:${pal(m).c}"></span>${pmOf(pr).includes(m)?'✓ ':''}${byId(m).nick}</button>`).join('')}</div>
+    </div>`).join('')}`:''}
     ${perItem?`<label class="f">ผู้เทรนรายคลินิก <span>· ทั้งทริป ${uall.length} วัน — เปลี่ยนตัวได้ทุกวันทุกคลินิก</span></label>
     ${uall.map(d=>`<div class="upcday${d.date===s.date?' on':''}">
       <div class="eyebrow">${fmtDate(d.date)}${mainOf(d.date)?' · ผู้เทรนหลัก '+byId(mainOf(d.date)).nick:''}</div>
@@ -2757,6 +2778,10 @@ function openReqSession(reqId,sIdx,keep){
     const i=D.mains.indexOf(b.dataset.rsm);
     if(i>=0&&D.mains.length===1)return toast('ต้องมีผู้เทรนหลักอย่างน้อย 1 คน');
     i>=0?D.mains.splice(i,1):D.mains.push(b.dataset.rsm);
+    openReqSession(reqId,sIdx,D);});
+  B.querySelectorAll('[data-rspm]').forEach(b=>b.onclick=()=>{grab();
+    const x=b.dataset.rspm,cut=x.lastIndexOf('|'),pr=x.slice(0,cut),m=x.slice(cut+1);
+    const l=pmOf(pr),i=l.indexOf(m);i>=0?l.splice(i,1):l.push(m);D.pm[pr]=l;
     openReqSession(reqId,sIdx,D);});
   B.querySelectorAll('[data-rsa]').forEach(b=>b.onclick=()=>{grab();
     const i=D.extra.indexOf(b.dataset.rsa);i>=0?D.extra.splice(i,1):D.extra.push(b.dataset.rsa);
@@ -2796,6 +2821,12 @@ function openReqSession(reqId,sIdx,keep){
           +' → '+(v?byId(v).nick:'ผู้เทรนหลัก'));});
       if(one.length)chg.push(fmtDate(d.date)+' · '+one.join(' · '));});
     if(chg.length)logTrail(r,'changed-trainer',chg.join(' | '));
+    /* ผู้เทรนราย Product — เก็บเฉพาะ product ที่เลือกไม่ครบทุกคน (ครบทุกคน = ค่าเดิม ไม่ต้องเก็บ) */
+    const pm={};
+    if(perProd)prods.forEach(pr=>{const l=pmOf(pr);if(l.length&&l.length<D.mains.length)pm[pr]=l;});
+    const pmTxt=o=>Object.keys(o).map(pr=>pr+': '+o[pr].map(i=>byId(i).nick).join(' + ')).join(' · ');
+    if(pmTxt(pm)!==pmTxt(s.pmain||{}))logTrail(r,'changed-trainer','ราย Product · '+(pmTxt(pm)||'ทุกคนทุก product'));
+    if(Object.keys(pm).length)s.pmain=pm;else delete s.pmain;
     const whoBefore=[...new Set(Object.values(prevAll).flat())];
     s.sTitle=D.title.trim();s.start=D.start;s.end=D.end;s.extra=D.extra.filter(i=>!mainsOf(s).includes(i));s.sTopics=D.topics.slice();
     stampNow(s);
@@ -3021,7 +3052,7 @@ function upcJobDetail(r,k){
        :'<div class="muted">ไม่พบข้อมูลของวันนี้ในคำขอ</div>'}
     <div class="eyebrow" style="margin-top:14px">ทั้งทริป</div>
     ${upcDayBox(r,true)}
-    ${missBox(r)}
+    ${missBox(r)}${smNoteBox(r)}
     <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูลของคำขอ (ทุกวันในทริป)</button>
     <div class="note" style="margin-top:9px">หัวข้อ เวลา และคนที่ไปด้วยของ<b>คิวในปฏิทิน</b> แก้ที่ปุ่มด้านบน · ตรงนี้แก้รายละเอียดของคำขอ เช่น คลินิก product แพทย์</div>
   </div>`;
@@ -3063,7 +3094,7 @@ function openJob(k,ekey){
         <dt>PS Area</dt><dd>${r.area} · ${TEAMS[r.team].label}</dd>
       </dl>
       ${r.photos.length?`<div class="thumbs">${r.photos.map(ph=>`<img src="${ph.url}" alt="">`).join('')}</div>`:''}
-      ${missBox(r)}
+      ${missBox(r)}${smNoteBox(r)}
       <div class="sess">${r.sessions.filter(sn=>sn.ctsId).map((sn,i)=>`<div class="s" style="--c:${pal(sn.ctsId).c};--ci:${pal(sn.ctsId).ci}">
         <b>S${i+1}</b><span>${fmtDate(sn.date)} · ${sn.slot==='day'?'ทั้งวัน':(sn.start||SLOT_DEF[sn.slot].start)+'–'+(sn.end||SLOT_DEF[sn.slot].end)} · ${mainsTxt(sn)}</span></div>`).join('')}</div>
       <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูล</button>
@@ -3230,7 +3261,7 @@ function dayEntries(k,pool){
         /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
         detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
         product:pickProds(s.sProduct,r.product,day?dayProds(day):it.product),
-        topics:reqTopics(r,s),reqId:r.id,sIdx:i,kpi:mainsOf(s),code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
+        topics:reqTopics(r,s),reqId:r.id,sIdx:i,kpi:mainsOf(s),pmain:s.pmain,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
@@ -4084,7 +4115,7 @@ function reqCard(r,act){
       <b>S${i+1}</b>${s.ctsId&&showCts?mainsFace(s):''}
       <span>${fmtDate(s.date)} · ${s.start||SLOT_DEF[s.slot].start}–${s.end||SLOT_DEF[s.slot].end}${s.ctsId&&showCts?' · <b style="font-family:var(--sans)">'+mainsTxt(s)+'</b>':' · รอจัด CTS'}</span></div>`).join('')}</div>
     ${r.photos.length?`<div class="thumbs">${r.photos.map(p=>`<img src="${p.url}" alt="">`).join('')}</div>`:''}
-    ${missBox(r)}
+    ${missBox(r)}${smNoteBox(r)}
     ${ackedBy(r).length?`<div class="note ok" style="margin-top:9px">✓ CTS รับทราบแล้ว: <b>${
       ackedBy(r).map(i=>byId(i)?byId(i).nick:i).join(' · ')}</b></div>`:''}
     ${needAck(r)?`<button class="btn primary block" data-ack="${r.id}" style="margin-top:10px">✓ รับทราบคิวนี้</button>`:''}
@@ -4410,7 +4441,7 @@ function upcCard(r,act){
       <span class="status ${r.status}">${stLabel(r.status)}</span></div>
     <div class="muted" style="margin-top:6px">ผู้ขอ ${esc(r.requester||'—')} · รวม ${r.days.reduce((n,d)=>n+d.items.length,0)} คลินิก</div>
     ${days}
-    ${missBox(r)}
+    ${missBox(r)}${smNoteBox(r)}
     ${ackedBy(r).length?`<div class="note ok" style="margin-top:9px">✓ CTS รับทราบแล้ว: <b>${
       ackedBy(r).map(i=>byId(i)?byId(i).nick:i).join(' · ')}</b></div>`:''}
     ${needAck(r)?`<button class="btn primary block" data-ack="${r.id}" style="margin-top:10px">✓ รับทราบคิวนี้</button>`:''}
@@ -4557,14 +4588,21 @@ function dashRange(){
 const ownersOf=e=>{const k=kpiList(e.job.kpi).filter(i=>e.who.includes(i));
   if(k.length)return k;
   return [(e.job.owner&&e.who.includes(e.job.owner))?e.job.owner:e.who[0]];};
+/* ตระกูล product ที่ cid ได้ KPI ในคิวนี้ — มี pmain (แบ่ง product กัน) นับเฉพาะ product ของตัวเอง
+   คนใน pmain ที่ไม่ได้เป็นผู้เทรนหลักแล้ว (โดนเปลี่ยนตัวทีหลัง) ไม่นับ -> product นั้นกลับเป็นของทุกคน */
+const famsFor=(j,cid)=>[...new Set(prodList(j.product).filter(pr=>{
+  const l=((j.pmain||{})[pr]||[]).filter(i=>kpiList(j.kpi).includes(i));
+  return !l.length||l.includes(cid);}).map(prodFamily))];
 function trainRows(){
   const R=dashRange(),out=[];
   if(!R.from||!R.to||R.to<R.from)return out;
   const pool=CTS.map(c=>c.id);   // อ่านทุกคน ไม่ขึ้นกับตัวกรองที่ตั้งไว้ในหน้าปฏิทิน
   dateRange(R.from,R.to).forEach(k=>{
     dayEntries(k,pool).filter(e=>e.job&&e.who.length&&e.job.kind!=='cxl').forEach(e=>{
-      const fams=[...new Set(prodList(e.job.product).map(prodFamily).filter(p=>DASH_PRODUCTS.includes(p)))];
-      ownersOf(e).forEach(cid=>out.push({cid,date:k,uid:k+'|'+e.key+'|'+cid,fams}));
+      ownersOf(e).forEach(cid=>{
+        const fams=famsFor(e.job,cid).filter(p=>DASH_PRODUCTS.includes(p));
+        if(e.job.pmain&&!fams.length)return;   // แบ่ง product แล้วไม่มีของคนนี้ = ไม่ได้เทรนคิวนี้
+        out.push({cid,date:k,uid:k+'|'+e.key+'|'+cid,fams});});
     });
   });
   return out;
@@ -4668,14 +4706,16 @@ function tpAllRows(){
       const code=(r?saleCode(r):src.psArea)||'';
       visits.filter(v=>v.products.length).forEach(v=>
         ownersOf(e).forEach(cid=>{const c=byId(cid);
+          const mine=j.pmain?v.products.filter(p=>famsFor(j,cid).includes(p)):v.products;
+          if(!mine.length)return;
           out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
             sub:c?((TEAMS[c.team]||{}).label||c.team):'—',code:code||'—',
             team:(r?smOfArea(area):psTeam(area))||area||'—',area:area||'—',
             clinic:v.clinic,clinicType:v.s.clinicType||src.clinicType||'',
             province:v.s.province||'',   /* มีเฉพาะคำขอ UPC — คำขอปกติไม่มีช่องจังหวัดให้กรอก */
-            module:v.s.module||'',level:v.s.level||'',detail:tpDetail(v.s,v.products),
+            module:v.s.module||'',level:v.s.level||'',online:!!j.online,detail:tpDetail(v.s,mine),
             reqId:j.reqId||j.selfId||'',
-            doctors:v.doctors,products:v.products,uid:k+'|'+e.key+v.sfx+'|'+cid});}));
+            doctors:v.doctors,products:mine,uid:k+'|'+e.key+v.sfx+'|'+cid});}));
     });
   });
   return out;
@@ -4781,18 +4821,18 @@ function renderDash(){
         <div><span>Training</span><b>${tot.toLocaleString()}</b></div>
         <div><span>Clinic</span><b>${new Set(rows.map(function(r){return r.clinic;})).size}</b></div>
         <div><span>Doctor</span><b>${rows.reduce(function(s,r){return s+r.doctors;},0)}</b></div></div></div>
-      <canvas id="tpCumul" height="110"></canvas></div>
+      <div class="tp-ch"><canvas id="tpCumul"></canvas></div></div>
 
     <div class="panel"><div class="panel-head"><div>
         <h2>Training Volume by Product</h2>
         <div class="sub">${tpDateBadge(rows)||'นับ product ที่ต่างกันต่อ 1 คิวเทรน'}</div></div>
       <div class="view-toggle">${chip(S.gran==='month','tpg','month','Monthly')}${chip(S.gran==='week','tpg','week','Weekly')}</div></div>
-      <canvas id="tpTrend" height="120"></canvas></div>
+      <div class="tp-ch"><canvas id="tpTrend"></canvas></div></div>
 
     <div class="panel"><div class="panel-head"><div>
         <h2>Product Ratio</h2>
         <div class="sub">${S.pick?'เฉพาะ '+S.pick.map(esc).join(', '):'Ultherapy : Xeomin : Belotero : Radiesse — ทุกคน'}</div></div></div>
-      <div style="height:260px"><canvas id="tpRatio"></canvas></div>
+      <div class="tp-ch ring"><canvas id="tpRatio"></canvas></div>
       <div class="dna-legend">${TP_PRODUCTS.map(function(p){
         return '<span><span class="dna-dot" style="background:'+TP_COLOR[p]+'"></span>'+p+' — '+rc[p]
           +' ('+(rct?Math.round(rc[p]/rct*100):0)+'%)</span>';}).join('')}</div></div>
@@ -4869,14 +4909,14 @@ function renderDash(){
 /* ===== ตารางข้อมูลดิบของการเทรน + Export Excel =====
    1 แถว = CTS 1 คน · 1 วัน · 1 คลินิก — เทรนหลาย product ในวันเดียวกันอยู่แถวเดียวกัน (Product 1-4) */
 const TP_TCOLS=['No.','Month','Date','CTS Name','Sub-Team','Sale Team','Sale Area','Clinic name','Province','Type','No. of Doctor',
-  'Training Module','ระดับเนื้อหาการเทรน',
+  'Training Module','ระดับเนื้อหาการเทรน','Online Training',
   'Product 1','Hands-on 1','Product 2','Hands-on 2','Product 3','Hands-on 3','Product 4','Hands-on 4'];
 const tpTableRows=rows=>rows.slice()
   .sort((a,b)=>a.date.localeCompare(b.date)||String(a.cts).localeCompare(String(b.cts)))
   .map((r,i)=>{
     const d=(r.detail&&r.detail.length?r.detail:(r.products||[]).map(p=>({p,topic:'',ho:false}))).slice(0,4);
     const cells=[i+1,TP_MON[r.d.getMonth()],r.date,r.cts,r.sub||'—',r.team,r.code,r.clinic,r.province||'—',r.clinicType||'—',
-      r.doctors||0,r.module||'—',r.level||'—'];
+      r.doctors||0,r.module||'—',r.level||'—',r.online?'Yes':'No'];
     for(let x=0;x<4;x++){const p=d[x];
       cells.push(p?(p.topic?p.p+' — '+p.topic:p.p):'');
       cells.push(p?(p.ho?'Yes':'No'):'');}
@@ -5041,9 +5081,9 @@ function tpDraw(rows,ctsRows){
      pointBorderColor:'#0D1B2A',pointBorderWidth:2},
     {label:'_future',data:cum.map((v,i)=>last<0?v:(i<last?null:v)),borderColor:'rgba(201,168,76,.3)',
      borderWidth:1.8,borderDash:[6,5],pointRadius:0,fill:false,tension:.35}]},
-    options:{responsive:true,plugins:{legend:{display:false},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{filter:i=>i.dataset.label!=='_future'}},
-      scales:{x:{grid:{display:false},ticks:{color:ink,font:{size:11}}},
+      scales:{x:{grid:{display:false},ticks:{color:ink,font:{size:11},maxRotation:0,autoSkip:true}},
               y:{beginAtZero:true,grid:{color:grid},ticks:{color:'#C9A84C',font:{size:10}}}}}});
 
   /* 2) แท่งซ้อนราย product + เส้นรวม */
@@ -5061,9 +5101,9 @@ function tpDraw(rows,ctsRows){
     tension:.25,order:1});
   mk('tpTrend',{type:'bar',
     data:{labels:tk.map(S.gran==='month'?tpMonLabel:tpWeekLabel),datasets:bars},
-    options:{responsive:true,plugins:{legend:{position:'bottom',
-        labels:{color:ink,font:{size:12},filter:i=>i.text!=='Total'}}},
-      scales:{x:{stacked:true,grid:{display:false},ticks:{color:ink,font:{size:11}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',
+        labels:{color:ink,font:{size:12},boxWidth:12,filter:i=>i.text!=='Total'}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:ink,font:{size:11},maxRotation:0,autoSkip:true}},
               y:{stacked:true,beginAtZero:true,grid:{color:grid},ticks:{color:ink,font:{size:11}}}}}});
 
   /* 3) โดนัทสัดส่วน product + ตัวเลข Ultherapy : Injectable ตรงกลาง
@@ -5372,7 +5412,7 @@ function canSeeRecord(r){
 const canDelReq=()=>seeAllRec();
 const recHit=(r,q)=>!q||[r.id,r.clinic,r.requester,saleCode(r),r.topic].some(v=>String(v||'').toLowerCase().includes(q));
 /* ===== ตาราง Record ดิบ — ทุกคำขอที่เห็นได้ + เส้นทางการอนุมัติ · Export ไปตรวจสอบ/Audit ย้อนหลัง ===== */
-const REC_COLS=['รหัสคำขอ','วันที่ขอ','ประเภทคำขอ','สถานะ','รออยู่ที่','ทีมขาย','รหัส Sale','ผู้ขอ',
+const REC_COLS=['รหัสคำขอ','วันที่ขอ','ประเภทคำขอ','Online Training','สถานะ','รออยู่ที่','ทีมขาย','รหัส Sale','ผู้ขอ',
   'คลินิก','ประเภทคลินิก','Module','ระดับเนื้อหา','Product','หัวข้อที่เทรน','จำนวนแพทย์','ประสบการณ์',
   'Hands-on','Support Product','จำนวนเคส','จำนวน session/วัน','วันที่เทรน','CTS ผู้เทรน','CTS รับทราบแล้ว',
   'อนุมัติโดย','อนุมัติเมื่อ','Google Map','หมายเหตุ','เหตุผลการยกเลิก','Approval Status Tracking'];
@@ -5382,7 +5422,7 @@ function recTableRows(list){
     const cts=[...new Set((r.sessions||[]).flatMap(s=>reqWho(s)))].map(id=>byId(id)?byId(id).nick:id);
     const trail=(r.trail||[]).map(t=>(TRAIL_ACT[t.act]||t.act)+' · '+(t.step||t.by||'—')+' · '+fmtStamp(t.at)
       +(t.note?' · '+t.note:'')).join(' | ');
-    return [r.id,fmtStamp(r.created),U?'UPC Trip':'ปกติ',stLabel(r.status),waitingFor(r)||'—',
+    return [r.id,fmtStamp(r.created),U?'UPC Trip':'ปกติ',r.online?'Yes':'No',stLabel(r.status),waitingFor(r)||'—',
       smOfArea(r.area)||r.area||'—',saleCode(r),r.requester||'—',
       (U?U.clinic:r.clinic)||'—',(U?U.ctype:r.clinicType)||'—',(U?U.module:r.module)||'—',(U?U.level:r.level)||'—',
       prodList(U?U.product:r.product).join(' · ')||'—',(U?U.topic:r.topic)||'—',(U?U.doctors:r.doctors)||'—',r.exp||'—',

@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -141,8 +141,9 @@ const clean=()=>{reset();X.state.skills={};X.state.draft=null;X.state.picks=[];X
 /* ME (CTS[0]) เป็น Senior Leader ไม่อยู่ในกลุ่มที่ Sales จองได้ — เทสคิวว่างต้องใช้ 6 คนนี้ */
 const B1=X.BOOKABLE_CTS()[0].id;
 
-/* 11. Product 10 ตัว (เพิ่ม Radiesse Hybrid) + ชื่อเก่ายังอ่านสีได้ */
-assert.strictEqual(X.PRODUCTS.length,10,'ต้องมี 10 product');
+/* 11. Product 11 ตัว (เพิ่ม Radiesse Hybrid, Belotero All SKU) + ชื่อเก่ายังอ่านสีได้ */
+assert.strictEqual(X.PRODUCTS.length,11,'ต้องมี 11 product');
+assert.strictEqual(X.prodFamily('Belotero All SKU'),'Belotero','Belotero All SKU ต้องนับ KPI เป็น Belotero');
 assert.ok(X.PRODUCTS.includes('Radiesse Hybrid'),'ต้องมี Radiesse Hybrid');
 assert.ok(X.PRODUCTS.includes('Belotero Revive')&&X.PRODUCTS.includes('Radiesse Plus'),'ชื่อ product ไม่ครบ');
 assert.ok(X.PRODHEX['Belotero'],'ชื่อเก่า Belotero ต้องยังมีสี ไม่งั้นคำขอเก่าพัง');
@@ -913,7 +914,7 @@ assert.strictEqual(dr.code,'UPC1','แถว Dashboard ต้องรู้ว�
 assert.ok(/Team [AB]/.test(dr.sub),'ต้องรู้ Sub-Team (Team A/B) ของ CTS');
 assert.ok(dr.detail.length&&dr.detail.every(d=>'ho' in d),'ต้องรู้ว่าแต่ละ product มี hands-on ไหม');
 const tb=X.tpTableRows(X.tpAllRows().filter(r=>r.date===UD1));
-assert.strictEqual(X.TP_TCOLS.length,21,'ตารางต้องมี 21 คอลัมน์ (Province + Product 1-4 + Hands-on 1-4)');
+assert.strictEqual(X.TP_TCOLS.length,22,'ตารางต้องมี 22 คอลัมน์ (Province + Online Training + Product 1-4 + Hands-on 1-4)');
 /* จังหวัดมีเฉพาะคำขอ UPC ที่กรอกไว้ราย item — คิวอื่นต้องเป็น - ไม่ใช่ช่องว่าง */
 assert.ok(tb.every(row=>row[X.TP_TCOLS.indexOf('Province')]),'ทุกแถวต้องมีค่าในช่อง Province');
 assert.ok(tb.some(row=>row[X.TP_TCOLS.indexOf('Province')]==='เชียงใหม่'),'คิว UPC ต้องบันทึกจังหวัดที่กรอกไว้');
@@ -1572,4 +1573,27 @@ assert.ok(g>0&&h.indexOf('value="'+W+'"')>g,'เสาร์–อาทิต�
 X.closeSheet();X.state.requests=[];
 }
 
-console.log('✓ ผ่านทั้ง 94 ข้อ');
+/* 95. ผู้เทรนหลักแยกราย Product — KPI นับเฉพาะ product ของตัวเอง · ไม่แยก = ทุกคนได้ทุก product */
+{const j={product:['Ultherapy','Belotero All SKU'],kpi:['a','b']};
+assert.strictEqual(X.famsFor(j,'a').sort().join(),'Belotero,Ultherapy','ไม่แยก product ทุกคนต้องได้ทุกตระกูล');
+j.pmain={'Ultherapy':['a'],'Belotero All SKU':['b']};
+assert.strictEqual(X.famsFor(j,'a').join(),'Ultherapy','a ต้องได้แค่ Ultherapy');
+assert.strictEqual(X.famsFor(j,'b').join(),'Belotero','b ต้องได้แค่ Belotero');
+j.kpi=['a','c'];   /* b ถูกเปลี่ยนตัวออกทีหลัง -> Belotero กลับเป็นของผู้เทรนหลักทุกคน */
+assert.strictEqual(X.famsFor(j,'c').join(),'Belotero','คนที่ไม่ใช่ผู้เทรนหลักแล้วต้องไม่ล็อก product ไว้');}
+
+/* 96. คอมเมนต์ SM ตอน Approve/Reject ขึ้นกล่องในรายละเอียดคำขอ · ไม่มีคอมเมนต์ = ไม่มีกล่อง */
+{const r={trail:[{at:'2026-10-13T03:00:00.000Z',step:'SM KA',act:'approved',note:'ขอเน้น <MSC>'},
+  {at:'2026-10-13T04:00:00.000Z',step:'SM UPC',act:'approved',note:''},
+  {at:'2026-10-13T05:00:00.000Z',step:'CTS Manager',act:'approved',note:'ไม่ใช่ SM'}]};
+const h=X.smNoteBox(r);
+assert.ok(h.includes('SM KA')&&h.includes('&lt;MSC')&&!h.includes('<MSC'),'ต้องโชว์คอมเมนต์ SM KA และ escape HTML');
+assert.strictEqual((h.match(/note smc/g)||[]).length,1,'โชว์เฉพาะคอมเมนต์ของ SM ที่มีข้อความ');
+assert.strictEqual(X.smNoteBox({}),'','ไม่มี trail ต้องไม่มีกล่อง');}
+
+/* 97. ช่อง Online Training ในตาราง Excel ทั้ง Record และ Dashboard */
+assert.ok(X.REC_COLS.includes('Online Training')&&X.TP_TCOLS.includes('Online Training'),'ตารางต้องมีช่อง Online Training');
+{const i=X.TP_TCOLS.indexOf('Online Training'),rw=X.tpTableRows([{date:'2026-10-13',d:new Date(2026,9,13),online:true,products:['Xeomin']}])[0];
+assert.strictEqual(rw[i],'Yes','คิว Online ต้องขึ้น Yes');}
+
+console.log('✓ ผ่านทั้ง 97 ข้อ');
