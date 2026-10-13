@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1596,4 +1596,26 @@ assert.ok(X.REC_COLS.includes('Online Training')&&X.TP_TCOLS.includes('Online Tr
 {const i=X.TP_TCOLS.indexOf('Online Training'),rw=X.tpTableRows([{date:'2026-10-13',d:new Date(2026,9,13),online:true,products:['Xeomin']}])[0];
 assert.strictEqual(rw[i],'Yes','คิว Online ต้องขึ้น Yes');}
 
-console.log('✓ ผ่านทั้ง 97 ข้อ');
+/* 98. CTS ทั่วไปแบ่งผู้เทรนราย Product ได้ในคิวที่ Sale ขอมา (ผู้เทรนหลักคนเดียว + ผู้ร่วมงาน) · KPI นับตามคนที่เลือก */
+{X.state.role='cts';X.state.me=B1;
+X.state.requests=[{id:'TR-PM',team:'A',status:'approved',mode:'std',module:'MAX-Entry',product:['Ultherapy','Belotero All SKU'],
+  topic:'x',clinic:'คลินิก PM',map:'',doctors:1,exp:'',handsOn:false,photos:[],requester:'a',requesterId:'a',
+  sessions:[{date:K,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]}];
+const se=X.state.requests[0].sessions[0];
+X.openReqSession('TR-PM',0);
+assert.ok(!/data-rspm=/.test(sheet()),'ไปคนเดียว ยังไม่มีให้แบ่ง product');
+const D={title:'',start:'09:00',end:'12:00',extra:[B2],mains:[B1],topics:[],its:{},pm:{'Belotero All SKU':[B2],'Ultherapy':[B1]}};
+X.openReqSession('TR-PM',0,D);
+assert.ok(/data-rspm=/.test(sheet()),'CTS ทั่วไปต้องเห็นส่วนแบ่งผู้เทรนราย Product');
+assert.ok(new RegExp('data-rspm="Ultherapy\|'+B2+'"').test(sheet()),'ผู้ร่วมงานต้องเลือกเป็นผู้เทรนของ product ได้');
+G("rsTitle").value='';G("rsStart").value='09:00';G("rsEnd").value='12:00';
+G("rsSave").onclick();
+assert.strictEqual(JSON.stringify(se.pmain),JSON.stringify({'Belotero All SKU':[B2]}),'เก็บเฉพาะ product ที่ไม่ใช่ผู้เทรนหลักเดิม');
+assert.strictEqual([se.ctsId].concat(se.co||[]).join(),B1,'ผู้เทรนหลักของคิวต้องไม่เปลี่ยน');
+const e=X.dayEntries(K,X.CTS.map(c=>c.id)).find(x=>x.job&&x.job.reqId==='TR-PM');   /* อ่านทุกคนแบบ Dashboard */
+assert.strictEqual([...X.ownersOf(e)].sort().join(),[B1,B2].sort().join(),'ผู้ร่วมงานที่ได้ product ต้องนับ KPI');
+assert.strictEqual(X.famsFor(e.job,B1,e.who).join(),'Ultherapy','ผู้เทรนหลักได้ product ที่ไม่ได้แบ่ง');
+assert.strictEqual(X.famsFor(e.job,B2,e.who).join(),'Belotero','ผู้ร่วมงานได้แค่ product ของตัวเอง');
+X.closeSheet();X.state.requests=[];}
+
+console.log('✓ ผ่านทั้ง 98 ข้อ');

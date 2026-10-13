@@ -2720,11 +2720,13 @@ function openReqSession(reqId,sIdx,keep){
   const mainOf=date=>(r.sessions.find(x=>x.date===date)||{}).ctsId;
   if(!D.mains)D.mains=mainsOf(s);   // keep ที่ส่งมาจากรอบก่อนอาจยังไม่มีฟิลด์นี้
   /* ผู้เทรนหลักราย Product — คิวที่เทรน 2 product ขึ้นไปและไปกันหลายคน แบ่งกันเทรนได้ KPI จะนับตามนี้
-     ไม่ได้เลือก = ผู้เทรนหลักทุกคนของคิวนี้ (เหมือนเดิม) · Sale ขอมาไม่ต้องเลือก ตั้งได้เฉพาะที่นี่ */
+     CTS ทุกคนแก้ได้ เลือกจากทุกคนที่ไปงาน (ผู้เทรนหลัก + ผู้ร่วมงาน)
+     ไม่ได้เลือก = ผู้เทรนหลักของคิวนี้ (เหมือนเดิม) · Sale ขอมาไม่ต้องเลือก ตั้งได้เฉพาะที่นี่ */
   if(!D.pm)D.pm=JSON.parse(JSON.stringify(s.pmain||{}));
   const prods=prodList(p0.product);
-  const perProd=!perItem&&prods.length>1&&D.mains.length>1;
-  const pmOf=pr=>(D.pm[pr]||[]).filter(i=>D.mains.includes(i));
+  const pool=()=>[...new Set(D.mains.concat(D.extra))];
+  const perProd=!perItem&&prods.length>1&&pool().length>1;
+  const pmOf=pr=>(D.pm[pr]||[]).filter(i=>pool().includes(i));
   /* 13. คิวที่อนุมัติแล้วยังเปลี่ยนตัวผู้เทรนหลักได้ เผื่อคนเดิมป่วย/ติดธุระกะทันหัน */
   const chgMain=isLead()||isMgr()||state.role==='admin';
   openSheet(`<div class="eyebrow">${r.id} · ${fmtDate(s.date)}</div><h2>แก้ไขคิวงานนี้</h2>
@@ -2740,12 +2742,6 @@ function openReqSession(reqId,sIdx,keep){
     ${chgMain?`<label class="f">ผู้เทรนหลัก <span>· เลือกได้หลายคน ทุกคนนับ KPI · คิวในปฏิทินจะย้ายตาม</span></label>
     <div class="chips">${CTS.map(c=>`<button class="chip attchip" data-rsm="${c.id}" aria-pressed="${D.mains.includes(c.id)}"
       style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${D.mains.includes(c.id)?'✓ ':''}${c.nick}</button>`).join('')}</div>`:''}
-    ${chgMain&&perProd?`<label class="f">ผู้เทรนหลักแยกราย Product <span>· ไม่เลือก = ผู้เทรนหลักทุกคน · KPI นับตามนี้</span></label>
-    ${prods.map(pr=>`<div class="row" style="gap:8px;margin:7px 0 0;flex-wrap:wrap">
-      <span class="tag" style="background:${PRODHEX[pr]||'#DDD'};color:${pink(pr)};min-width:120px">${esc(pr)}</span>
-      <div class="chips grow">${D.mains.map(m=>`<button class="chip attchip" data-rspm="${esc(pr)}|${m}" aria-pressed="${pmOf(pr).includes(m)}"
-        style="--cc:${pal(m).c};--ct:${pal(m).ci}"><span class="adot" style="background:${pal(m).c}"></span>${pmOf(pr).includes(m)?'✓ ':''}${byId(m).nick}</button>`).join('')}</div>
-    </div>`).join('')}`:''}
     ${perItem?`<label class="f">ผู้เทรนรายคลินิก <span>· ทั้งทริป ${uall.length} วัน — เปลี่ยนตัวได้ทุกวันทุกคลินิก</span></label>
     ${uall.map(d=>`<div class="upcday${d.date===s.date?' on':''}">
       <div class="eyebrow">${fmtDate(d.date)}${mainOf(d.date)?' · ผู้เทรนหลัก '+byId(mainOf(d.date)).nick:''}</div>
@@ -2765,6 +2761,12 @@ function openReqSession(reqId,sIdx,keep){
       style="--cc:${pal(c.id).c};--ct:${pal(c.id).ci}"><span class="adot" style="background:${pal(c.id).c}"></span>${c.nick}</button>`).join('')}</div>
     <div class="note pl">${chgMain?'เปลี่ยนผู้เทรนหลักที่ชิปด้านบน — คิวเดิมจะถูกปลดและลงให้คนใหม่ทันที'
       :'ผู้เทรนหลักเปลี่ยนได้เฉพาะหัวหน้า / CTM / Admin'} · คนที่เพิ่มเข้ามาจะถูกตัดคิวว่างในช่วงนี้ด้วย</div>
+    ${perProd?`<label class="f">ผู้เทรนหลักแยกราย Product <span>· ไม่เลือก = ผู้เทรนหลักของคิว · KPI นับตามนี้</span></label>
+    ${prods.map(pr=>`<div class="row" style="gap:8px;margin:7px 0 0;flex-wrap:wrap">
+      <span class="tag" style="background:${PRODHEX[pr]||'#DDD'};color:${pink(pr)};min-width:120px">${esc(pr)}</span>
+      <div class="chips grow">${pool().map(m=>`<button class="chip attchip" data-rspm="${esc(pr)}|${m}" aria-pressed="${pmOf(pr).includes(m)}"
+        style="--cc:${pal(m).c};--ct:${pal(m).ci}"><span class="adot" style="background:${pal(m).c}"></span>${pmOf(pr).includes(m)?'✓ ':''}${byId(m).nick}</button>`).join('')}</div>
+    </div>`).join('')}`:''}
     <div class="err" id="rsErr" hidden></div>
     <button class="btn primary block" id="rsSave" style="margin-top:13px">บันทึกการแก้ไข</button>
     <button class="btn ghost block" id="rsCancel" style="margin-top:8px">ยกเลิก</button>
@@ -2821,9 +2823,10 @@ function openReqSession(reqId,sIdx,keep){
           +' → '+(v?byId(v).nick:'ผู้เทรนหลัก'));});
       if(one.length)chg.push(fmtDate(d.date)+' · '+one.join(' · '));});
     if(chg.length)logTrail(r,'changed-trainer',chg.join(' | '));
-    /* ผู้เทรนราย Product — เก็บเฉพาะ product ที่เลือกไม่ครบทุกคน (ครบทุกคน = ค่าเดิม ไม่ต้องเก็บ) */
+    /* ผู้เทรนราย Product — เก็บเฉพาะ product ที่ไม่ตรงกับผู้เทรนหลักของคิว (ตรงกัน = ค่าเดิม ไม่ต้องเก็บ) */
     const pm={};
-    if(perProd)prods.forEach(pr=>{const l=pmOf(pr);if(l.length&&l.length<D.mains.length)pm[pr]=l;});
+    if(perProd)prods.forEach(pr=>{const l=pmOf(pr);
+      if(l.length&&!(l.length===D.mains.length&&l.every(i=>D.mains.includes(i))))pm[pr]=l;});
     const pmTxt=o=>Object.keys(o).map(pr=>pr+': '+o[pr].map(i=>byId(i).nick).join(' + ')).join(' · ');
     if(pmTxt(pm)!==pmTxt(s.pmain||{}))logTrail(r,'changed-trainer','ราย Product · '+(pmTxt(pm)||'ทุกคนทุก product'));
     if(Object.keys(pm).length)s.pmain=pm;else delete s.pmain;
@@ -4585,14 +4588,15 @@ function dashRange(){
 /* เจ้าของคิว = คนที่ลงคิวนั้น · คิวจากคำขอคือ CTS ที่หัวหน้าจัดให้ (who[0]) คนที่เพิ่มมาทีหลังไม่นับ
    คิวที่ CTS ลงเองคือคนลง (owner) — ถ้า Admin เป็นคนลงให้ ก็นับให้คนแรกในรายชื่อผู้ร่วมงาน */
 /* ติ๊ก ✓ ได้หลายคน = คิวนี้นับ KPI ให้ทุกคนที่ติ๊ก (1 คิว = 1 ครั้งของแต่ละคน) */
-const ownersOf=e=>{const k=kpiList(e.job.kpi).filter(i=>e.who.includes(i));
+/* คนที่ CTS เลือกเป็นผู้เทรนราย Product (pmain) นับ KPI ด้วย แม้ไปในฐานะผู้ร่วมงาน */
+const ownersOf=e=>{const k=[...new Set(kpiList(e.job.kpi).concat(Object.values(e.job.pmain||{}).flat()))].filter(i=>e.who.includes(i));
   if(k.length)return k;
   return [(e.job.owner&&e.who.includes(e.job.owner))?e.job.owner:e.who[0]];};
 /* ตระกูล product ที่ cid ได้ KPI ในคิวนี้ — มี pmain (แบ่ง product กัน) นับเฉพาะ product ของตัวเอง
-   คนใน pmain ที่ไม่ได้เป็นผู้เทรนหลักแล้ว (โดนเปลี่ยนตัวทีหลัง) ไม่นับ -> product นั้นกลับเป็นของทุกคน */
-const famsFor=(j,cid)=>[...new Set(prodList(j.product).filter(pr=>{
-  const l=((j.pmain||{})[pr]||[]).filter(i=>kpiList(j.kpi).includes(i));
-  return !l.length||l.includes(cid);}).map(prodFamily))];
+   คนใน pmain ที่ไม่ได้ไปงานนี้แล้ว (who · ไม่ส่งมา = ผู้เทรนหลัก) ไม่นับ -> product นั้นกลับเป็นของผู้เทรนหลัก */
+const famsFor=(j,cid,who)=>[...new Set(prodList(j.product).filter(pr=>{
+  const l=((j.pmain||{})[pr]||[]).filter(i=>(who||kpiList(j.kpi)).includes(i));
+  return l.length?l.includes(cid):!j.pmain||kpiList(j.kpi).includes(cid);}).map(prodFamily))];   // product ที่ไม่ได้แบ่ง = ของผู้เทรนหลัก
 function trainRows(){
   const R=dashRange(),out=[];
   if(!R.from||!R.to||R.to<R.from)return out;
@@ -4600,7 +4604,7 @@ function trainRows(){
   dateRange(R.from,R.to).forEach(k=>{
     dayEntries(k,pool).filter(e=>e.job&&e.who.length&&e.job.kind!=='cxl').forEach(e=>{
       ownersOf(e).forEach(cid=>{
-        const fams=famsFor(e.job,cid).filter(p=>DASH_PRODUCTS.includes(p));
+        const fams=famsFor(e.job,cid,e.who).filter(p=>DASH_PRODUCTS.includes(p));
         if(e.job.pmain&&!fams.length)return;   // แบ่ง product แล้วไม่มีของคนนี้ = ไม่ได้เทรนคิวนี้
         out.push({cid,date:k,uid:k+'|'+e.key+'|'+cid,fams});});
     });
@@ -4706,7 +4710,7 @@ function tpAllRows(){
       const code=(r?saleCode(r):src.psArea)||'';
       visits.filter(v=>v.products.length).forEach(v=>
         ownersOf(e).forEach(cid=>{const c=byId(cid);
-          const mine=j.pmain?v.products.filter(p=>famsFor(j,cid).includes(p)):v.products;
+          const mine=j.pmain?v.products.filter(p=>famsFor(j,cid,e.who).includes(p)):v.products;
           if(!mine.length)return;
           out.push({date:k,d:parse(k),cts:c?c.nick:'—',cid,
             sub:c?((TEAMS[c.team]||{}).label||c.team):'—',code:code||'—',
