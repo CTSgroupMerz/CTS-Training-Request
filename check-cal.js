@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf,sweepTBC,setJob,jobOf,slotStatus,freeIds,dayShift,openDay});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf,sweepTBC,setJob,jobOf,slotStatus,freeIds,dayShift,openDay,convertTBC,reqCard});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1648,4 +1648,20 @@ X.openDay(K);
 assert.ok(/data-dnav="1"/.test(G('sheetHead').innerHTML),'หน้ารายวันต้องมีปุ่มวันถัดไป');
 X.closeSheet();
 
-console.log('✓ ผ่านทั้ง 100 ข้อ');
+/* 101. คิว TBC หมดอายุ — Sale กด Confirm and Request ไม่ได้อีก (ทั้งปุ่มบนการ์ด และกรณีเปิดค้างไว้จนเลยกำหนด) */
+{const d=FUT(40);X.state.role='sales';X.state.sched={};
+const tb={id:'TR-XP',team:'A',area:'Champion',status:'tbc',tbcOk:true,tbcAt:new Date(Date.now()-4*864e5).toISOString(),mode:'std',
+  module:'MAX-Entry',product:['Ultherapy'],clinic:'หมดอายุ',photos:[],trail:[],requesterId:'C01',
+  sessions:[{date:d,slot:'am',ctsId:B1,start:'09:00',end:'12:00'}]};
+X.state.requests=[tb];
+assert.ok(!X.reqCard(tb).includes('data-tbcgo'),'TBC เลยกำหนดแล้วต้องไม่มีปุ่ม Confirm and Request');
+X.convertTBC('TR-XP');
+assert.strictEqual(tb.status,'expired','กดยืนยันคิวที่หมดอายุ ต้องกลายเป็น Expired ไม่ใช่ส่งคำขอ');
+tb.status='tbc';tb.tbcAt=new Date().toISOString();
+assert.ok(X.reqCard(tb).includes('data-tbcgo'),'TBC ยังไม่หมดอายุต้องมีปุ่ม');
+X.convertTBC('TR-XP');tb.tbcAt=new Date(Date.now()-4*864e5).toISOString();   /* เปิดหน้าค้างไว้แล้วเลยกำหนด */
+G('tbcGo').onclick();
+assert.strictEqual(tb.status,'expired','เปิดค้างจนหมดอายุแล้วกดยืนยัน ต้องไม่ส่งคำขอ');
+X.closeSheet();X.state.requests=[];X.state.sched={};}
+
+console.log('✓ ผ่านทั้ง 101 ข้อ');

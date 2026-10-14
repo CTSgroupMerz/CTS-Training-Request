@@ -4019,6 +4019,14 @@ const midnightOf=d=>new Date(d).setHours(0,0,0,0);
 const tbcLeft=r=>TBC_DAYS-Math.max(0,Math.round((midnightOf(Date.now())-midnightOf(r.tbcAt))/864e5));
 function releaseTBC(r){r.sessions.forEach(sn=>mainsOf(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id)));}
 /* ปล่อยคิว TBC ที่หมดอายุ — เรียกตอนโหลดข้อมูลและทุกครั้งที่เรนเดอร์ ไม่ต้องพึ่ง cron ฝั่งเซิร์ฟเวอร์ */
+/* คิว TBC หมดอายุแล้ว = กด Confirm and Request ไม่ได้อีก (คิวว่างอาจเปลี่ยนไปแล้ว) ต้องส่งคำขอใหม่
+   sweepTBC รันตอนโหลดเท่านั้น -> แอปที่เปิดค้างไว้จนเลยกำหนดยังเห็นเป็น tbc จึงเช็คเวลาซ้ำตอนกดด้วย */
+function tbcDead(r){
+  if(!deadReq(r))return false;
+  sweepTBC();closeSheet();render();
+  toast('คิว TBC นี้หมดอายุแล้ว — คิวว่างอาจเปลี่ยนไป กรุณาส่งคำขอใหม่');
+  return true;
+}
 function sweepTBC(){
   let n=0;
   state.requests.filter(r=>r.status==='tbc'&&r.tbcAt&&tbcDeadline(r)<=Date.now()).forEach(r=>{
@@ -4028,13 +4036,14 @@ function sweepTBC(){
 /* หัวหน้ากดตรวจคิว TBC — เปลี่ยน CTS ได้ทีละวัน แล้วส่งกลับ (ใช้หน้าจอเดียวกับจัด CTS) */
 function confirmTBC(id){
   const r=state.requests.find(x=>x.id===id);
-  if(!r||!canApprove(r))return;
+  if(!r||!canApprove(r)||tbcDead(r))return;
   assign(id);
 }
 /* Sales เลือกวันจริงจากวันที่ล็อกไว้ แล้วส่งเป็นคำขอปกติ วันที่เหลือถูกปล่อยคืน */
 function convertTBC(id){
   const r=state.requests.find(x=>x.id===id);
   if(!r)return;
+  if(tbcDead(r))return;
   /* ต้องรอหัวหน้า (PAM / MILK) ตรวจคิว TBC ก่อน ถึงจะเลือกวันจริงได้ */
   if(!r.tbcOk)return toast('รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' ตรวจคิว TBC ก่อน');
   const need=(MODULES[r.module]||{def:1}).def;
@@ -4054,6 +4063,7 @@ function convertTBC(id){
     $('tbcNo').onclick=closeSheet;
     $('tbcGo').onclick=()=>{
       const e=$('tbcErr');
+      if(tbcDead(r))return;   // เปิดหน้านี้ค้างไว้จนเลยกำหนด
       if(D.pick.length!==need){e.hidden=false;e.textContent=`ต้องเลือก ${need} วัน (ตอนนี้เลือก ${D.pick.length})`;return;}
       r.sessions.forEach((sn,i)=>{if(!D.pick.includes(i))mainsOf(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id));});
       r.sessions=D.pick.sort((a,b)=>a-b).map(i=>r.sessions[i]);
@@ -4232,10 +4242,10 @@ function reqCard(r,act){
       ${r.tbcOk?'หัวหน้าตรวจแล้ว — อย่าลืมกด Confirm and Request เพื่อเลือกวันที่จะเอา'
         :'รอ '+leadsOf(r.team).map(l=>l.nick).join(' / ')+' ตรวจคิวก่อน ถึงจะกด Confirm and Request ได้'}</div>`:''}
     ${r.note?`<div class="note${r.status==='expired'?' xp':''}">${esc(r.note)}</div>`:''}
-    ${r.status==='tbc'&&(state.role==='sales'||state.role==='admin')?
+    ${r.status==='tbc'&&!deadReq(r)&&(state.role==='sales'||state.role==='admin')?
       (r.tbcOk?`<button class="btn primary block" data-tbcgo="${r.id}" style="margin-top:10px">Confirm and Request</button>`
         :`<button class="btn block" disabled style="margin-top:10px">Confirm and Request · รอ ${leadsOf(r.team).map(l=>l.nick).join(' / ')} ตรวจคิวก่อน</button>`):''}
-    ${r.status==='tbc'&&canApprove(r)?
+    ${r.status==='tbc'&&!deadReq(r)&&canApprove(r)?
       `<button class="btn block" data-tbcok="${r.id}" style="margin-top:8px">${
         r.tbcOk?'✎ แก้ CTS ของคิว TBC นี้':'✓ ตรวจคิว TBC · เปลี่ยน CTS รายวัน'}</button>`:''}
     <div class="row" style="margin-top:11px">
