@@ -1533,9 +1533,11 @@ const reqHold=(k,cid,slot)=>{const h=reqHoldOf(k,cid,slot);return h?holdJob(h).k
    2) ช่องว่างแต่คำขอที่มีผลยังจองอยู่ -> เติมคิวกลับ (TR-1082PM DoctorBond ที่ approved แต่แถว jobs หายไป)
    ทำในเครื่องเท่านั้น — ฝั่งเซิร์ฟเวอร์ซ่อมแยกที่ fixJobsOnServer() */
 function syncSchedFromReqs(){
-  const live=id=>{const r=state.requests.find(x=>x.id===id);return r&&!deadReq(r);};
+  /* คิวค้างช่องเดิม: คำขอยังมีผลแต่ไม่ได้จองช่องนี้แล้ว (ย้ายวัน/เปลี่ยนคน) ก็ล้างด้วย */
+  const live=(id,k,cid,sl)=>{const r=state.requests.find(x=>x.id===id);return r&&!deadReq(r)&&
+    (r.sessions||[]).some(s=>s.date===k&&slotsOf(s.slot).includes(sl)&&sessWho(r,s).includes(cid));};
   Object.keys(state.sched).forEach(k=>Object.keys(state.sched[k]).forEach(cid=>['am','pm'].forEach(sl=>{
-    const j=state.sched[k][cid][sl];if(j&&j.reqId&&!live(j.reqId))state.sched[k][cid][sl]=null;})));
+    const j=state.sched[k][cid][sl];if(j&&j.reqId&&!live(j.reqId,k,cid,sl))state.sched[k][cid][sl]=null;})));
   liveReqs().forEach(r=>{
     (r.sessions||[]).forEach(s=>{if(!s.ctsId)return;
       sessWho(r,s).forEach(cid=>slotsOf(s.slot).forEach(sl=>{if(!jobOf(s.date,cid,sl))setJob(s.date,cid,sl,holdJob({r,s}));}));});});
@@ -3107,6 +3109,10 @@ function openSelfEntry(date,editId,keep){
       if(D.handsOn&&!hoTotal(D.ho))need.push('จำนวนเคส hands-on อย่างน้อย 1 product');
       if(need.length){e.hidden=false;e.textContent='เลือก Product แล้วต้องกรอกเพิ่ม: '+need.join(' · ');return;}
     }
+    /* ถามเซิร์ฟเวอร์ก่อนว่ามีคำขอของ Sale ที่เพิ่งเข้ามาในช่องเหล่านี้ไหม (กันชนกับคำขอที่ส่งระหว่างรอโหลด 30 วิ) */
+    const sls=D.allDay?['am','pm']:slotsOfRange(D.start,D.end);
+    const T=dateRange(D.date,D.multi&&D.dateEnd?D.dateEnd:D.date).flatMap(k=>D.attendees.flatMap(cid=>sls.map(sl=>({k,cid,sl}))));
+    selfCheck(T,'seSave',()=>{
     if(!D.multi)D.dateEnd='';
     if(ev){Object.assign(ev,D);stampNow(ev);syncSelf(ev);}
     else{const nv=stampNow({...D,id:newId('SE',state.seSeq++)});state.selfEvents.push(nv);syncSelf(nv);}
@@ -3115,6 +3121,7 @@ function openSelfEntry(date,editId,keep){
     const n=dateRange(D.date,D.dateEnd||D.date).length;
     closeSheet();render();
     toast(ev?'บันทึกคิวงานแล้ว':`เพิ่มคิวงาน ${n>1?n+' วัน ':''}แล้ว — คิวว่างของ Sales อัปเดตอัตโนมัติ`);
+    });
   };
 }
 
@@ -4104,6 +4111,11 @@ function convertTBC(id){
       const e=$('tbcErr');
       if(tbcDead(r))return;   // เปิดหน้านี้ค้างไว้จนเลยกำหนด
       if(D.pick.length!==need){e.hidden=false;e.textContent=`ต้องเลือก ${need} วัน (ตอนนี้เลือก ${D.pick.length})`;return;}
+      /* วันที่เลือกต้องยังเป็นของคิว TBC นี้บนเซิร์ฟเวอร์ (หรือว่างจริง) ก่อนเปลี่ยนเป็นคำขอ */
+      const L=D.pick.flatMap(i=>{const sn=r.sessions[i];return mainsOf(sn).flatMap(cid=>slotsOf(sn.slot).map(sl=>
+        ({k:sn.date,cid,sl,j:{kind:'pend',title:r.clinic||'คำขอ '+r.id,product:prodMain(r.product),reqId:r.id,
+          start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end}})));});
+      claimOr(r.id,L,'tbcGo',()=>{
       r.sessions.forEach((sn,i)=>{if(!D.pick.includes(i))mainsOf(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id));});
       r.sessions=D.pick.sort((a,b)=>a-b).map(i=>r.sessions[i]);
       r.sessions.forEach(sn=>mainsOf(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,
@@ -4112,7 +4124,7 @@ function convertTBC(id){
       r.status=state.role==='sales'?'sm':'pending';r.tbc=false;r.note='เปลี่ยนจากคิว TBC เป็นคำขอแล้ว';r.created=new Date();
       logTrail(r,'request','ยืนยันวันจริงจากคิว TBC');
       notify(r,'pending');closeSheet();render();
-      toast('ส่งคำขอแล้ว — รอ '+waitingFor(r)+' อนุมัติ');};
+      toast('ส่งคำขอแล้ว — รอ '+waitingFor(r)+' อนุมัติ');});};
   };
   draw();
 }
@@ -4201,24 +4213,69 @@ const deadReq=r=>['rejected','cancelled','expired'].includes(r.status)||(r.statu
 const reqJobs=rid=>Object.entries(flatSched(state.sched)).filter(([,j])=>j.reqId===rid)
   .map(([ck,j])=>{const [k,cid,sl]=ck.split('|');return {k,cid,sl,j};});
 async function claimJobs(rid,L){
-  const got=[];
+  const got=[],nw=[];   // nw = ช่องที่ยึดใหม่รอบนี้ (ช่องที่เป็นของคำขอนี้อยู่แล้วไม่ต้องเช็คงานทับซ้ำ)
   const undo=async()=>{if(got.length)await SB.from('jobs').delete().in('id',got).eq('req_id',rid);};
   try{
     for(const x of L.filter(x=>ctsOk(x.cid))){
       const row=jobRow(x.k,x.cid,x.sl,x.j);
       const ins=await SB.from('jobs').upsert(row,{onConflict:'date,cts_id,slot',ignoreDuplicates:true}).select('id');
       if(ins.error){if(ins.error.code==='42P10')return true;throw ins.error;}   // ยังไม่มี unique index — เหลือแค่เช็คในเครื่อง
-      if((ins.data||[]).length){got.push(ins.data[0].id);continue;}
+      if((ins.data||[]).length){got.push(ins.data[0].id);nw.push(x);continue;}
       const cur=(await SB.from('jobs').select('id,req_id').eq('date',x.k).eq('cts_id',x.cid).eq('slot',x.sl).maybeSingle()).data;
+      if(cur&&cur.req_id===rid)continue;   // ช่องนี้เป็นของคำขอนี้อยู่แล้ว (แก้คำขอเดิม / แปลง TBC)
       /* แถวเดิมเป็นคิวกำพร้า (คำขอถูกลบ/ตายแล้ว) — ถามเซิร์ฟเวอร์ซ้ำ ไม่เชื่อข้อมูลในเครื่องที่อาจเก่า */
       if(cur&&cur.req_id&&(await deadOnServer([cur.req_id])).has(cur.req_id)){
         const up=await SB.from('jobs').update(row).eq('id',cur.id).eq('req_id',cur.req_id).select('id');
-        if(!up.error&&(up.data||[]).length){got.push(cur.id);continue;}
+        if(!up.error&&(up.data||[]).length){got.push(cur.id);nw.push(x);continue;}
       }
       await undo();return false;
     }
+    /* ยึดได้แล้วค่อยอ่านคิวที่ CTS ลงเอง/งานกลางล่าสุด (เขียนก่อนแล้วค่อยอ่าน — ฝั่ง CTS อ่าน jobs ก่อนบันทึก
+       อย่างน้อยฝั่งใดฝั่งหนึ่งจะเห็นอีกฝั่งเสมอ) · มีงานทับ = ปล่อยช่องคืน */
+    if(await evBlocked(nw)){await undo();return false;}
     return true;
   }catch(e){await undo();throw e;}
+}
+/* คิวที่ CTS ลงเอง (SE) / งานกลาง MA บนเซิร์ฟเวอร์ ทับช่องใน L ไหม — ใช้กติกาเดียวกับ syncSelf / eventFor */
+async function evBlocked(L){
+  if(!L.length)return false;
+  const ks=L.map(x=>x.k).sort(),lo=new Date(parse(ks[0]).getTime()-45*864e5);
+  const {data,error}=await SB.from('events').select('*').gte('date',key(lo)).lte('date',ks[ks.length-1]);
+  if(error)throw error;
+  const evs=(data||[]).map(evFrom);
+  return L.some(x=>evs.some(e=>isSelfEv(e)
+    ?(e.attendees||[]).includes(x.cid)&&dateRange(e.date,e.dateEnd||e.date).includes(x.k)
+      &&(e.allDay?['am','pm']:slotsOfRange(e.start,e.end)).includes(x.sl)
+    :e.date===x.k&&(e.slot==='all'||e.slot===x.sl)&&(e.cts==='all'||(e.cts||[]).includes(x.cid))));
+}
+/* คำขอเดิมที่ย้ายวัน/เปลี่ยนคน/แปลง TBC — ยึดช่องใหม่บนเซิร์ฟเวอร์ก่อน แล้วค่อยแก้ในเครื่อง (go) */
+function claimOr(rid,L,btnId,go){
+  if(!SB||!loaded||!L.length)return go();
+  const b=$(btnId);if(b)b.disabled=true;
+  toast('กำลังเช็คคิวกับเซิร์ฟเวอร์…');
+  const fail=m=>{if(b)b.disabled=false;toast(m);};
+  claimJobs(rid,L).then(ok=>{
+    if(!ok){fail('ช่วงที่เลือกเพิ่งถูกจองไปแล้ว — โหลดคิวล่าสุดแล้ว เลือกใหม่');load().then(()=>render());return;}
+    go();save();
+  },()=>fail('เช็คคิวกับเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วกดใหม่'));
+}
+/* CTS ลงคิวเอง: ก่อนบันทึก ถามเซิร์ฟเวอร์ว่ามีคำขอของ Sale ที่เพิ่งเข้ามาในช่องเหล่านี้ (เครื่องนี้ยังไม่รู้) ไหม
+   มี = โหลดข้อมูลล่าสุดให้เห็นก่อน แล้วให้กดบันทึกอีกครั้ง (ลงทับคำขอที่เห็นอยู่แล้วได้เหมือนเดิม) */
+function selfCheck(T,btnId,go){
+  if(!SB||!loaded||!T.length)return go();
+  const b=$(btnId);if(b)b.disabled=true;
+  const fail=m=>{if(b)b.disabled=false;toast(m);};
+  const ks=[...new Set(T.map(x=>x.k))],cs=[...new Set(T.map(x=>x.cid))];
+  SB.from('jobs').select('date,cts_id,slot,req_id').in('date',ks).in('cts_id',cs).then(async({data,error})=>{
+    if(error)throw error;
+    const known=id=>state.requests.some(r=>r.id===id);
+    const hit=(data||[]).filter(x=>x.req_id&&!known(x.req_id)&&T.some(t=>t.k===x.date&&t.cid===x.cts_id&&t.sl===x.slot));
+    const dead=await deadOnServer([...new Set(hit.map(x=>x.req_id))]);
+    const fresh=[...new Set(hit.map(x=>x.req_id).filter(id=>!dead.has(id)))];
+    if(fresh.length){fail('มีคำขอใหม่ของ Sale ('+fresh.join(', ')+') เพิ่งลงช่วงนี้ — โหลดข้อมูลล่าสุดแล้ว ตรวจแล้วกดบันทึกอีกครั้ง');
+      load().then(()=>render());return;}
+    go();save();
+  }).catch(()=>fail('เช็คคิวกับเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วกดใหม่'));
 }
 /* go = ยืนยันคำขอในเครื่อง (ใส่ลิสต์/ปิดฟอร์ม/แจ้งเตือน) — เรียกเมื่อยึดช่องบนเซิร์ฟเวอร์ได้ครบแล้วเท่านั้น
    ระหว่างรอ ถอดคิวออกจาก sched ในเครื่องก่อน ไม่งั้น autosave อาจเขียนทับช่องของคนอื่นไปก่อนรู้ผล
@@ -4545,6 +4602,15 @@ function openEdit(id,keep){
       if(!w)return toast(`S${i+1}: ${fmtDate(k)} ผู้เทรนไม่ว่าง — เลือกวันอื่น`);
       if(!(st<en))return toast(`S${i+1}: เวลาเริ่มต้องก่อนเวลาจบ`);
       if(st<w.start||en>w.end)return toast(`S${i+1}: ${mainsTxt(sn)} ว่าง ${w.start}–${w.end} — เวลาเทรนต้องอยู่ในช่วงนี้`);}
+    /* ย้ายวัน: เช็คกติกาเดียวกับตอนย้ายจริงก่อน (หลังยึดช่องแล้วต้องไม่มีทางล้ม) แล้วยึดช่องวันใหม่บนเซิร์ฟเวอร์ */
+    const L=[];
+    for(let i=0;i<r.sessions.length;i++){const sn=r.sessions[i],nd=($('es'+i+'d')||{}).value||sn.date;
+      if(!sn.ctsId||nd===sn.date)continue;
+      if(holidayOf(nd)||!isWorkday(parse(nd))||mainsOf(sn).some(cid=>slotStatus(nd,cid,sn.slot)!=='free'))
+        return toast(`S${i+1}: ย้ายไป ${fmtDate(nd)} ไม่ได้ — วันนั้นไม่ว่างหรือเป็นวันหยุด`);
+      mainsOf(sn).forEach(cid=>slotsOf(sn.slot).forEach(sl=>L.push({k:nd,cid,sl,
+        j:{...holdJob({r,s:sn}),start:($('es'+i+'s')||{}).value||sn.start,end:($('es'+i+'e')||{}).value||sn.end}})));}
+    claimOr(r.id,L,'eSave',()=>{
     g();
     r.sessions.forEach((sn,i)=>{sn.start=dr[i].s;sn.end=dr[i].e;if(dr[i].d!==sn.date)sn._newDate=dr[i].d;});
     eDraft=null;sheetUndo=null;   // บันทึกแล้ว — ปิดหน้าต้องไม่ย้อนค่า
@@ -4570,6 +4636,7 @@ function openEdit(id,keep){
     r.updatedAt=new Date();
     closeSheet();render();
     toast(left.length?`บันทึกแล้ว — ยังขาดอีก ${left.length} รายการ`:'บันทึกแล้ว — ข้อมูลครบถ้วน');
+    });
   };
 }
 
@@ -5371,7 +5438,11 @@ function assign(id,keep){
   $('sheetBody').querySelectorAll('[data-as]').forEach(b=>b.onclick=()=>{
     const [i,cid]=b.dataset.as.split('|'),l=P[+i],x=l.indexOf(cid);
     x>=0?l.splice(x,1):l.push(cid);assign(id,P);});
-  $('saveRe').onclick=()=>{
+  /* คนที่เพิ่งถูกเพิ่มเข้าคิว — ต้องยึดช่องของเขาบนเซิร์ฟเวอร์ก่อน (กันชนกับคำขอที่เพิ่งส่งจากเครื่องอื่น) */
+  const assignClaims=()=>r.sessions.flatMap((s,i)=>{const old=mainsOf(s);
+    return P[i].filter(n=>!old.includes(n)).flatMap(n=>slotsOf(s.slot).map(sl=>
+      ({k:s.date,cid:n,sl,j:{...reqJobPayload(r,s),kind:isTbc?'tbc':r.status==='approved'?'booked':'pend'}})));});
+  $('saveRe').onclick=()=>claimOr(r.id,assignClaims(),'saveRe',()=>{
     const swapped=[];   // คิวที่อนุมัติแล้วและเปลี่ยนตัวผู้เทรน — ต้องแจ้งเตือนและขอรับทราบใหม่
     r.sessions.forEach((s,i)=>{
       const old=mainsOf(s),nw=P[i].slice();
@@ -5401,7 +5472,7 @@ function assign(id,keep){
       r.note='เปลี่ยนผู้เทรนโดย '+myStep()+' — '+txt;
       notify(r,'changed');
       closeSheet();render();toast('เปลี่ยนผู้เทรนแล้ว — แจ้ง CTS คนใหม่และฝั่งขายแล้ว');return;}
-    r.note='Senior Leader จัดผู้เทรนแล้ว';closeSheet();render();toast('จัด CTS แล้ว');};
+    r.note='Senior Leader จัดผู้เทรนแล้ว';closeSheet();render();toast('จัด CTS แล้ว');});
 }
 function approve(id){
   const r=state.requests.find(x=>x.id===id);

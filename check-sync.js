@@ -19,7 +19,7 @@ let netDelay=0;                       // หน่วงเน็ต (ms) — �
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const mkQ=rows=>{
   const o={};
-  ['select','order','range','eq','in','single','limit'].forEach(m=>o[m]=()=>o);
+  ['select','order','range','eq','in','single','limit','gte','lte'].forEach(m=>o[m]=()=>o);
   o.maybeSingle=()=>{o._one=true;return o;};
   o.then=(res,rej)=>wait(netDelay).then(()=>({data:o._one?(rows[0]||null):rows,error:null})).then(res,rej);
   return o;
@@ -46,7 +46,7 @@ const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},D
   fetch:()=>Promise.resolve({json:()=>Promise.resolve({})})};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
-src+='\n__x={state,load,save,snap,dirty,render,CTS,newId,setRole:r=>{auth={role:r};},setJob,jobOf,commitReq};';
+src+='\n__x={state,load,save,snap,dirty,render,CTS,newId,setRole:r=>{auth={role:r};},setJob,jobOf,commitReq,claimOr,selfCheck};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 X.state.role='cts';X.state.me=X.CTS[0].id;X.state.authed=true;X.state.tab='cal';
@@ -156,6 +156,48 @@ const mkReq=id=>({id,mode:'normal',status:'pending',team:'A',area:'C01',product:
   assert.ok(done,'คิวกำพร้าต้องไม่กันช่อง — รับคิวใหม่ได้');
   assert.ok(writes.some(w=>w[0]==='jobs'&&w[1]==='update'&&w[2].req_id==='TR-NEW'),'ต้องยึดแถวกำพร้าแทน');
   claimTaken=false;DB.jobs=[];}
+
+  /* 12. Sale ยึดช่องได้ แต่ CTS เพิ่งลงคิวเองช่วงนั้นบนเซิร์ฟเวอร์ (เครื่องนี้ยังไม่รู้) -> ต้องปล่อยช่องคืน ไม่ยืนยัน */
+  {const D4='2026-12-03',C=X.CTS[1].id,rq=mkReq('TR-SE');rq.sessions=[{date:D4,slot:'am',ctsId:C}];
+  DB.jobs=[];DB.requests=[];DB.events=[{id:5000001,date:D4,slot:'all',cts:[C],title:'ลา',detail:null,product:null,topics:[],
+    client:{id:'SE-9001XX',src:'SE',date:D4,dateEnd:'',allDay:false,start:'09:00',end:'12:00',attendees:[C],title:'ลา',owner:C}}];
+  let done=false;writes.length=0;
+  X.setJob(D4,C,'am',{kind:'pend',reqId:'TR-SE'});
+  X.commitReq(rq,'btnSend',()=>{done=true;});
+  await wait(200);
+  assert.ok(!done,'มีคิวที่ CTS ลงเองทับอยู่บนเซิร์ฟเวอร์ ต้องไม่ยืนยันคำขอ');
+  assert.ok(writes.some(w=>w[0]==='jobs'&&w[1]==='delete'),'ต้องคืนช่องที่ยึดไว้');
+  DB.events=[];await wait(200);}
+
+  /* 13. แก้คำขอเดิม: ช่องที่เป็นของคำขอนี้อยู่แล้วบนเซิร์ฟเวอร์ ต้องผ่าน (ไม่ถือว่าชน) · ช่องของคำขออื่นต้องไม่ผ่าน */
+  {const D5='2026-12-04',C=X.CTS[1].id;
+  claimTaken=true;DB.requests=[{id:'TR-MINE',mode:'normal',status:'sm',team:'A',area:'C01',products:['Ultherapy'],client:{status:'sm',sessions:[]}}];   /* คำขอตัวเองยังมีผลบนเซิร์ฟเวอร์ */
+  DB.jobs=[{id:97,date:D5,cts_id:C,slot:'am',req_id:'TR-MINE',kind:'tbc'}];
+  let done=false;
+  X.claimOr('TR-MINE',[{k:D5,cid:C,sl:'am',j:{kind:'pend',reqId:'TR-MINE'}}],'x',()=>{done=true;});
+  await wait(200);
+  assert.ok(done,'ช่องของคำขอตัวเองต้องผ่าน (แปลง TBC / แก้คำขอ)');
+  DB.requests=[{id:'TR-OTHER',mode:'normal',status:'approved',team:'A',area:'C01',products:['Ultherapy'],client:{status:'approved',sessions:[]}}];
+  DB.jobs=[{id:96,date:D5,cts_id:C,slot:'pm',req_id:'TR-OTHER',kind:'booked'}];done=false;
+  X.claimOr('TR-MINE',[{k:D5,cid:C,sl:'pm',j:{kind:'pend',reqId:'TR-MINE'}}],'x',()=>{done=true;});
+  await wait(200);
+  assert.ok(!done,'ย้ายวัน/เปลี่ยนคนไปทับช่องของคำขออื่น ต้องไม่ผ่าน');
+  claimTaken=false;DB.jobs=[];DB.requests=[];await wait(200);}
+
+  /* 14. CTS ลงคิวเอง: มีคำขอใหม่ของ Sale (เครื่องนี้ยังไม่รู้) อยู่ในช่องนั้นบนเซิร์ฟเวอร์ -> ต้องหยุดให้ดูก่อน */
+  {const D6='2026-12-07',C=X.CTS[1].id;
+  DB.requests=[{id:'TR-FRESH',mode:'normal',status:'sm',team:'A',area:'C01',products:['Ultherapy'],client:{status:'sm',sessions:[]}}];
+  DB.jobs=[{id:95,date:D6,cts_id:C,slot:'am',req_id:'TR-FRESH',kind:'pend'}];
+  X.state.requests=X.state.requests.filter(r=>r.id!=='TR-FRESH');
+  let done=false;
+  X.selfCheck([{k:D6,cid:C,sl:'am'}],'x',()=>{done=true;});
+  await wait(200);
+  assert.ok(!done,'มีคำขอใหม่ของ Sale ในช่องนั้น ต้องไม่บันทึกคิวที่ลงเองทันที');
+  DB.jobs=[];done=false;
+  X.selfCheck([{k:D6,cid:C,sl:'am'}],'x',()=>{done=true;});
+  await wait(200);
+  assert.ok(done,'ไม่มีคำขอใหม่ ต้องบันทึกได้');
+  DB.requests=[];await wait(200);}
 
   console.log('check-sync: ผ่านหมด');
   process.exit(0);   // แอปตั้ง setInterval ไว้ ถ้าไม่ exit เทสจะค้าง
