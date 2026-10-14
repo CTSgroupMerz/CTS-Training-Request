@@ -1501,12 +1501,30 @@ function slotStatus(k,cid,slot){
   /* คิวจริงมาก่อนป้ายปิดรับคิว — ปิดไว้แล้วมีคิวลงทีหลัง ต้องขึ้นว่ามีคิว ไม่ใช่ "ปิดรับคิว" */
   const j=jobOf(k,cid,slot);
   if(j)return j.kind;
+  const h=reqHold(k,cid,slot);if(h)return h;
   if(isClosed(k,cid,slot))return 'closed';   // CTS สั่งปิดรับคิวช่วงนี้เอง
   if(!availOf(k,cid,slot)&&autoWindow(k,cid,slot)===null)return 'notime';  // เวลาไม่พอต่อจากคิวก่อนหน้า
   return 'free';
 }
 function setJob(k,cid,slot,job){if(!state.sched[k])state.sched[k]={};if(!state.sched[k][cid])state.sched[k][cid]={am:null,pm:null};
   state.sched[k][cid][slot]=job;}
+/* ล้างคิวของคำขอ rid ออกจากช่อง — ช่องที่เป็นคิวของคำขออื่นไม่แตะ
+   เดิมล้างตรงๆ -> TBC หมดอายุ/ยกเลิก/ไม่อนุมัติ ไปลบคิวจริงของคำขออื่นที่ลงช่องเดียวกันทีหลัง
+   แล้ว Sale เห็นเป็นคิวว่าง (14 ต.ค. 69: June 15 ต.ค. เช้า · 16 ต.ค. บ่าย ถูกจองซ้ำ) */
+function dropJob(k,cid,slot,rid){slotsOf(slot).forEach(sl=>{const j=jobOf(k,cid,sl);if(j&&j.reqId===rid)setJob(k,cid,sl,null);});}
+/* ต้นทางจริงของคิวคือคำขอ — sched เป็นแค่ตัวนับ ช่องว่างแต่ยังมีคำขอที่มีผลจองอยู่ = ไม่ว่าง
+   กันกรณีแถว jobs บนเซิร์ฟเวอร์หาย/ถูกล้าง (คิวที่ CTS ลงเอง syncSelf สร้างใหม่จาก selfEvents ทุกครั้งอยู่แล้ว)
+   ponytail: ไล่ทุกคำขอทุกครั้งที่ช่องว่าง — ทำ index ถ้าคำขอเป็นหลักหมื่น */
+function reqHold(k,cid,slot){
+  for(const r of state.requests){
+    if(['rejected','cancelled','expired'].includes(r.status))continue;
+    if(r.status==='tbc'&&r.tbcAt&&tbcDeadline(r)<=Date.now())continue;
+    for(const s of r.sessions||[])
+      if(s.date===k&&s.ctsId&&slotsOf(s.slot).includes(slot)&&sessWho(r,s).includes(cid))
+        return r.status==='approved'?'booked':r.status==='tbc'?'tbc':'pend';
+  }
+  return null;
+}
 /* ฝั่งขาย (Sale/UPC/KA/SM และแท็บ "ปฏิทิน Sale") เห็นงานกลาง MA ทุกงานเหมือนกันหมด
    เดิมกรองด้วย visibleCTS() ซึ่งฝั่งขายมีแค่ 6 คนที่จองได้ -> งานที่มีแค่ PAM/MILK/BELLE ร่วมงานหายจากปฏิทิน Sale
    ปฏิทิน CTS/Admin ยังกรองตามคนที่เลือกดูเหมือนเดิม */
@@ -1545,10 +1563,11 @@ const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2800);}
 /* ponytail: re-render ของ sheet เดิม (เช่นกดเลือก CTS ในฟอร์ม) ต้องคงตำแหน่ง scroll ไว้ ไม่งั้นเด้งขึ้นบนบนมือถือ
    ใช้หัวเรื่องเป็นตัวบอกว่าใบเดิมหรือใบใหม่ — ฟอร์มเดียวกันเรนเดอร์ซ้ำหัวเรื่องไม่เปลี่ยน ส่วนใบใหม่ต้องเริ่มที่บนสุด */
-function openSheet(h,b){const s=$('sheet'),y=s.classList.contains('on')&&s._h===h?s.scrollTop:0;s._h=h;
+function openSheet(h,b){const s=$('sheet'),y=s.classList.contains('on')&&s._h===h?s.scrollTop:0;s._h=h;sheetSwipe=null;
   $('sheetHead').innerHTML=h;$('sheetBody').innerHTML=b;s.classList.add('on');$('scrim').classList.add('on');s.scrollTop=y;}
 let sheetUndo=null;   // ตั้งโดย openEdit — ปิดหน้าโดยไม่บันทึกแล้วคืนค่าคำขอ
-function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.remove('on');
+let sheetSwipe=null;  // ตั้งโดยหน้ารายวัน (bindDayNav) — ปัดซ้าย/ขวาเปลี่ยนวัน · ล้างทุกครั้งที่เปิด/ปิด sheet
+function closeSheet(){$('sheet').classList.remove('on');$('scrim').classList.remove('on');sheetSwipe=null;
   const u=sheetUndo;sheetUndo=null;if(u)u();}
 /* ponytail: บนมือถือทั้งหน้าเว็บคือตัวเลื่อน — พอเขียน innerHTML ทับ เนื้อหาหายไปชั่วขณะ
    เบราว์เซอร์เลยดีด scroll กลับขึ้นบนสุด (กดชิปเลือกข้อมูลทีไรหน้าเด้ง)
@@ -1569,6 +1588,23 @@ function setHTML(el,s){
 function toTop(){if(_keepY){_keepY.y=0;_keepY.x=[];}else window.scrollTo?.(0,0);}
 $('scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+/* หน้ารายวัน: ปัดซ้าย = วันถัดไป · ปัดขวา = วันก่อน · ปุ่ม ‹ › ไว้ใช้บนคอม
+   ปัดบนแถบที่เลื่อนแนวนอนได้ (ตาราง/ตัวกรอง) ไม่นับ — ให้แถบเลื่อนตามปกติ */
+const dayShift=(k,n)=>{const d=parse(k);d.setDate(d.getDate()+n);return key(d);};
+const dayNav=()=>`<div class="row" style="margin-top:6px"><button class="btn sm" data-dnav="-1">‹ วันก่อน</button>
+  <span class="grow"></span><button class="btn sm" data-dnav="1">วันถัดไป ›</button></div>`;
+function bindDayNav(k,fn){
+  sheetSwipe=n=>fn(dayShift(k,n));
+  $('sheetHead').querySelectorAll('[data-dnav]').forEach(b=>b.onclick=()=>sheetSwipe(+b.dataset.dnav));
+}
+(()=>{const s=$('sheet');if(!s.addEventListener)return;let x0=null,y0=0;
+  s.addEventListener('touchstart',e=>{x0=null;if(!sheetSwipe||e.touches.length>1)return;
+    for(let n=e.target;n&&n!==s;n=n.parentElement)
+      if(n.scrollWidth>n.clientWidth+2&&/auto|scroll/.test(getComputedStyle(n).overflowX))return;
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+  s.addEventListener('touchend',e=>{if(x0===null||!sheetSwipe)return;
+    const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;x0=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>2*Math.abs(dy))sheetSwipe(dx<0?1:-1);},{passive:true});})();
 
 /* ========================= LOGIN ========================= */
 /* เครดิตผู้พัฒนา — ปุ่มอยู่หน้าแรก กดแล้วเปิดขึ้นมา */
@@ -2618,8 +2654,9 @@ function openUPCDay(k){
         <button class="btn block" data-edit="${o.r.id}" style="margin-top:10px">✎ แก้ไข / เพิ่มข้อมูล</button>
       </div>`).join('')
       :'<div class="card"><div class="muted">ไม่มีคิวเทรน UPC ในวันนี้</div></div>');
-  openSheet(`<div class="eyebrow">UPC</div><h2>${fmtDate(k)}</h2>`,
+  openSheet(`<div class="eyebrow">UPC</div><h2>${fmtDate(k)}</h2>${dayNav()}`,
     body+`<button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
+  bindDayNav(k,openUPCDay);
   bindCards($('sheetBody'));
 }
 function upcItemView(it,i,sn){
@@ -3362,7 +3399,7 @@ function openDay(k){
     <span class="muted">${e.type} · ${e.slot==='all'?'ทั้งวัน':e.slot==='am'?'เช้า':'บ่าย'}</span></div></div>`).join('');
   const hol=holidayOf(k);
   openSheet(`<div class="eyebrow">${canSeeNames()?'ตารางงานรายวัน':'คิวว่าง · '+TEAMS[activeTeam()].label}</div>
-    <h2>${fmtDate(k)}</h2>
+    <h2>${fmtDate(k)}</h2>${dayNav()}
     <div class="muted" style="padding:6px 0 2px">${canSeeNames()
       ? 'งานทั้งหมดของวันนี้ตามช่วงเวลาจริง — กดที่บล็อกเพื่อดูรายละเอียด'
       : 'แตะช่วงเวลาที่ยังมีคิวว่างเพื่อจอง'}</div>`,
@@ -3375,6 +3412,7 @@ function openDay(k){
         +(salesView()?`<div class="note pl" style="margin-top:12px">ด้านล่างคือคิวรายคน — กด ◷ เพื่อแก้เวลาที่ว่าง หรือปิดคิวช่วงนั้น</div>
           <div style="margin-top:8px">${dayNamed(k)}</div>`:''))
     +`<button class="btn block" id="dnClose" style="margin-top:12px">ปิด</button>`);
+  bindDayNav(k,openDay);
   const B=$('sheetBody');
   const add=$('dnAdd');if(add)add.onclick=()=>openSelfEntry(k);
   B.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>{
@@ -3896,6 +3934,14 @@ function openUPCForm(editId){
   $('uSend').onclick=()=>{
     grab();
     if(!D.days.length){const e=$('uErr');e.hidden=false;e.textContent='ยังส่งไม่ได้: เลือกช่วงวันที่ก่อน';return;}
+    /* Product + หัวข้อ ต้องครบก่อนส่ง เหมือนฟอร์มปกติ (REQUIRED) — เดิมส่งได้แล้วขึ้นแค่ "ยังขาด"
+       ข้อมูลอื่น (จังหวัด/แผนที่/รูป ฯลฯ) ยังส่งตามทีหลังได้เหมือนเดิม */
+    const need=[];
+    D.days.forEach(d=>{if(!d.items.length)need.push(fmtDate(d.date)+': ยังไม่มีคลินิก');
+      d.items.forEach((it,i)=>{const p=prodList(it.product),at=fmtDate(d.date)+' · รายการ '+(i+1)+': ';
+        if(!p.length)need.push(at+'เลือก Product');
+        p.forEach(x=>{if(!String((it.ptopic||{})[x]||'').trim())need.push(at+'หัวข้อของ '+x);});});});
+    if(need.length){const e=$('uErr');e.hidden=false;e.textContent='ยังส่งไม่ได้: '+need.join(' · ');e.scrollIntoView&&e.scrollIntoView({block:'center'});return;}
     if(editing)saveUPC(editing,D); else submitUPC(D);
   };
 }
@@ -3921,7 +3967,7 @@ function bookUPC(req){
       upcDayWho(req,sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,{...p})));}
   });
 }
-function clearUPC(req){req.sessions.forEach(sn=>upcDayWho(req,sn).forEach(id=>['am','pm'].forEach(sl=>setJob(sn.date,id,sl,null))));}
+function clearUPC(req){req.sessions.forEach(sn=>upcDayWho(req,sn).forEach(id=>dropJob(sn.date,id,'day',req.id)));}
 
 function submitUPC(D){
   /* 6. Sale UPC ส่งแล้วต้องผ่าน SM UPC ก่อน เหมือน Sale ปกติ (sale -> SM -> CTS Leader -> CTM) */
@@ -3965,7 +4011,7 @@ const tbcDeadline=r=>new Date(new Date(r.tbcAt).getTime()+TBC_DAYS*864e5);
    (ของเดิมนับจากเวลาจริง เลยเหลือ 2 ทันทีที่ข้ามคืนแรก) */
 const midnightOf=d=>new Date(d).setHours(0,0,0,0);
 const tbcLeft=r=>TBC_DAYS-Math.max(0,Math.round((midnightOf(Date.now())-midnightOf(r.tbcAt))/864e5));
-function releaseTBC(r){r.sessions.forEach(sn=>mainsOf(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,null)));}
+function releaseTBC(r){r.sessions.forEach(sn=>mainsOf(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id)));}
 /* ปล่อยคิว TBC ที่หมดอายุ — เรียกตอนโหลดข้อมูลและทุกครั้งที่เรนเดอร์ ไม่ต้องพึ่ง cron ฝั่งเซิร์ฟเวอร์ */
 function sweepTBC(){
   let n=0;
@@ -4003,7 +4049,7 @@ function convertTBC(id){
     $('tbcGo').onclick=()=>{
       const e=$('tbcErr');
       if(D.pick.length!==need){e.hidden=false;e.textContent=`ต้องเลือก ${need} วัน (ตอนนี้เลือก ${D.pick.length})`;return;}
-      r.sessions.forEach((sn,i)=>{if(!D.pick.includes(i))mainsOf(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,null));});
+      r.sessions.forEach((sn,i)=>{if(!D.pick.includes(i))mainsOf(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id));});
       r.sessions=D.pick.sort((a,b)=>a-b).map(i=>r.sessions[i]);
       r.sessions.forEach(sn=>mainsOf(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,
         {kind:'pend',title:r.clinic||'คำขอ '+r.id,product:prodMain(r.product),reqId:r.id,
@@ -4051,6 +4097,9 @@ function submit(){
   else if(!state.tbcMode&&state.picks.length!==d.slots)e.push(`เลือกวันให้ครบ ${d.slots} slot`);
   state.picks.forEach((p,i)=>{
     if(p.start&&p.end&&p.end<=p.start)e.push(`S${i+1}: เวลาสิ้นสุดต้องหลังเวลาเริ่ม`);
+    /* เช็คซ้ำตอนกดส่ง — ระหว่างกรอกฟอร์มอาจมีคนจองช่องนี้ไปแล้ว (ข้อมูลโหลดใหม่ทุก 30 วิ) */
+    if(p.ctsId?slotStatus(p.date,p.ctsId,p.slot)!=='free':!freeIds(p.date,p.slot).length)
+      e.push(`S${i+1} ${fmtDate(p.date)}: ช่วงนี้ไม่ว่างแล้ว — เลือกช่วงใหม่`);
     if(p.ctsId&&p.start){const w=slotTime(p.date,p.ctsId,p.slot);
       if(w.auto&&toMin(p.start)<toMin(w.start))
         e.push(`S${i+1}: เริ่มได้ไม่ก่อน ${w.start} น. (เผื่อพัก+เดินทางจากคิวก่อนหน้า ${AUTO_RULE.bufferMin/60} ชม.)`);}
@@ -4233,7 +4282,7 @@ function smDecide(id,ok){
       r.note=`SM ${state.sm} ไม่อนุมัติ${note?' — '+note:''}`;
       /* คืนช่องที่จองไว้ให้ CTS ทันที ไม่งั้นคิวค้างทั้งที่คำขอตกไปแล้ว */
       if(r.mode==='upc')clearUPC(r);
-      else (r.sessions||[]).forEach(sn=>reqWho(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,null)));
+      else (r.sessions||[]).forEach(sn=>reqWho(sn).forEach(cid=>dropJob(sn.date,cid,sn.slot,r.id)));
       notify(r,'rejected');closeSheet();render();toast('ไม่อนุมัติ — คืนคิวให้ CTS แล้ว');
     }};
 }
@@ -4404,7 +4453,7 @@ function openEdit(id,keep){
       const nd=sn._newDate;delete sn._newDate;
       if(!sn.ctsId){sn.date=nd;return;}
       if(holidayOf(nd)||!isWorkday(parse(nd))||mainsOf(sn).some(cid=>slotStatus(nd,cid,sn.slot)!=='free')){moveErr++;return;}
-      reqWho(sn).forEach(id=>setJob(sn.date,id,sn.slot,null));   // ย้ายวัน ต้องล้างคิวเดิมของทุกคนที่ไปงานนี้
+      reqWho(sn).forEach(id=>dropJob(sn.date,id,sn.slot,r.id));   // ย้ายวัน ต้องล้างคิวเดิมของทุกคนที่ไปงานนี้
       sn.date=nd;
     });
     r.sessions.forEach(sn=>{if(sn.ctsId)syncReqJob(r,sn);});
@@ -4490,7 +4539,7 @@ function cancelReq(id){
     logTrail(r,'cancelled',why);
     /* ปล่อยช่องเวลาคืนเสมอ — ป้าย ✕ Cancel วาดจากตัวคำขอ ไม่ได้ยึดช่องของ CTS ไว้ */
     if(r.mode==='upc')clearUPC(r);
-    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
+    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>dropJob(s.date,cid,s.slot,r.id)));
     notify(r,'cancelled');
     closeSheet();render();
     toast(keep.length?`คิวยกเลิกแล้ว — ${keep.length} วันที่กระชั้นยังค้างเป็น ✕ Cancel (ไม่นับ KPI)`
@@ -4508,7 +4557,7 @@ function delReq(id){
   $('delNo').onclick=closeSheet;
   $('delYes').onclick=()=>{
     if(r.mode==='upc')clearUPC(r);
-    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
+    else r.sessions.forEach(s=>reqWho(s).forEach(cid=>dropJob(s.date,cid,s.slot,r.id)));
     state.requests=state.requests.filter(x=>x.id!==id);
     state.feed=state.feed.filter(f=>!f.r||f.r.id!==id);
     closeSheet();render();toast('ลบคำขอแล้ว');};
@@ -5182,14 +5231,15 @@ function assign(id,keep){
   const isTbc=r.status==='tbc';   // คิว TBC: หัวหน้าเปลี่ยน CTS รายวันได้ แล้วกดส่งกลับว่าตรวจแล้ว
   /* 6 คนที่รับคิวได้ + PAM/MILK เผื่อหัวหน้าต้องไปเทรนเอง — ไม่กระทบการนับคิวว่างของ Sale (freeIds ยังนับแค่ BOOKABLE_IDS) */
   const pool=BOOKABLE_CTS().concat(LEAD_IDS.map(byId));   // เลือกได้เฉพาะคนที่ว่างจริง (เช็คด้านล่าง)
-  const prods=prodList(r.product);
+  /* UPC ไม่มี product ระดับคำขอ — ใช้ product ของวันนั้น ไม่งั้นข้ามการเช็ค Skills ทั้งทริป */
+  const prodsOf=s=>r.mode==='upc'?dayProds(upcDayOf(r,s.date)):prodList(r.product);
   /* ผู้เทรนหลักเลือกได้หลายคนต่อ session — ทุกคนเป็นผู้เทรนหลักเท่ากัน นับ KPI และต้องกดรับทราบเองทุกคน */
   const P=keep||r.sessions.map(s=>mainsOf(s));
   /* เลือกได้เฉพาะคนที่ว่างจริง + เปิด Skills ครบตาม product ที่ขอ
      ถ้าเป็น Train with Senior ต้องมี PAM/MILK ว่างในช่วงนั้นด้วย · คนที่อยู่ในคิวนี้อยู่แล้วเลือกต่อได้เสมอ */
   const why=(s,c)=>{
     if(mainsOf(s).includes(c.id))return '';
-    const full=s.slot==='day';
+    const full=s.slot==='day',prods=prodsOf(s);
     const free=full?(slotStatus(s.date,c.id,'am')==='free'&&slotStatus(s.date,c.id,'pm')==='free')
                    :slotStatus(s.date,c.id,s.slot)==='free';
     const skilled=!prods.length||canTrain(c.id,prods);
@@ -5218,7 +5268,7 @@ function assign(id,keep){
       const old=mainsOf(s),nw=P[i].slice();
       if(old.join()===nw.join())return;
       swapped.push({old,nw,date:s.date});
-      old.forEach(o=>slotsOf(s.slot).forEach(sl=>setJob(s.date,o,sl,null)));
+      old.forEach(o=>dropJob(s.date,o,s.slot,r.id));
       s.ctsId=nw[0]||null;s.co=nw.slice(1);
       if(s.extra)s.extra=s.extra.filter(x=>!nw.includes(x));   // ย้ายจาก "คนที่ไปด้วย" มาเป็นผู้เทรนหลัก ไม่ต้องซ้ำ
       if(s.slot!=='day')nw.forEach(n=>setJob(s.date,n,s.slot,{kind:isTbc?'tbc':'pend',
@@ -5287,7 +5337,7 @@ function reject(id){
   logTrail(r,'rejected');
   r.status='rejected';
   if(r.mode==='upc')clearUPC(r);
-  else r.sessions.forEach(s=>reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,null)));
+  else r.sessions.forEach(s=>reqWho(s).forEach(cid=>dropJob(s.date,cid,s.slot,r.id)));
   notify(r,'rejected');render();toast('ไม่อนุมัติ — คืนคิวให้ CTS แล้ว');
 }
 

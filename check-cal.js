@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf,sweepTBC,setJob,jobOf,slotStatus,freeIds,dayShift,openDay});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -672,6 +672,9 @@ X.state.sched[U]=undefined;
   X.state.upcDraft=null;X.state.upcPick=[U];X.state.upcCts=B1;X.openUPCForm(null);
   assert.ok(sheet().includes('id="uOnline"'),'ฟอร์ม UPC ต้องมีช่อง Online');
   G('uOnline').checked=true;G('uSend').onclick();
+  assert.ok(!X.state.requests.some(x=>x.mode==='upc'),'UPC ไม่เลือก Product ต้องส่งไม่ได้');
+  Object.assign(X.state.upcDraft.days[0].items[0],{product:['Ultherapy'],ptopic:{Ultherapy:'PRIME'}});
+  G('uSend').onclick();
   const ur=X.state.requests.find(x=>x.mode==='upc');
   assert.ok(ur&&ur.online===true,'คำขอ UPC ต้องเก็บค่า Online');
   assert.ok(X.upcCard(ur).includes('onltag'),'การ์ด UPC ต้องมีป้าย Online');
@@ -963,7 +966,7 @@ G('saveRe').onclick();
 assert.strictEqual(SW.sessions[0].ctsId,NEW,'ผู้เทรนต้องถูกเปลี่ยนเป็นคนใหม่');
 assert.ok(!SW.ack[OLD],'ต้องลบสถานะรับทราบของคนเก่าทิ้ง');
 assert.strictEqual(X.jobOf(SWD,NEW,'am').kind,'booked','คิวของคนใหม่ต้องเป็น booked ไม่ใช่ pend');
-assert.strictEqual(X.jobOf(SWD,OLD,'am'),null,'คิวของคนเก่าต้องถูกปล่อยคืน');
+assert.ok(!X.jobOf(SWD,OLD,'am')&&X.slotStatus(SWD,OLD,'am')!=='booked','คิวของคนเก่าต้องถูกปล่อยคืน');
 X.state.me=NEW;
 assert.ok(X.needAck(SW),'CTS คนใหม่ต้องถูกขอให้กดรับทราบ');
 assert.strictEqual(X.state.feed[0].kind,'changed','ต้องแจ้งเตือนฝั่งขายว่ามีการเปลี่ยนผู้เทรน');
@@ -1618,4 +1621,30 @@ assert.strictEqual(X.famsFor(e.job,B1,e.who).join(),'Ultherapy','ผู้เท
 assert.strictEqual(X.famsFor(e.job,B2,e.who).join(),'Belotero','ผู้ร่วมงานได้แค่ product ของตัวเอง');
 X.closeSheet();X.state.requests=[];}
 
-console.log('✓ ผ่านทั้ง 98 ข้อ');
+/* 99. TBC หมดอายุต้องไม่ลบคิวจริงของคำขออื่นที่ลงช่องเดียวกัน (14 ต.ค. 69: June 15 ต.ค. เช้า / 16 ต.ค. บ่าย ถูกจองซ้ำ)
+   + แถว jobs หายจาก sched แต่คำขอยังจองอยู่ -> ต้องไม่ขึ้นเป็นคิวว่าง */
+{const d=FUT(40),cid=B1;X.state.sched={};X.state.events=[];X.state.selfEvents=[];
+const ap={id:'TR-AP',team:'A',status:'approved',mode:'std',module:'MAX-Entry',product:['Ultherapy'],clinic:'จริง',
+  sessions:[{date:d,slot:'am',ctsId:cid,start:'09:00',end:'12:00'}]};
+const tb={id:'TR-TB',team:'A',status:'tbc',tbcAt:new Date(Date.now()-5*864e5).toISOString(),mode:'std',module:'MAX-Entry',
+  product:['Ultherapy'],clinic:'TBC',sessions:[{date:d,slot:'am',ctsId:cid}]};
+X.state.requests=[ap,tb];
+X.setJob(d,cid,'am',{kind:'booked',reqId:'TR-AP',title:'จริง',start:'09:00',end:'12:00'});
+X.sweepTBC();
+assert.strictEqual(tb.status,'expired','TBC เกิน 3 วันต้องหมดอายุ');
+assert.strictEqual((X.jobOf(d,cid,'am')||{}).reqId,'TR-AP','TBC หมดอายุต้องไม่ลบคิวของคำขออื่น');
+X.setJob(d,cid,'am',null);
+assert.strictEqual(X.slotStatus(d,cid,'am'),'booked','คำขอ approved จองอยู่ ต้องไม่ว่างแม้ไม่มีใน sched');
+assert.ok(!X.freeIds(d,'am',['Ultherapy']).includes(cid),'Sale ต้องไม่เห็นเป็นคิวว่าง');
+ap.status='cancelled';
+assert.notStrictEqual(X.slotStatus(d,cid,'am'),'booked','คำขอยกเลิกแล้วต้องคืนคิว');
+X.state.requests=[];X.state.sched={};}
+
+/* 100. หน้ารายวัน: ปุ่ม/ปัด เปลี่ยนวัน ข้ามเดือนได้ */
+assert.strictEqual(X.dayShift('2026-10-31',1),'2026-11-01','วันถัดไปต้องข้ามเดือนได้');
+assert.strictEqual(X.dayShift('2026-10-15',-1),'2026-10-14','วันก่อนหน้า');
+X.openDay(K);
+assert.ok(/data-dnav="1"/.test(G('sheetHead').innerHTML),'หน้ารายวันต้องมีปุ่มวันถัดไป');
+X.closeSheet();
+
+console.log('✓ ผ่านทั้ง 100 ข้อ');
