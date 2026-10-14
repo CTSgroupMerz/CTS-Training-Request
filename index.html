@@ -3978,11 +3978,17 @@ function submitUPC(D){
     module:'UPC Trip',level:'',product:null,clinic:'',map:'',topic:'',doctors:'',exp:'',
     handsOn:false,hoProduct:'',hoCases:'',photos:[]};
   D.days.forEach((d,di)=>d.items.forEach((it,ii)=>{req.days[di].items[ii].photos=it.photos||[];}));
-  bookUPC(req);logTrail(req,'request');
+  /* เช็คซ้ำตอนกดส่ง — CTS ที่เลือกต้องยังว่างทั้งวันทุกวัน (ระหว่างกรอกฟอร์มอาจมีคนจองไปแล้ว) */
+  const gone=req.sessions.filter(sn=>sn.ctsId&&['am','pm'].some(sl=>slotStatus(sn.date,sn.ctsId,sl)!=='free'));
+  if(gone.length){const e=$('uErr');e.hidden=false;e.textContent='ยังส่งไม่ได้: '+byId(D.cts).nick+' ไม่ว่างแล้ววันที่ '+gone.map(sn=>fmtDate(sn.date)).join(', ');return;}
+  bookUPC(req);
+  commitReq(req,'uSend',()=>{
+  logTrail(req,'request');
   state.requests.unshift(req);notify(req,'pending');
   state.upcDraft=null;state.upcPick=[];closeSheet();goTab('req');
   const m=upcMissing(req).length;
   toast(m?`ส่งคำขอ UPC แล้ว (${req.days.length} วัน) — ยังขาด ${m} รายการ`:`ส่งคำขอ UPC แล้ว (${req.days.length} วัน) รอ PAM/MILK อนุมัติ`);
+  });
 }
 function saveUPC(r,D){
   clearUPC(r);
@@ -4078,15 +4084,20 @@ function submitTBC(){
     clinic:d.clinic,clinicType:d.clinicType,map:d.map,online:!!d.online,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,ho:d.ho,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
     requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
+  /* เช็คซ้ำตอนกดส่ง — ระหว่างกรอกฟอร์มอาจมีคนจองช่องนี้ไปแล้ว */
+  const gone=req.sessions.filter(sn=>sn.ctsId?slotStatus(sn.date,sn.ctsId,sn.slot)!=='free':!freeIds(sn.date,sn.slot).length);
+  if(gone.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+gone.map(sn=>fmtDate(sn.date)).join(', ')+' ไม่ว่างแล้ว — เลือกช่วงใหม่';return;}
   req.sessions.forEach(sn=>{
     if(!sn.ctsId){const f=bookablePool().find(c=>freeIds(sn.date,sn.slot).includes(c.id));if(f)sn.ctsId=f.id;}
     if(sn.ctsId)setJob(sn.date,sn.ctsId,sn.slot,stampNow({kind:'tbc',title:'TBC · '+(req.clinic||req.id),
       product:prodMain(req.product),reqId:req.id,
       start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end}));
   });
+  commitReq(req,'btnTbc',()=>{
   state.requests.unshift(req);notify(req,'pending');
   state.draft=null;state.picks=[];closeSheet();goTab('req');
   toast(`ล็อกไว้ ${req.sessions.length} วันแล้ว (TBC) — เก็บให้ ${TBC_DAYS} วัน รอ ${leadsOf(team).map(l=>l.nick).join(' / ')} ตรวจ`);
+  });
 }
 function submit(){
   window.__grab&&window.__grab();
@@ -4123,12 +4134,58 @@ function submit(){
     if(s.ctsId)setJob(s.date,s.ctsId,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
       start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
   });
-  logTrail(req,'request');
-  state.requests.unshift(req);notify(req,'pending');
-  state.draft=null;state.picks=[];closeSheet();goTab('req');
-  const miss=missingOf(req).length;
-  toast(miss?`ส่งคำขอแล้ว — ยังขาด ${miss} ข้อมูล ส่งตามได้`
-    :'ส่งคำขอแล้ว — รอ '+waitingFor(req)+' อนุมัติ');
+  commitReq(req,'btnSend',()=>{
+    logTrail(req,'request');
+    state.requests.unshift(req);notify(req,'pending');
+    state.draft=null;state.picks=[];closeSheet();goTab('req');
+    const miss=missingOf(req).length;
+    toast(miss?`ส่งคำขอแล้ว — ยังขาด ${miss} ข้อมูล ส่งตามได้`
+      :'ส่งคำขอแล้ว — รอ '+waitingFor(req)+' อนุมัติ');
+  });
+}
+/* ===== ยึดช่องบนเซิร์ฟเวอร์ก่อนยืนยันคำขอใหม่ =====
+   กัน 2 เครื่องกดส่งช่องเดียวกันในช่วงก่อนแอปโหลดข้อมูลใหม่ (30 วิ) — เช็คในเครื่องอย่างเดียวไม่พอ
+   ใช้ unique (date,cts_id,slot) ของ jobs: INSERT ... ON CONFLICT DO NOTHING ใครเขียนก่อนได้ช่อง
+   แถวเดิมเป็นของคำขอที่ตายแล้ว (ไม่อนุมัติ/ยกเลิก/TBC หมดอายุ) -> ยึดต่อแบบมีเงื่อนไข req_id เดิม (กันชนซ้อน)
+   แถวเดิมไม่มี req_id หรือคำขอที่เครื่องนี้มองไม่เห็น = ถือว่าไม่ว่าง (ปลอดภัยไว้ก่อน) */
+const deadReq=r=>['rejected','cancelled','expired'].includes(r.status)||(r.status==='tbc'&&r.tbcAt&&tbcDeadline(r)<=Date.now());
+const reqJobs=rid=>Object.entries(flatSched(state.sched)).filter(([,j])=>j.reqId===rid)
+  .map(([ck,j])=>{const [k,cid,sl]=ck.split('|');return {k,cid,sl,j};});
+async function claimJobs(rid,L){
+  const got=[];
+  const undo=async()=>{if(got.length)await SB.from('jobs').delete().in('id',got).eq('req_id',rid);};
+  try{
+    for(const x of L.filter(x=>ctsOk(x.cid))){
+      const row=jobRow(x.k,x.cid,x.sl,x.j);
+      const ins=await SB.from('jobs').upsert(row,{onConflict:'date,cts_id,slot',ignoreDuplicates:true}).select('id');
+      if(ins.error){if(ins.error.code==='42P10')return true;throw ins.error;}   // ยังไม่มี unique index — เหลือแค่เช็คในเครื่อง
+      if((ins.data||[]).length){got.push(ins.data[0].id);continue;}
+      const cur=(await SB.from('jobs').select('id,req_id').eq('date',x.k).eq('cts_id',x.cid).eq('slot',x.sl).maybeSingle()).data;
+      const old=cur&&cur.req_id&&state.requests.find(r=>r.id===cur.req_id);
+      if(old&&deadReq(old)){
+        const up=await SB.from('jobs').update(row).eq('id',cur.id).eq('req_id',cur.req_id).select('id');
+        if(!up.error&&(up.data||[]).length){got.push(cur.id);continue;}
+      }
+      await undo();return false;
+    }
+    return true;
+  }catch(e){await undo();throw e;}
+}
+/* go = ยืนยันคำขอในเครื่อง (ใส่ลิสต์/ปิดฟอร์ม/แจ้งเตือน) — เรียกเมื่อยึดช่องบนเซิร์ฟเวอร์ได้ครบแล้วเท่านั้น
+   ระหว่างรอ ถอดคิวออกจาก sched ในเครื่องก่อน ไม่งั้น autosave อาจเขียนทับช่องของคนอื่นไปก่อนรู้ผล
+   ไม่มีเซิร์ฟเวอร์ (โหมดออฟไลน์/เทส) -> ยืนยันทันทีเหมือนเดิม */
+function commitReq(req,btnId,go){
+  if(!SB||!loaded)return go();
+  const L=reqJobs(req.id),b=$(btnId);
+  L.forEach(x=>setJob(x.k,x.cid,x.sl,null));
+  if(b)b.disabled=true;
+  toast('กำลังเช็คคิวกับเซิร์ฟเวอร์…');
+  const fail=m=>{if(b)b.disabled=false;toast(m);};
+  claimJobs(req.id,L).then(ok=>{
+    if(!ok){fail('ช่วงที่เลือกเพิ่งถูกจองไปแล้ว — โหลดคิวล่าสุดแล้ว เลือกช่วงใหม่');load().then(()=>render());return;}
+    L.forEach(x=>setJob(x.k,x.cid,x.sl,x.j));
+    go();save();
+  },()=>fail('เช็คคิวกับเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วกดส่งใหม่'));
 }
 
 /* ========================= CARDS ========================= */

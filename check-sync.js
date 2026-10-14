@@ -20,15 +20,17 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const mkQ=rows=>{
   const o={};
   ['select','order','range','eq','in','single','limit'].forEach(m=>o[m]=()=>o);
-  o.then=(res,rej)=>wait(netDelay).then(()=>({data:rows,error:null})).then(res,rej);
+  o.maybeSingle=()=>{o._one=true;return o;};
+  o.then=(res,rej)=>wait(netDelay).then(()=>({data:o._one?(rows[0]||null):rows,error:null})).then(res,rej);
   return o;
 };
-let failTable=null,failCode=null;   // จำลองตารางที่เขียนไม่ได้ (ยังไม่ได้สร้าง / RLS ปิด / FK พัง)
+let failTable=null,failCode=null,claimTaken=false;   // จำลองตารางที่เขียนไม่ได้ (ยังไม่ได้สร้าง / RLS ปิด / FK พัง)
 const mkErr=code=>{const o=mkQ([]);o.then=(res,rej)=>wait(netDelay)
   .then(()=>({data:null,error:{code,message:'boom '+code}})).then(res,rej);return o;};
 const fakeSB={from(t){
   const o=mkQ(DB[t]||[]);
-  ['upsert','insert','delete','update'].forEach(m=>o[m]=v=>{writes.push([t,m,v]);
+  ['upsert','insert','delete','update'].forEach(m=>o[m]=(v,opt)=>{writes.push([t,m,v]);
+    if(t==='jobs'&&opt&&opt.ignoreDuplicates)return mkQ(claimTaken?[]:[{id:7}]);   // ON CONFLICT DO NOTHING: ช่องถูกยึดแล้ว = ไม่คืนแถว
     return failTable===t?mkErr(failCode):mkQ([{id:1}]);});
   return o;}};
 let refreshed=0;
@@ -44,7 +46,7 @@ const ctx={console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},D
   fetch:()=>Promise.resolve({json:()=>Promise.resolve({})})};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
-src+='\n__x={state,load,save,snap,dirty,render,CTS,newId,setRole:r=>{auth={role:r};}};';
+src+='\n__x={state,load,save,snap,dirty,render,CTS,newId,setRole:r=>{auth={role:r};},setJob,jobOf,commitReq};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 X.state.role='cts';X.state.me=X.CTS[0].id;X.state.authed=true;X.state.tab='cal';
@@ -123,6 +125,24 @@ const mkReq=id=>({id,mode:'normal',status:'pending',team:'A',area:'C01',product:
   assert.ok(writes.some(w=>w[0]==='events'&&JSON.stringify(w[2]).includes('SE-900AB')&&w[1]==='upsert'),
     'ต่ออายุแล้วรอบถัดไปต้องบันทึกคิวขึ้นได้ ไม่ต้องออกแล้วเข้าใหม่');
   assert.strictEqual(X.dirty(),false,'บันทึกแล้วต้องไม่เหลือของค้าง');
+
+  /* 10. กดส่งพร้อมกัน 2 เครื่อง — อีกเครื่องยึดช่องบนเซิร์ฟเวอร์ไปก่อน (ข้อมูลในเครื่องยังไม่รู้)
+        คำขอนี้ต้องไม่ถูกยืนยัน และไม่มีคิวค้างในเครื่อง · ช่องว่างจริงต้องส่งผ่าน */
+  {const D2='2026-12-01',C=X.CTS[1].id,rq=mkReq('TR-CLAIM');rq.sessions=[{date:D2,slot:'am',ctsId:C}];
+  claimTaken=true;DB.jobs=[{id:99,date:D2,cts_id:C,slot:'am',req_id:'TR-OTHER',kind:'pend'}];
+  let done=false;
+  X.setJob(D2,C,'am',{kind:'pend',reqId:'TR-CLAIM'});
+  X.commitReq(rq,'btnSend',()=>{done=true;});
+  assert.ok(!X.jobOf(D2,C,'am'),'ระหว่างรอผล ต้องไม่มีคิวในเครื่อง (กัน autosave เขียนทับช่องคนอื่น)');
+  await wait(60);
+  assert.ok(!done,'ช่องถูกเครื่องอื่นยึดแล้ว ต้องไม่ยืนยันคำขอ');
+  assert.notStrictEqual((X.jobOf(D2,C,'am')||{}).reqId,'TR-CLAIM','ต้องไม่มีคิวของคำขอที่ส่งไม่ผ่านค้างอยู่');
+  claimTaken=false;DB.jobs=[];await wait(60);
+  X.setJob(D2,C,'am',{kind:'pend',reqId:'TR-CLAIM'});
+  X.commitReq(rq,'btnSend',()=>{done=true;});
+  await wait(60);
+  assert.ok(done,'ช่องว่างจริง ต้องส่งผ่าน');
+  assert.strictEqual((X.jobOf(D2,C,'am')||{}).reqId,'TR-CLAIM','ส่งผ่านแล้วคิวต้องกลับมาอยู่ในเครื่อง');}
 
   console.log('check-sync: ผ่านหมด');
   process.exit(0);   // แอปตั้ง setInterval ไว้ ถ้าไม่ exit เทสจะค้าง

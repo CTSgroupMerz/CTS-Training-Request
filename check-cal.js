@@ -669,6 +669,7 @@ X.state.sched[U]=undefined;
   assert.strictEqual(r.online,false,'บันทึกแล้วค่า Online ต้องเปลี่ยนตาม');
   X.closeSheet();delete cache.eOnline;
   /* ฟอร์ม UPC: ติ๊ก Online แล้วส่ง */
+  X.state.requests=[];X.state.sched={};   /* คิว TR-ONL ข้างบนอยู่วันเดียวกัน — ไม่งั้น B1 ไม่ว่าง ส่ง UPC ไม่ผ่าน (เช็คตอนกดส่ง) */
   X.state.upcDraft=null;X.state.upcPick=[U];X.state.upcCts=B1;X.openUPCForm(null);
   assert.ok(sheet().includes('id="uOnline"'),'ฟอร์ม UPC ต้องมีช่อง Online');
   G('uOnline').checked=true;G('uSend').onclick();
