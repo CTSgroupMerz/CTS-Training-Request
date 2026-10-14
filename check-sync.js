@@ -130,19 +130,32 @@ const mkReq=id=>({id,mode:'normal',status:'pending',team:'A',area:'C01',product:
         คำขอนี้ต้องไม่ถูกยืนยัน และไม่มีคิวค้างในเครื่อง · ช่องว่างจริงต้องส่งผ่าน */
   {const D2='2026-12-01',C=X.CTS[1].id,rq=mkReq('TR-CLAIM');rq.sessions=[{date:D2,slot:'am',ctsId:C}];
   claimTaken=true;DB.jobs=[{id:99,date:D2,cts_id:C,slot:'am',req_id:'TR-OTHER',kind:'pend'}];
+  const other={id:'TR-OTHER',mode:'normal',status:'sm',team:'A',area:'C01',products:['Ultherapy'],client:{status:'sm',sessions:[]}};
+  DB.requests=[other];   /* คำขอของอีกเครื่องมีอยู่จริงบนเซิร์ฟเวอร์ */
   let done=false;
   X.setJob(D2,C,'am',{kind:'pend',reqId:'TR-CLAIM'});
   X.commitReq(rq,'btnSend',()=>{done=true;});
   assert.ok(!X.jobOf(D2,C,'am'),'ระหว่างรอผล ต้องไม่มีคิวในเครื่อง (กัน autosave เขียนทับช่องคนอื่น)');
-  await wait(60);
+  await wait(200);
   assert.ok(!done,'ช่องถูกเครื่องอื่นยึดแล้ว ต้องไม่ยืนยันคำขอ');
   assert.notStrictEqual((X.jobOf(D2,C,'am')||{}).reqId,'TR-CLAIM','ต้องไม่มีคิวของคำขอที่ส่งไม่ผ่านค้างอยู่');
-  claimTaken=false;DB.jobs=[];await wait(60);
+  claimTaken=false;DB.jobs=[];DB.requests=[];await wait(200);
   X.setJob(D2,C,'am',{kind:'pend',reqId:'TR-CLAIM'});
   X.commitReq(rq,'btnSend',()=>{done=true;});
-  await wait(60);
+  await wait(200);
   assert.ok(done,'ช่องว่างจริง ต้องส่งผ่าน');
   assert.strictEqual((X.jobOf(D2,C,'am')||{}).reqId,'TR-CLAIM','ส่งผ่านแล้วคิวต้องกลับมาอยู่ในเครื่อง');}
+
+  /* 11. ช่องที่ค้างเป็นคิวกำพร้า (คำขอถูกลบไปแล้ว — เคส TR-1086US 15 ต.ค.) ต้องรับคิวใหม่ได้ */
+  {const D3='2026-12-02',C=X.CTS[1].id,rq=mkReq('TR-NEW');rq.sessions=[{date:D3,slot:'am',ctsId:C}];
+  claimTaken=true;DB.requests=[];DB.jobs=[{id:98,date:D3,cts_id:C,slot:'am',req_id:'TR-GONE',kind:'pend'}];
+  let done=false;writes.length=0;
+  X.setJob(D3,C,'am',{kind:'pend',reqId:'TR-NEW'});
+  X.commitReq(rq,'btnSend',()=>{done=true;});
+  await wait(200);
+  assert.ok(done,'คิวกำพร้าต้องไม่กันช่อง — รับคิวใหม่ได้');
+  assert.ok(writes.some(w=>w[0]==='jobs'&&w[1]==='update'&&w[2].req_id==='TR-NEW'),'ต้องยึดแถวกำพร้าแทน');
+  claimTaken=false;DB.jobs=[];}
 
   console.log('check-sync: ผ่านหมด');
   process.exit(0);   // แอปตั้ง setInterval ไว้ ถ้าไม่ exit เทสจะค้าง

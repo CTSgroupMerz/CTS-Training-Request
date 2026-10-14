@@ -43,7 +43,7 @@ const ctx={console,setTimeout,setInterval:()=>0,clearInterval(){},clearTimeout,D
   navigator:{clipboard:{writeText:()=>Promise.resolve()}}};
 ctx.globalThis=ctx;
 vm.createContext(ctx);
-src+='\n__x={state,load,save,snap,SAVED,jobRow,jobFrom,flatSched,setJob,jobOf};';
+src+='\n__x={state,load,save,snap,SAVED,jobRow,jobFrom,flatSched,setJob,jobOf,deadReq};';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 const count=async()=>{
@@ -71,16 +71,20 @@ const count=async()=>{
      ถ้าคีย์ว่างอยู่ก่อนจะเพิ่มช่องใหม่ → cells มากกว่า total ได้โดยไม่ผิด */
   const jobKeys=[];
   for(let from=0;;from+=1000){
-    const r=await fetch(`${U}/rest/v1/jobs?select=date,cts_id,slot&order=id`,
+    const r=await fetch(`${U}/rest/v1/jobs?select=date,cts_id,slot,req_id&order=id`,
       {headers:{apikey:K,Authorization:'Bearer '+K,Range:`${from}-${from+999}`}});
     const data=await r.json();
     jobKeys.push(...data);
     if(data.length<1000)break;
   }
   assert.strictEqual(jobKeys.length,total,'ดึงคีย์ jobs มาไม่ครบ');
-  const missing=jobKeys.filter(({date,cts_id,slot})=>!X.jobOf(date,cts_id,slot));
+  /* คิวกำพร้า (คำขอถูกลบ/ตายแล้ว แต่แถว jobs ค้าง) ตั้งใจไม่โหลด — syncSchedFromReqs ล้างทิ้ง */
+  const alive=id=>{const r=X.state.requests.find(x=>x.id===id);return r&&!X.deadReq(r);};
+  const orphan=jobKeys.filter(x=>x.req_id&&!alive(x.req_id));
+  if(orphan.length)console.log('คิวกำพร้า       :',orphan.length,JSON.stringify(orphan.map(x=>x.date+' '+x.cts_id+' '+x.slot+' '+x.req_id)));
+  const missing=jobKeys.filter(x=>!orphan.includes(x)&&!X.jobOf(x.date,x.cts_id,x.slot));
   assert.strictEqual(missing.length,0,`มีแถว jobs ที่ไม่ถูกโหลดขึ้น sched: ${JSON.stringify(missing.slice(0,3))}`);
-  assert.ok(cells>=jobKeys.length,'ช่องใน sched ต้องไม่น้อยกว่าจำนวนแถว jobs');
+  assert.ok(cells>=jobKeys.length-orphan.length,'ช่องใน sched ต้องไม่น้อยกว่าจำนวนแถว jobs');
 
   // โครงสร้างต้องเป็น sched[วัน][ctsId][slot] และแปลงกลับเป็นแถวตาม schema ได้
   const k=Object.keys(X.state.sched).sort()[0], cid=Object.keys(X.state.sched[k])[0];

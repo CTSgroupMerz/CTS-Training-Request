@@ -1515,15 +1515,54 @@ function dropJob(k,cid,slot,rid){slotsOf(slot).forEach(sl=>{const j=jobOf(k,cid,
 /* ต้นทางจริงของคิวคือคำขอ — sched เป็นแค่ตัวนับ ช่องว่างแต่ยังมีคำขอที่มีผลจองอยู่ = ไม่ว่าง
    กันกรณีแถว jobs บนเซิร์ฟเวอร์หาย/ถูกล้าง (คิวที่ CTS ลงเอง syncSelf สร้างใหม่จาก selfEvents ทุกครั้งอยู่แล้ว)
    ponytail: ไล่ทุกคำขอทุกครั้งที่ช่องว่าง — ทำ index ถ้าคำขอเป็นหลักหมื่น */
-function reqHold(k,cid,slot){
-  for(const r of state.requests){
-    if(['rejected','cancelled','expired'].includes(r.status))continue;
-    if(r.status==='tbc'&&r.tbcAt&&tbcDeadline(r)<=Date.now())continue;
+/* คำขอที่มีผล เรียง approved ก่อน — ช่องเดียวมีคำขอทับกัน (ข้อมูลเก่าที่ชนกันอยู่แล้ว) ให้โชว์คิวที่อนุมัติแล้ว ไม่ใช่ใบที่ยังรอ */
+const liveReqs=()=>state.requests.filter(r=>!deadReq(r)).sort((a,b)=>(b.status==='approved')-(a.status==='approved'));
+function reqHoldOf(k,cid,slot){
+  for(const r of liveReqs()){
+    if(deadReq(r))continue;
     for(const s of r.sessions||[])
-      if(s.date===k&&s.ctsId&&slotsOf(s.slot).includes(slot)&&sessWho(r,s).includes(cid))
-        return r.status==='approved'?'booked':r.status==='tbc'?'tbc':'pend';
+      if(s.date===k&&s.ctsId&&slotsOf(s.slot).includes(slot)&&sessWho(r,s).includes(cid))return {r,s};
   }
   return null;
+}
+const holdJob=({r,s})=>({...reqJobPayload(r,s),kind:r.status==='tbc'?'tbc':r.status==='approved'?'booked':'pend'});
+const reqHold=(k,cid,slot)=>{const h=reqHoldOf(k,cid,slot);return h?holdJob(h).kind:null;};
+/* ทำ sched ให้ตรงกับคำขอจริง — เรียกตอนโหลดทุกครั้ง
+   1) คิวกำพร้า: job ที่คำขอถูกลบ/ไม่อนุมัติ/ยกเลิก/TBC หมดอายุไปแล้ว -> ล้างออก (เดิมค้างทับช่องไว้ทั้งที่ไม่มีใครจอง
+      14 ต.ค. 69: TR-1086US พญาไท2 ถูกลบแล้ว แต่แถวใน jobs ยังอยู่ -> คิวรายคนของ June 15 ต.ค. เช้ายังขึ้นพญาไท2)
+   2) ช่องว่างแต่คำขอที่มีผลยังจองอยู่ -> เติมคิวกลับ (TR-1082PM DoctorBond ที่ approved แต่แถว jobs หายไป)
+   ทำในเครื่องเท่านั้น — ฝั่งเซิร์ฟเวอร์ซ่อมแยกที่ fixJobsOnServer() */
+function syncSchedFromReqs(){
+  const live=id=>{const r=state.requests.find(x=>x.id===id);return r&&!deadReq(r);};
+  Object.keys(state.sched).forEach(k=>Object.keys(state.sched[k]).forEach(cid=>['am','pm'].forEach(sl=>{
+    const j=state.sched[k][cid][sl];if(j&&j.reqId&&!live(j.reqId))state.sched[k][cid][sl]=null;})));
+  liveReqs().forEach(r=>{
+    (r.sessions||[]).forEach(s=>{if(!s.ctsId)return;
+      sessWho(r,s).forEach(cid=>slotsOf(s.slot).forEach(sl=>{if(!jobOf(s.date,cid,sl))setJob(s.date,cid,sl,holdJob({r,s}));}));});});
+}
+/* แถว jobs บนเซิร์ฟเวอร์ — ลบคิวกำพร้า + เติมคิวที่หาย (เฉพาะเครื่องที่ล็อกอิน CTS/Admin · ไม่รอผล)
+   คิวกำพร้าต้องถามเซิร์ฟเวอร์ซ้ำก่อนลบ — คำขอใหม่ถูกบันทึกก่อนยึดช่องเสมอ (commitReq) ถามซ้ำแล้วไม่เจอ = ตายจริง
+   ลบ/เติมแบบมีเงื่อนไข: ลบเฉพาะแถวที่ req_id ยังเป็นตัวเดิม · เติมแบบ ON CONFLICT DO NOTHING ไม่ทับของใคร */
+async function deadOnServer(ids){
+  if(!ids.length)return new Set();
+  const {data,error}=await SB.from('requests').select('id,status,client').in('id',ids);
+  if(error)throw error;
+  const alive=new Set((data||[]).filter(x=>!deadReq({...(x.client||{}),status:(x.client||{}).status||x.status})).map(x=>x.id));
+  return new Set(ids.filter(id=>!alive.has(id)));
+}
+async function fixJobsOnServer(rows){
+  try{
+    const sus=rows.filter(x=>{if(!x.req_id)return false;const r=state.requests.find(q=>q.id===x.req_id);return !r||deadReq(r);});
+    const dead=await deadOnServer([...new Set(sus.map(x=>x.req_id))]);
+    for(const x of sus)if(dead.has(x.req_id))await SB.from('jobs').delete().eq('id',x.id).eq('req_id',x.req_id);
+    const has=new Set(rows.filter(x=>!(x.req_id&&dead.has(x.req_id))).map(x=>x.date+'|'+x.cts_id+'|'+x.slot));
+    const add=[];
+    liveReqs().forEach(r=>{
+      (r.sessions||[]).forEach(s=>{if(!s.ctsId)return;
+        sessWho(r,s).forEach(cid=>slotsOf(s.slot).forEach(sl=>{
+          if(!has.has(s.date+'|'+cid+'|'+sl)&&ctsOk(cid))add.push(jobRow(s.date,cid,sl,holdJob({r,s})));}));});});
+    for(const row of add)await SB.from('jobs').upsert(row,{onConflict:'date,cts_id,slot',ignoreDuplicates:true});
+  }catch(e){console.warn('fixJobsOnServer',e);}
 }
 /* ฝั่งขาย (Sale/UPC/KA/SM และแท็บ "ปฏิทิน Sale") เห็นงานกลาง MA ทุกงานเหมือนกันหมด
    เดิมกรองด้วย visibleCTS() ซึ่งฝั่งขายมีแค่ 6 คนที่จองได้ -> งานที่มีแค่ PAM/MILK/BELLE ร่วมงานหายจากปฏิทิน Sale
@@ -4157,7 +4196,7 @@ function submit(){
    กัน 2 เครื่องกดส่งช่องเดียวกันในช่วงก่อนแอปโหลดข้อมูลใหม่ (30 วิ) — เช็คในเครื่องอย่างเดียวไม่พอ
    ใช้ unique (date,cts_id,slot) ของ jobs: INSERT ... ON CONFLICT DO NOTHING ใครเขียนก่อนได้ช่อง
    แถวเดิมเป็นของคำขอที่ตายแล้ว (ไม่อนุมัติ/ยกเลิก/TBC หมดอายุ) -> ยึดต่อแบบมีเงื่อนไข req_id เดิม (กันชนซ้อน)
-   แถวเดิมไม่มี req_id หรือคำขอที่เครื่องนี้มองไม่เห็น = ถือว่าไม่ว่าง (ปลอดภัยไว้ก่อน) */
+   แถวเดิมไม่มี req_id (คิวที่บันทึกตรงในตาราง) = ถือว่าไม่ว่าง (ปลอดภัยไว้ก่อน) */
 const deadReq=r=>['rejected','cancelled','expired'].includes(r.status)||(r.status==='tbc'&&r.tbcAt&&tbcDeadline(r)<=Date.now());
 const reqJobs=rid=>Object.entries(flatSched(state.sched)).filter(([,j])=>j.reqId===rid)
   .map(([ck,j])=>{const [k,cid,sl]=ck.split('|');return {k,cid,sl,j};});
@@ -4171,8 +4210,8 @@ async function claimJobs(rid,L){
       if(ins.error){if(ins.error.code==='42P10')return true;throw ins.error;}   // ยังไม่มี unique index — เหลือแค่เช็คในเครื่อง
       if((ins.data||[]).length){got.push(ins.data[0].id);continue;}
       const cur=(await SB.from('jobs').select('id,req_id').eq('date',x.k).eq('cts_id',x.cid).eq('slot',x.sl).maybeSingle()).data;
-      const old=cur&&cur.req_id&&state.requests.find(r=>r.id===cur.req_id);
-      if(old&&deadReq(old)){
+      /* แถวเดิมเป็นคิวกำพร้า (คำขอถูกลบ/ตายแล้ว) — ถามเซิร์ฟเวอร์ซ้ำ ไม่เชื่อข้อมูลในเครื่องที่อาจเก่า */
+      if(cur&&cur.req_id&&(await deadOnServer([cur.req_id])).has(cur.req_id)){
         const up=await SB.from('jobs').update(row).eq('id',cur.id).eq('req_id',cur.req_id).select('id');
         if(!up.error&&(up.data||[]).length){got.push(cur.id);continue;}
       }
@@ -4191,11 +4230,14 @@ function commitReq(req,btnId,go){
   if(b)b.disabled=true;
   toast('กำลังเช็คคิวกับเซิร์ฟเวอร์…');
   const fail=m=>{if(b)b.disabled=false;toast(m);};
-  claimJobs(req.id,L).then(ok=>{
-    if(!ok){fail('ช่วงที่เลือกเพิ่งถูกจองไปแล้ว — โหลดคิวล่าสุดแล้ว เลือกช่วงใหม่');load().then(()=>render());return;}
+  /* บันทึกตัวคำขอขึ้นเซิร์ฟเวอร์ก่อนยึดช่อง — เครื่องอื่นที่เจอแถว jobs ของเราจะถามแล้วเจอคำขอเสมอ
+     ไม่เข้าใจผิดว่าเป็นคิวกำพร้าแล้วลบ/ยึดทับ · ยึดไม่ได้ = ลบคำขอที่เพิ่งบันทึกออก */
+  saveReq(req).then(()=>claimJobs(req.id,L)).then(ok=>{
+    if(!ok){SB.from('requests').delete().eq('id',req.id).then(()=>{},()=>{});fail('ช่วงที่เลือกเพิ่งถูกจองไปแล้ว — โหลดคิวล่าสุดแล้ว เลือกช่วงใหม่');load().then(()=>render());return;}
     L.forEach(x=>setJob(x.k,x.cid,x.sl,x.j));
     go();save();
-  },()=>fail('เช็คคิวกับเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วกดส่งใหม่'));
+  },()=>{SB.from('requests').delete().eq('id',req.id).then(()=>{},()=>{});
+    fail('เช็คคิวกับเซิร์ฟเวอร์ไม่ได้ — ตรวจอินเทอร์เน็ตแล้วกดส่งใหม่');});
 }
 
 /* ========================= CARDS ========================= */
@@ -6055,8 +6097,10 @@ async function load(){
     state.selfEvents.forEach(syncSelf);
     rebuildFeed();
     sweepTBC();
+    syncSchedFromReqs();
     lastSaved=JSON.stringify(snap());
     loaded=true;
+    if(signedIn())fixJobsOnServer(jobs);
     return true;
   }catch(e){
     /* โหลดไม่สำเร็จ = ห้ามบันทึก ไม่งั้นจะเอา state เปล่าไปทับของจริงบนเซิร์ฟเวอร์ */

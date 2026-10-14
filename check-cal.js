@@ -32,7 +32,7 @@ src += '\n__x={state,dayEntries,entriesOf,autoWindow,slotTime,slotStatus,slotWin
 src += '\nObject.assign(__x,{canEditAvail,mainsOf,openSMReq,lateSess,layoutEntries,selfEntries,upcDayWho,isUrgent,timelineHTML,'
      + 'upcFree,upcAble,topicsOf,TOPIC_TAGS,tpState,tpRows,cancelReq,bookUPC,clearUPC,jobStyle,tbcTag,smEntries,'
      + 'qJob,TRAIL_ACT,openSelfView,isTrainerOn,needAck,ackReq,sessWho,upcDayBox,myRequests,ackList,MODULES,tpTableRows,TP_TCOLS,needSlots,pickBar,newDraft,'
-     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf,sweepTBC,setJob,jobOf,slotStatus,freeIds,dayShift,openDay,convertTBC,reqCard});';
+     + 'dayEvents,canSeeRecord,canDelReq,codeStyle,openEventDetail,smWeekHTML,smChip,prodOn,maCard,reqTopics,openEdit,jobTypeOk,sessWin,eDates,closeSheet,upcTrip,jobLine,onTag,DAY_VIEW,upcMonthHTML,upcWeekHTML,openUPCForm,prodFamily,famsFor,smNoteBox,trainRows,ownersOf,sweepTBC,setJob,jobOf,slotStatus,freeIds,dayShift,openDay,convertTBC,reqCard,syncSchedFromReqs,dayNamed});';
 new vm.Script(src).runInContext(ctx);
 const X=ctx.__x;
 
@@ -1664,4 +1664,24 @@ G('tbcGo').onclick();
 assert.strictEqual(tb.status,'expired','เปิดค้างจนหมดอายุแล้วกดยืนยัน ต้องไม่ส่งคำขอ');
 X.closeSheet();X.state.requests=[];X.state.sched={};}
 
-console.log('✓ ผ่านทั้ง 101 ข้อ');
+/* 102. คิวกำพร้า (คำขอถูกลบ/TBC หมดอายุ แต่ job ค้าง) ต้องหาย + คิวที่ approved แต่ job หายต้องกลับมา
+   เคสจริง 15 ต.ค. June เช้า: TR-1086US พญาไท2 ถูกลบ แต่ CTS Team รายคนยังขึ้นพญาไท2 แทน DoctorBond (TR-1082PM approved) */
+{const d=FUT(41),cid=B1;X.state.sched={};X.state.events=[];X.state.selfEvents=[];X.state.role='cts';X.state.me=X.LEAD_IDS[0];
+const ok={id:'TR-DB',team:'A',status:'approved',mode:'std',module:'MAX-Entry',product:['Xeomin'],clinic:'DoctorBond Clinic',
+  sessions:[{date:d,slot:'am',ctsId:cid,start:'09:00',end:'12:00'}]};
+const xp={id:'TR-XT',team:'A',status:'tbc',tbcAt:new Date(Date.now()-5*864e5).toISOString(),mode:'std',module:'MAX-Entry',
+  product:['Ultherapy'],clinic:'x',sessions:[{date:d,slot:'pm',ctsId:cid}]};
+X.state.requests=[ok,xp];
+X.setJob(d,cid,'am',{kind:'pend',reqId:'TR-GONE',title:'พญาไท2',start:'09:00',end:'12:00'});   /* คำขอถูกลบไปแล้ว */
+X.setJob(d,cid,'pm',{kind:'tbc',reqId:'TR-XT',title:'TBC · x',start:'14:00',end:'17:30'});
+X.syncSchedFromReqs();
+assert.strictEqual(X.jobOf(d,cid,'am').reqId,'TR-DB','ช่องของคำขอที่ถูกลบต้องกลับเป็นคิว approved ที่จองอยู่จริง');
+assert.strictEqual(X.jobOf(d,cid,'am').kind,'booked');
+assert.ok(!X.jobOf(d,cid,'pm'),'TBC หมดอายุต้องคืนช่อง');
+assert.ok(!X.dayNamed(d).includes('พญาไท2')&&X.dayNamed(d).includes('DoctorBond'),'คิวรายคนต้องขึ้น DoctorBond ไม่ใช่พญาไท2');
+ok.status='cancelled';X.syncSchedFromReqs();
+assert.ok(!X.jobOf(d,cid,'am'),'คำขอยกเลิกแล้วต้องคืนช่อง');
+assert.notStrictEqual(X.slotStatus(d,cid,'am'),'booked','คืนช่องแล้วต้องรับคิวใหม่ได้');
+X.state.requests=[];X.state.sched={};}
+
+console.log('✓ ผ่านทั้ง 102 ข้อ');
