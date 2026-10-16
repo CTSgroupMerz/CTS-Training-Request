@@ -1570,7 +1570,8 @@ X.openEdit('TR-U1');r.module='MSC+';G('es0d').value=r.sessions[0].date;G('es0s')
 G('eSave').onclick();
 assert.strictEqual(r.module,'MSC+','บันทึกแล้วปิดหน้าต้องไม่ย้อน');
 /* เสาร์–อาทิตย์ */
-let W,n=0;do{W=FUT(n++);}while(![0,6].includes(new Date(W).getDay()));
+/* n เริ่มที่ 1 — FUT(0) คือวันเดิมของ session (อยู่บนสุดของรายการเสมอ) ถ้าตรงเสาร์–อาทิตย์เทสจะพังตามวันที่รัน */
+let W,n=1;do{W=FUT(n++);}while(![0,6].includes(new Date(W).getDay()));
 X.openEdit('TR-U1');
 const h=sheet(),g=h.indexOf('<optgroup label="เสาร์–อาทิตย์');
 assert.ok(g>0&&h.indexOf('value="'+W+'"')>g,'เสาร์–อาทิตย์ต้องเลือกได้ แต่อยู่ในกลุ่มแยกท้ายรายการ');
@@ -1684,4 +1685,21 @@ assert.ok(!X.jobOf(d,cid,'am'),'คำขอยกเลิกแล้วต้
 assert.notStrictEqual(X.slotStatus(d,cid,'am'),'booked','คืนช่องแล้วต้องรับคิวใหม่ได้');
 X.state.requests=[];X.state.sched={};}
 
-console.log('✓ ผ่านทั้ง 102 ข้อ');
+/* 103. MA ที่ไม่ได้มีทุกคน — คนที่ไม่ได้เข้า MA ต้องเป็นคิวว่างตามจริง
+   เคสจริง 21 ต.ค. เช้า: MA มี POP/SUI/ATOM/EYE · JUNE ติดคิวทั้งวัน · POR ไม่ได้เข้า MA -> เช้าต้องว่าง 1 */
+{const d=FUT(43);clean();X.state.requests=[];X.state.selfEvents=[];
+X.state.events=[{id:'EV-W',date:d,title:'Workshop',type:'Workshop',slot:'am',
+  cts:['parichat','koollanut','onkamol','kanwara','pariyachat','pitchaporn','belle']}];
+X.setJob(d,'narakamon','am',{kind:'booked',title:'x',start:'09:00',end:'12:00'});
+X.setJob(d,'narakamon','pm',{kind:'booked',title:'x',start:'14:00',end:'17:30'});
+X.state.role='sales';X.state.area='Champion';X.state.draft={product:['Ultherapy'],slots:1};
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+assert.ok(!X.maSlot(d,'am'),'MA ที่ไม่ได้มีครบ 6 คนต้องไม่ปิดทั้งช่วง');
+assert.strictEqual(X.freeIds(d,'am').join(','),'witchukorn','เช้าต้องว่างเฉพาะ POR');
+assert.strictEqual(X.freeIds(d,'pm').length,5,'บ่ายไม่มี MA -> ว่าง 5 (JUNE ติดคิว)');
+assert.ok(!/disabled data-anon="am"/.test(X.dayAnon(d).replace(/\s+/g,' ')),'ช่วงเช้าต้องกดจองได้');
+X.state.events[0].cts=X.BOOKABLE_CTS().map(c=>c.id);
+assert.ok(X.maSlot(d,'am'),'MA มีครบ 6 คนต้องขึ้นป้าย MA');
+X.state.events=[];X.state.sched={};X.state.draft=null;}
+
+console.log('✓ ผ่านทั้ง 103 ข้อ');

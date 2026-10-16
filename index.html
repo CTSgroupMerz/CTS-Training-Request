@@ -1574,8 +1574,10 @@ const dayEvents=k=>{const all=state.events.filter(e=>e.date===k);
   const vis=visibleCTS().map(c=>c.id);
   return all.filter(e=>e.cts==='all'||e.cts.some(i=>vis.includes(i)));};
 /* งานกลาง MA ปิดคิวฝั่ง Sales เฉพาะช่วงที่งานลงไว้จริง (เช้า / บ่าย / ทั้งวัน) — เดิมปิดทั้งวันเสมอ
-   นับเฉพาะงานที่มี CTS ซึ่ง Sale จองได้ร่วมงาน — งานที่มีแค่ BELLE/PAM/MILK ขึ้นในปฏิทินแต่ไม่ปิดคิวว่าง */
-const maSlot=(k,sl)=>state.events.some(e=>e.date===k&&(e.slot==='all'||e.slot===sl)&&(e.cts==='all'||e.cts.some(isBookable)));
+   นับเฉพาะงานที่มี CTS ซึ่ง Sale จองได้ร่วมงาน — งานที่มีแค่ BELLE/PAM/MILK ขึ้นในปฏิทินแต่ไม่ปิดคิวว่าง
+   ปิดทั้งช่วง (ป้าย MA) เฉพาะเมื่อ 6 คนที่จองได้ติด MA ครบทุกคน — คนที่ไม่ได้เข้า MA ยังเป็นคิวว่างตามจริง
+   เดิมมีคนเดียวเข้า MA ก็ปิดทั้งช่วง (16 ต.ค. 69: 21 ต.ค. เช้า POR ไม่ได้เข้า MA แต่ Sale เห็นเป็น MA) */
+const maSlot=(k,sl)=>BOOKABLE_IDS.every(id=>eventFor(k,id,sl));
 /* คิวว่างที่นับให้ Sales — ผูกกับตารางจริงของ CTS อัตโนมัติ (คิวจาก request + คิวที่ CTS ลงเอง)
    แล้วกรองอีก 2 ชั้นตาม Product ที่ Sales เลือก:
      1) ต้องเปิด Skills ของ product ที่ขอครบทุกตัว ไม่งั้นไม่ขึ้นเป็นคิวว่าง
