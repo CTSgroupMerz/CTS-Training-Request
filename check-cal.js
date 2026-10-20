@@ -652,7 +652,8 @@ X.state.sched[U]=undefined;
   assert.ok(!/\u{1F699}/u.test(jl),'ไม่ใช้ emoji');
   assert.ok(X.jobLine({online:true,title:'A'},'').includes('onltag'),'คิว Online ต้องมีกรอบ Online');
   assert.ok(!X.jobLine({title:'A'},'').includes('onltag'),'คิวปกติไม่มีกรอบ Online');
-  assert.ok(X.DAY_VIEW.from===0&&X.DAY_VIEW.to===1440,'ตารางรายวันต้องครบ 24 ชม.');
+  assert.ok(X.DAY_VIEW.from===360&&X.DAY_VIEW.to===1440,'ตารางรายวัน 06:00–24:00');
+  {const h=X.timelineHTML(K).match(/\d\d:00<\/span>/g)||[];assert.ok(h[0]==='06:00</span>'&&!h.includes('05:00</span>'),'ไทม์ไลน์เริ่ม 06:00 ไม่มี 00–05');}
   assert.ok(X.SLOT_HOURS.pm[1]>=23&&X.SLOT_HOURS.am[0]===0,'เลือกเวลาคิวดึก/เช้ามืดได้');
   /* คำขอ Online ขึ้นป้ายในปฏิทิน CTS (dayEntries) และการ์ดคำขอ */
   const r={id:'TR-ONL',mode:'sale',status:'approved',team:'A',area:'BKK1',requesterId:'BKK1',module:'MAX-Entry',online:true,product:['Ultherapy'],

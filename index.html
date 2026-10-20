@@ -1213,6 +1213,8 @@ const teamCTS=t=>t==='BOTH'?CTS.filter(c=>c.team!=='SUP'):CTS.filter(c=>c.team==
 const leadOf=t=>byId(TEAMS[t].lead);
 const leadsOf=t=>LEAD_IDS.map(byId);   // t ไม่ใช้แล้ว — หัวหน้าทั้งคู่ดูแลร่วมกันทุกคำขอ
 const isLead=()=>state.role==='cts'&&byId(state.me).role==='Senior Leader';
+/* Senior Leader (และ Admin) ปรับเวลาคิวจากคำขอ Sale ได้อิสระ ไม่ผูกกรอบเช้า/บ่ายหรือช่วงว่าง */
+const freeTime=()=>isLead()||state.role==='admin';
 /* ===== เส้นทางอนุมัติ: Sale -> SM -> CTS Senior Leader -> CTS Manager =====
    sm      = รอ Sales Manager ของทีมนั้นพิจารณา (คำขอปกติที่ Sale ส่ง)
    pending = SM ผ่านแล้ว รอ Senior Leader (PAM/MILK) จัด CTS และอนุมัติ
@@ -2815,8 +2817,8 @@ function openReqSession(reqId,sIdx,keep){
     <label class="f">หัวข้องาน <span>· เว้นว่าง = ใช้ "${esc(auto)}"</span></label>
     <input class="in" id="rsTitle" value="${esc(D.title)}" placeholder="${esc(auto)}">
     <div class="formgrid">
-      <div><label class="f">เริ่ม</label>${t24('rsStart',D.start,s.slot)}</div>
-      <div><label class="f">ถึง</label>${t24('rsEnd',D.end,s.slot)}</div></div>
+      <div><label class="f">เริ่ม</label>${t24('rsStart',D.start,freeTime()?null:s.slot)}</div>
+      <div><label class="f">ถึง</label>${t24('rsEnd',D.end,freeTime()?null:s.slot)}</div></div>
     <label class="f">หัวข้อที่เกี่ยวข้อง <span>· เลือกได้หลายอัน</span></label>
     <div class="chips">${TOPIC_TAGS.map(t=>`<button class="chip" data-rstt="${t}" aria-pressed="${D.topics.includes(t)}">${t}</button>`).join('')}</div>
     ${chgMain?`<label class="f">ผู้เทรนหลัก <span>· เลือกได้หลายคน ทุกคนนับ KPI · คิวในปฏิทินจะย้ายตาม</span></label>
@@ -3296,7 +3298,7 @@ function bindTime(scope){
 /* ---- day panel ---- */
 
 /* ================= มุมมองรายวันแบบไทม์ไลน์ (สำหรับ CTS / Admin) ================= */
-const DAY_VIEW={from:0,to:24*60,rowH:40};   // โชว์ครบ 24 ชม. — มีคิวดึก
+const DAY_VIEW={from:6*60,to:24*60,rowH:40};   // 06:00–24:00 — ตัดช่วงดึก 00–05 ออก (เต้สั่ง)
 /* งานจริงของวันนั้นตามเวลาจริง — อ่านจากต้นทาง (คิวที่ CTS ลงเอง + คำขอที่จัด CTS แล้ว)
    คิวพวกนั้นไม่อ่านจาก state.sched เพราะ sched มีแค่ช่องเช้า/บ่าย ทำให้คิวคร่อมเที่ยงถูกเขียนลง 2 ช่อง
    แล้วโผล่ซ้ำในปฏิทิน และคิวที่ 3 ของวันจะหายไป
@@ -3407,9 +3409,9 @@ function timelineHTML(k){
   const allDay=all.filter(e=>e.job&&e.job.allDay);
   const timed=all.filter(e=>!(e.job&&e.job.allDay));
   const {items,n}=layoutEntries(timed);
-  /* กรอบเวลาขยายตามคิวจริงได้ถึง 00:00–24:00 — มีคิวกลางคืนด้วย */
+  /* เริ่ม 06:00 เสมอ (คิวก่อน 06:00 ถูกดันมาชิดบนสุด) · ปลายขยายตามคิวจริงได้ถึง 24:00 */
   const {rowH}=DAY_VIEW,mins=timed.flatMap(e=>[toMin(e.start),toMin(e.end)]);
-  const from=Math.max(0,Math.min(DAY_VIEW.from,...mins.map(m=>Math.floor(m/60)*60)));
+  const from=DAY_VIEW.from;
   const to=Math.min(1440,Math.max(DAY_VIEW.to,...mins.map(m=>Math.ceil(m/60)*60)));
   const hours=[];for(let h=from/60;h<=to/60;h++)hours.push(h);
   const H=(to-from)/60*rowH;
@@ -3476,10 +3478,7 @@ function openDay(k){
   bindTime(B);
   bindMail(B);
   $('dnClose').onclick=closeSheet;
-  /* ตาราง 24 ชม. — เปิดมาเลื่อนไปที่ 07:00 (หรือคิวแรกถ้าเช้ากว่านั้น) ไม่ต้องไถผ่านช่วงดึก */
-  const hrs=B.querySelectorAll('.tl-h'),tops=[...B.querySelectorAll('.tblock')].map(b=>parseFloat(b.style.top)||0);
-  const h0=Math.floor(Math.min(7*DAY_VIEW.rowH,...tops)/DAY_VIEW.rowH);
-  if(h0>0&&hrs[h0]&&hrs[h0].scrollIntoView)hrs[h0].scrollIntoView({block:'start'});
+  /* ตารางเริ่ม 06:00 แล้ว — เปิด/ปัดเปลี่ยนวันให้อยู่บนสุดเสมอ (เดิม scrollIntoView ดีดไปกลางตาราง) */
 }
 function dayAnon(k){
   const total=teamPool().length;
@@ -4554,7 +4553,7 @@ function openEdit(id,keep){
         ${t24(`es${i}s`,dr[i].s)}
         <span class="tl">ถึง</span>
         ${t24(`es${i}e`,dr[i].e)}</div>
-      ${sn.ctsId&&sn.slot!=='day'?`<div class="muted">${(w=>w?`${mainsTxt(sn)} ว่าง ${w.start}–${w.end} (วันที่ ${fmtDate(sn.date)}) — เวลาเทรนต้องอยู่ในช่วงนี้ · ย้ายวันแล้วดูช่วงว่างในรายการวันที่`
+      ${sn.ctsId&&sn.slot!=='day'?`<div class="muted">${(w=>w?`${mainsTxt(sn)} ว่าง ${w.start}–${w.end} (วันที่ ${fmtDate(sn.date)}) — ${freeTime()?'Senior Leader ตั้งเวลานอกช่วงนี้ได้':'เวลาเทรนต้องอยู่ในช่วงนี้'} · ย้ายวันแล้วดูช่วงว่างในรายการวันที่`
         :'วันนี้ผู้เทรนไม่มีช่วงว่าง')(sessWin(r,i,sn.date))}</div>`:''}
       ${r.sessions.length>1?`<div class="sdetail">
         <div class="chips">${PRODUCTS.map(pr=>`<button class="chip prodchip sm2" data-esp="${i}|${pr}"
@@ -4600,6 +4599,7 @@ function openEdit(id,keep){
       const k=$('es'+i+'d').value||sn.date,st=$('es'+i+'s').value,en=$('es'+i+'e').value;
       const st0=sn.start||SLOT_DEF[sn.slot].start,en0=sn.end||SLOT_DEF[sn.slot].end;
       if(k===sn.date&&st===st0&&en===en0)continue;
+      if(freeTime()){if(!(st<en))return toast(`S${i+1}: เวลาเริ่มต้องก่อนเวลาจบ`);continue;}
       const w=sessWin(r,i,k);
       if(!w)return toast(`S${i+1}: ${fmtDate(k)} ผู้เทรนไม่ว่าง — เลือกวันอื่น`);
       if(!(st<en))return toast(`S${i+1}: เวลาเริ่มต้องก่อนเวลาจบ`);
