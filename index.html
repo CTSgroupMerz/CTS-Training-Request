@@ -825,6 +825,30 @@ table.rawtb td.xp{background:#FDECEC;color:#C62828;font-weight:800;outline:2px s
 .tp tr.suprow{cursor:pointer}
 .tp tr.suprow:hover td,.tp tr.suprow:focus-visible td{background:rgba(201,168,76,.09)}
 .tp tr.suprow .clinic-name{text-decoration:underline;text-decoration-color:rgba(201,168,76,.45);text-underline-offset:3px}
+/* ปุ่มสลับโทนมุมขวาบน */
+.tp-tr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.tp-theme{display:inline-flex;align-items:center;gap:6px;font:700 11px var(--sans);cursor:pointer;
+  padding:5px 10px;border-radius:999px;border:1px solid var(--tp-line);background:var(--tp-surface);color:var(--tp-soft)}
+.tp-theme i{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#B9A6F0 50%,#9EC3F5 50%)}
+/* โทนสว่าง (ค่าเริ่มต้น) — ธีมเดียวกับแอป · สี product ไม่เปลี่ยน */
+.tp.tp-light{--tp-bg:#F6F4FB;--tp-surface:#FFFFFF;--tp-ink:#2B2A3D;--tp-soft:#6E6D88;--tp-line:#ECE8F6;
+  --tp-gold:#5F4FB0;--tp-gold2:#8B7BD8;background:transparent;padding:4px 0}
+.tp-light .tp-theme i{background:linear-gradient(135deg,#0D1B2A 50%,#C9A84C 50%)}
+.tp-light .tp-top{border-bottom-color:#D9CFF5}
+.tp-light .tp-brand h1{background:linear-gradient(120deg,#5F4FB0,#6F8FE0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tp-light .filterbar,.tp-light .kpi-card,.tp-light .panel{border-color:transparent;
+  box-shadow:0 2px 4px rgba(43,42,61,.04),0 18px 40px rgba(95,79,176,.10)}
+.tp-light .tp-mark,.tp-light .tp-live,.tp-light .tag,.tp-light .type-badge,.tp-light .repeat-badge,
+.tp-light .rank-total,.tp-light .date-range-badge{background:#EFEAFB;border-color:#D9CFF5;color:#5F4FB0}
+.tp-light .chip.active{background:linear-gradient(120deg,#8B7BD8,#6F8FE0);color:#fff;border-color:transparent}
+.tp-light .reset-link{color:#5F4FB0}
+.tp-light .kpi-card.accent::before{background:linear-gradient(#B9A6F0,#9EC3F5)}
+.tp-light .kpi-value{color:#5F4FB0}
+.tp-light .sup-t em{color:var(--tp-ink)}
+.tp-light .sup-t.sum{border-left-color:#8B7BD8}
+.tp-light .sup-t.sum i{background:#8B7BD8}
+.tp-light tr.suprow:hover td,.tp-light tr.suprow:focus-visible td{background:#F4F1FB}
+.tp-light tr.suprow .clinic-name{text-decoration-color:#C9BDF0}
 /* ตารางข้อมูลดิบ (Dashboard + Record) — กว้างเกินจอได้ เลื่อนแนวนอนในการ์ดของตัวเอง */
 table.rawtb{border-collapse:collapse;font-size:12px;white-space:nowrap}
 table.rawtb th,table.rawtb td{border:1px solid var(--line2);padding:6px 9px;text-align:left}
@@ -1374,7 +1398,7 @@ const leadOf=t=>byId(TEAMS[t].lead);
 const leadsOf=t=>LEAD_IDS.map(byId);   // t ไม่ใช้แล้ว — หัวหน้าทั้งคู่ดูแลร่วมกันทุกคำขอ
 const isLead=()=>state.role==='cts'&&byId(state.me).role==='Senior Leader';
 /* Senior Leader (และ Admin) ปรับเวลาคิวจากคำขอ Sale ได้อิสระ ไม่ผูกกรอบเช้า/บ่ายหรือช่วงว่าง */
-const freeTime=()=>isLead()||state.role==='admin';
+const freeTime=()=>isLead()||isMgr()||state.role==='admin';
 /* ===== เส้นทางอนุมัติ: Sale -> SM -> CTS Senior Leader -> CTS Manager =====
    sm      = รอ Sales Manager ของทีมนั้นพิจารณา (คำขอปกติที่ Sale ส่ง)
    pending = SM ผ่านแล้ว รอ Senior Leader (PAM/MILK) จัด CTS และอนุมัติ
@@ -1388,7 +1412,7 @@ const APPROVAL_ST=['sm','pending','mgr','tbc'];
 function canApprove(r){
   if(state.role==='admin')return true;                            // Admin ข้ามขั้นได้ (ของเดิม)
   if(r.status==='sm')return state.role==='sm'&&smOfArea(r.area)===state.sm;
-  if(r.status==='pending'||r.status==='tbc')return state.role==='cts'&&LEAD_IDS.includes(state.me);
+  if(r.status==='pending'||r.status==='tbc')return state.role==='cts'&&(LEAD_IDS.includes(state.me)||isMgr());   // BELLE จัดคิว/เปลี่ยน CTS แทน PAM/MILK ได้
   if(r.status==='mgr')return isMgr();
   return false;
 }
@@ -4030,15 +4054,19 @@ function upcMissing(r){
 
 function openUPCForm(editId){
   const editing=editId?state.requests.find(x=>x.id===editId):null;
-  if(!state.upcDraft||(editing&&state.upcDraft._id!==editId)){
+  /* ร่างค้างจากการปิดหน้าต่างโดยไม่กดยกเลิก (หรือร่างของการแก้ไขคำขอเก่า) ห้ามเอามาใช้กับคำขอใหม่
+     ที่เลือก CTS/วันต่างไป — เดิมหยิบร่างเก่าที่ไม่มี CTS มาส่งได้ */
+  const pk=state.upcPick.slice().sort().join();
+  const stale=d=>editing?d._id!==editId:(d._id||d.cts!==state.upcCts||d.pk!==pk);
+  if(!state.upcDraft||stale(state.upcDraft)){
     state.upcDraft=editing
       ? JSON.parse(JSON.stringify({_id:editId,from:editing.dateFrom,to:editing.dateTo,
           days:editing.days,requester:editing.requester,online:!!editing.online}))
       : state.upcPick.length
         ? (()=>{const ds=state.upcPick.slice().sort();
-            return {_id:null,from:ds[0],to:ds[ds.length-1],cts:state.upcCts,
+            return {_id:null,from:ds[0],to:ds[ds.length-1],cts:state.upcCts,pk,
               days:ds.map(k=>({date:k,items:[newItem()]})),requester:state.salesId||''};})()
-        : {_id:null,from:'',to:'',days:[],requester:state.salesId||''};
+        : {_id:null,from:'',to:'',days:[],cts:state.upcCts,pk,requester:state.salesId||''};
     if(editing)state.upcDraft.days.forEach((d,di)=>d.items.forEach((it,ii)=>{
       it.photos=editing.days[di].items[ii].photos||[];}));
   }
@@ -4159,6 +4187,7 @@ function openUPCForm(editId){
   $('uSend').onclick=()=>{
     grab();
     if(!D.days.length){const e=$('uErr');e.hidden=false;e.textContent='ยังส่งไม่ได้: เลือกช่วงวันที่ก่อน';return;}
+    if(!editing&&!D.cts){const e=$('uErr');e.hidden=false;e.textContent='ยังส่งไม่ได้: ยังไม่ได้เลือก CTS — กดยกเลิก แล้วเลือก CTS ในขั้นที่ 2 ก่อน';return;}
     /* Product + หัวข้อ ต้องครบก่อนส่ง เหมือนฟอร์มปกติ (REQUIRED) — เดิมส่งได้แล้วขึ้นแค่ "ยังขาด"
        ข้อมูลอื่น (จังหวัด/แผนที่/รูป ฯลฯ) ยังส่งตามทีหลังได้เหมือนเดิม */
     const need=[];
@@ -4539,7 +4568,7 @@ function reqCard(r,act){
 }
 /* ปุ่มอนุมัติบอกปลายทางของขั้นถัดไป — ไม่ให้หัวหน้าเข้าใจผิดว่ากดแล้วจบเลย */
 const approveLabel=r=>r.status==='mgr'?'✓ อนุมัติขั้นสุดท้าย'
-  :r.status==='pending'&&state.role!=='admin'?`✓ อนุมัติ · ส่งต่อ ${byId(MGR_ID).nick}`:'✓ อนุมัติ';
+  :r.status==='pending'&&state.role!=='admin'&&!isMgr()?`✓ อนุมัติ · ส่งต่อ ${byId(MGR_ID).nick}`:'✓ อนุมัติ';
 
 /* ===== หน้าจอฝั่ง SM ===== */
 /* Support Product = ของที่ขอเบิกไปใช้เทรนจริง (hands-on) — หัวใจที่ SM ต้องพิจารณา */
@@ -5058,6 +5087,8 @@ const TP_PRODUCTS=['Ultherapy','Xeomin','Belotero','Radiesse'];
 const TP_COLOR={Ultherapy:'#FFD961',Xeomin:'#7C9CEC',Belotero:'#FF9FC6',Radiesse:'#8FE2FF'};
 const tpState=()=>state.pulse||(state.pulse={from:'',to:'',range:'all',cts:[],team:'',product:'',module:'',
   pick:null,gran:'month',ctype:'all'});
+/* โทนสี Dashboard — ค่าเริ่มต้นสว่างตามธีมแอป · เลือกกลับเป็นกรมท่า-ทองได้ จำไว้ต่อเครื่อง (localStorage) */
+const tpNavy=()=>{try{return localStorage.getItem('tpTheme')==='navy';}catch(e){return false;}};
 /* Chart.js โหลดตอนเปิดแท็บ Dashboard ครั้งแรกเท่านั้น — ไม่ถ่วงเวลาเปิดแอป */
 let _tpChartP=null;
 const tpLoadChart=()=>_tpChartP||(_tpChartP=new Promise((res,rej)=>{
@@ -5197,10 +5228,11 @@ function renderDash(){
   const opt=(v,sel)=>'<option '+(sel===v?'selected':'')+'>'+esc(v)+'</option>';
   const chip=(on,attr,val,txt)=>'<button class="chip'+(on?' active':'')+'" data-'+attr+'="'+esc(val)+'">'+txt+'</button>';
 
-  setHTML(view(),`<div class="tp">
+  setHTML(view(),`<div class="tp${tpNavy()?'':' tp-light'}">
     <div class="tp-top"><div class="tp-brand"><div class="tp-mark">↗</div>
       <div><h1>Training Pulse</h1><span>${esc(SC.title)}</span></div></div>
-      <span class="tp-live">ข้อมูลสดจากปฏิทิน CTS · ${all.length} คิวเทรน</span></div>
+      <div class="tp-tr"><span class="tp-live">ข้อมูลสดจากปฏิทิน CTS · ${all.length} คิวเทรน</span>
+        <button class="tp-theme" id="tpTheme" title="เปลี่ยนโทนสี Dashboard"><i></i>${tpNavy()?'โทนสว่าง':'กรมท่า-ทอง'}</button></div></div>
 
     <div class="filterbar">
       <div class="filter-group"><label>From</label><input type="date" lang="en-GB" id="tpFrom" value="${S.from}"></div>
@@ -5281,6 +5313,7 @@ function renderDash(){
   </div>`);
 
   const set=o=>{Object.assign(S,o);renderDash();};
+  $('tpTheme').onclick=()=>{try{localStorage.setItem('tpTheme',tpNavy()?'light':'navy');}catch(e){}renderDash();};
   $('tpTable').onclick=()=>tableSheet('รายละเอียดข้อมูลการเทรน',SC.title,TP_TCOLS,tpTableRows(rows),'training-detail.csv');
   view().querySelectorAll('[data-supcl]').forEach(tr=>{
     const go=()=>openSupClinic(tr.dataset.supcl);
@@ -5474,7 +5507,9 @@ function tpRepeatHTML(rows){
 let tpCharts=[];
 function tpDraw(rows,ctsRows){
   tpCharts.forEach(c=>{try{c.destroy();}catch(e){}});tpCharts=[];
-  const S=tpState(),grid='#1E3A58',ink='#B8A87A';
+  const N=tpNavy(),S=tpState(),grid=N?'#1E3A58':'#ECE8F6',ink=N?'#B8A87A':'#6E6D88';
+  const acc=N?'#C9A84C':'#7B6AD0',accA=a=>N?`rgba(201,168,76,${a})`:`rgba(123,106,208,${a})`,
+    bg=N?'#0D1B2A':'#FFFFFF',surf=N?'#13263D':'#FFFFFF',hi=N?'#F0E6C8':'#2B2A3D';
   const mk=(id,cfg)=>{const el=$(id);if(!el)return;tpCharts.push(new Chart(el,cfg));};
 
   /* 1) cumulative ตามปีงบ — เส้นทึบถึงเดือนล่าสุดที่มีข้อมูล ที่เหลือเส้นประ */
@@ -5484,16 +5519,22 @@ function tpDraw(rows,ctsRows){
   let run=0;const cum=monthly.map(v=>run+=v);
   let last=-1;monthly.forEach((v,i)=>{if(v>0)last=i;});
   mk('tpCumul',{type:'line',data:{labels:keys.map(tpMonLabel),datasets:[
-    {label:'Cumulative',data:cum.map((v,i)=>i<=last?v:null),borderColor:'#C9A84C',
-     backgroundColor:'rgba(201,168,76,0.08)',borderWidth:2.5,fill:true,tension:.35,
-     pointRadius:monthly.map((v,i)=>v>0&&i<=last?6:0),pointBackgroundColor:'#C9A84C',
-     pointBorderColor:'#0D1B2A',pointBorderWidth:2},
-    {label:'_future',data:cum.map((v,i)=>last<0?v:(i<last?null:v)),borderColor:'rgba(201,168,76,.3)',
+    {label:'Cumulative',data:cum.map((v,i)=>i<=last?v:null),borderColor:acc,
+     backgroundColor:accA(.08),borderWidth:2.5,fill:true,tension:.35,
+     pointRadius:monthly.map((v,i)=>v>0&&i<=last?6:0),pointBackgroundColor:acc,
+     pointBorderColor:bg,pointBorderWidth:2},
+    {label:'_future',data:cum.map((v,i)=>last<0?v:(i<last?null:v)),borderColor:accA(.3),
      borderWidth:1.8,borderDash:[6,5],pointRadius:0,fill:false,tension:.35}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},
       tooltip:{filter:i=>i.dataset.label!=='_future'}},
       scales:{x:{grid:{display:false},ticks:{color:ink,font:{size:11},maxRotation:0,autoSkip:true}},
-              y:{beginAtZero:true,grid:{color:grid},ticks:{color:'#C9A84C',font:{size:10}}}}}});
+              y:{beginAtZero:true,grace:'8%',grid:{color:grid},ticks:{color:acc,font:{size:10}}}}},
+    /* ตัวเลขยอดสะสมเหนือจุดของเดือนที่มีการเทรน */
+    plugins:[{id:'tpCumLbl',afterDatasetsDraw(ch){
+      const ctx=ch.ctx,pts=ch.getDatasetMeta(0).data;
+      ctx.save();ctx.textAlign='center';ctx.textBaseline='bottom';ctx.font='bold 11px Inter,sans-serif';ctx.fillStyle=hi;
+      pts.forEach((p,i)=>{if(monthly[i]>0&&i<=last)ctx.fillText(cum[i].toLocaleString(),p.x,p.y-9);});
+      ctx.restore();}}]});
 
   /* 2) แท่งซ้อนราย product + เส้นรวม */
   const bk={};
@@ -5505,8 +5546,8 @@ function tpDraw(rows,ctsRows){
   const totals=tk.map(k=>bk[k]?TP_PRODUCTS.reduce((n,p)=>n+bk[k][p],0):0);
   const bars=TP_PRODUCTS.map(p=>({type:'bar',label:p,data:tk.map(k=>bk[k]?bk[k][p]:0),
     backgroundColor:TP_COLOR[p],stack:'p',barPercentage:.75,categoryPercentage:.8,order:2}));
-  bars.push({type:'line',label:'Total',data:totals,borderColor:'#C9A84C',borderWidth:2,
-    borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#C9A84C',pointBorderColor:'#0D1B2A',
+  bars.push({type:'line',label:'Total',data:totals,borderColor:acc,borderWidth:2,
+    borderDash:[5,4],pointRadius:4,pointBackgroundColor:acc,pointBorderColor:bg,
     tension:.25,order:1});
   mk('tpTrend',{type:'bar',
     data:{labels:tk.map(S.gran==='month'?tpMonLabel:tpWeekLabel),datasets:bars},
@@ -5522,7 +5563,7 @@ function tpDraw(rows,ctsRows){
   const ring=TP_PRODUCTS.slice().reverse();
   mk('tpRatio',{type:'doughnut',
     data:{labels:ring,datasets:[{data:ring.map(p=>c[p]),
-      backgroundColor:ring.map(p=>TP_COLOR[p]),borderWidth:3,borderColor:'#13263D'}]},
+      backgroundColor:ring.map(p=>TP_COLOR[p]),borderWidth:3,borderColor:surf}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
       plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>
         ' '+x.label+': '+x.parsed+' ('+(ct?Math.round(x.parsed/ct*100):0)+'%)'}}}},
@@ -5531,9 +5572,9 @@ function tpDraw(rows,ctsRows){
       const ctx=ch.ctx,u=c.Ultherapy,inj=c.Xeomin+c.Belotero+c.Radiesse,t=u+inj||1;
       const up=Math.round(u/t*100),cx=(A.left+A.right)/2,cy=(A.top+A.bottom)/2;
       ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillStyle='#F0E6C8';ctx.font='bold 28px Poppins,Inter,sans-serif';
+      ctx.fillStyle=hi;ctx.font='bold 28px Poppins,Inter,sans-serif';
       ctx.fillText(up+':'+(100-up),cx,cy-10);
-      ctx.fillStyle='#B8A87A';ctx.font='bold 11px Inter,sans-serif';
+      ctx.fillStyle=ink;ctx.font='bold 11px Inter,sans-serif';
       ctx.fillText('Ultherapy : Injectable',cx,cy+18);
       ctx.restore();}}]});
 }
@@ -5664,7 +5705,7 @@ function approve(id){
   if(m.length&&!r._ack)return confirmMissing(r,m);
   r.sessions.forEach(stampNow);
   /* Senior Leader อนุมัติ = จัด CTS เสร็จ ส่งต่อ CTS Manager กดขั้นสุดท้าย (Admin ข้ามได้) */
-  if(r.status==='pending'&&state.role!=='admin'){
+  if(r.status==='pending'&&state.role!=='admin'&&!isMgr()){   // BELLE จัดเองแล้ว = จบขั้นสุดท้ายเลย ไม่ต้องส่งให้ตัวเอง
     r.status='mgr';logTrail(r,'approved');
     r.note='Senior Leader อนุมัติแล้ว — รอ '+byId(MGR_ID).nick+' อนุมัติขั้นสุดท้าย';
     notify(r,'assigned');render();
