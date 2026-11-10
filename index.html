@@ -1016,6 +1016,38 @@ table.rawtb tbody tr:nth-child(even){background:#FAF9FD}
 .uchip .nm,.uchip .sb{display:block}
 .rolebtn b,.rolebtn small{display:block}
 </style>
+<!-- ธีม Aurora (เต้เลือก 10 พ.ย. 69 จาก 3 แบบ) — สวมทับของเดิม ไล่สีหัวจอ การ์ดลอย ปุ่มเด้ง -->
+<style>
+:root{--r:20px;--r2:24px}
+body{background:#F4F1FB}
+.main{position:relative;isolation:isolate}
+.main::before{content:'';position:fixed;inset:0 0 auto 0;height:260px;z-index:-1;pointer-events:none;
+  background:linear-gradient(120deg,#B9A6F0 0%,#9EC3F5 45%,#A8E3CB 100%);opacity:.55;
+  -webkit-mask:linear-gradient(#000,transparent);mask:linear-gradient(#000,transparent)}
+.side{background:#fff;box-shadow:8px 0 30px rgba(95,79,176,.07);border-right:0}
+.navitem{transition:transform .18s,background .18s}
+.navitem:hover{transform:translateX(3px)}
+.navitem[aria-selected="true"]{box-shadow:0 6px 16px rgba(95,79,176,.12)}
+.card,.tile,.dcard{border-color:transparent;box-shadow:0 2px 4px rgba(43,42,61,.04),0 18px 40px rgba(95,79,176,.10);
+  transition:transform .2s,box-shadow .2s}
+.tile:hover,.dcard:hover{transform:translateY(-3px);box-shadow:0 4px 8px rgba(43,42,61,.05),0 24px 48px rgba(95,79,176,.16)}
+.tile{position:relative;overflow:hidden}
+.tile::after{content:'';position:absolute;right:-24px;top:-24px;width:80px;height:80px;border-radius:50%;
+  background:radial-gradient(circle,#D9CEFA,transparent 70%)}
+.tile:nth-child(2)::after{background:radial-gradient(circle,#CFE3FB,transparent 70%)}
+.tile:nth-child(3)::after{background:radial-gradient(circle,#CDEFE0,transparent 70%)}
+.btn,.chip,.fchip{transition:transform .12s,box-shadow .2s}
+.btn:active,.chip:active,.fchip:active{transform:scale(.96)}
+.btn.primary,.lgo:not(:disabled){background:linear-gradient(120deg,#8B7BD8,#6A9BE6);border-color:transparent;
+  box-shadow:0 10px 24px rgba(106,155,230,.35)}
+.seg button[aria-selected="true"]{background:linear-gradient(120deg,#8B7BD8,#6A9BE6)}
+.mcell.today .dn b{background:linear-gradient(135deg,#8B7BD8,#6A9BE6);box-shadow:0 3px 8px rgba(106,155,230,.5)}
+.calshell{border-color:transparent}
+.botnav{border-radius:22px 22px 0 0;border-top:0;box-shadow:0 -10px 30px rgba(95,79,176,.14)}
+.botnav button[aria-selected="true"] .ic{transform:translateY(-3px) scale(1.08)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -1776,6 +1808,11 @@ function enter(){
   try{localStorage.setItem('cts-login',JSON.stringify({...auth,
     loginRole:state.loginRole,loginArea:state.loginArea,loginCts:state.loginCts,loginCode:state.loginCode,loginSm:state.loginSm}));}catch(e){}
   render();
+  push.sub(false).then(on=>{if(on&&state.tab==='feed')render();}).catch(()=>{});   // เคยอนุญาตแล้ว -> ผูก tag ของคนนี้ใหม่เงียบๆ
+  const h=location.hash.match(/^#r=(.+)$/);   // เปิดจากแจ้งเตือนตอนแอปปิดอยู่
+  if(h){history.replaceState(null,'',location.pathname+location.search);const id=decodeURIComponent(h[1]);
+    (loaded?Promise.resolve():new Promise(r=>{const t=setInterval(()=>{if(loaded){clearInterval(t);r();}},300);setTimeout(()=>{clearInterval(t);r();},15000);}))
+      .then(()=>goReq(id));}
 }
 
 /* ตอนเปิดแอป: ถ้าเคยล็อกอินไว้ก็เข้าให้เลย ไม่ผ่านก็กลับไปหน้า login ตามปกติ
@@ -1796,6 +1833,7 @@ async function restoreLogin(){
 }
 
 function logout(){
+  push.drop().catch(()=>{});
   if(SB)SB.auth.signOut().catch(()=>{});
   auth={role:null};loaded=false;lastSaved='';failStreak=0;syncChip('');
   try{localStorage.removeItem('cts-login');}catch(e){}
@@ -5733,7 +5771,6 @@ function renderFeed(){
   markFeedSeen();   // เปิดแท็บนี้ = อ่านแล้ว ป้ายบนไอคอนแอปจะถูกล้าง
   const q=(state.recQ||'').trim().toLowerCase();
   const all=state.feed.filter(i=>canSeeRecord(i.r)&&recHit(i.r,q));
-  const noti=typeof Notification!=='undefined'&&Notification.permission!=='granted';
   const f=state.feedFilter||'all';
   const feed=f==='all'?all:all.filter(i=>i.kind===f);
   const n=k=>all.filter(i=>i.kind===k).length;
@@ -5747,8 +5784,10 @@ function renderFeed(){
       ${state.recQ?'<button class="btn sm" id="recClr">ล้าง</button>':''}</div>
     ${q?`<div class="note" style="margin-top:0">ผลการค้น "${esc(state.recQ)}" — พบ ${all.length} คำขอ</div>`:''}
     <button class="btn primary block" id="recTable" style="margin-bottom:12px">▤ ดูตาราง Record ทั้งหมด / Export Excel</button>
-    ${noti?`<button class="btn block" id="askNoti" style="margin-bottom:12px">✦ เปิดป้ายตัวเลขบนไอคอนแอป</button>
-      <div class="note" style="margin-top:0">ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (เมนู → Add to Home screen) แล้วกดปุ่มนี้อนุญาตแจ้งเตือน · ตัวเลขจะขึ้นที่ไอคอนเหมือนแอปทั่วไป</div>`:''}
+    ${state.pushOn||!pushTags().length?'':!pushOk()?`<div class="note pl" style="margin:0 0 12px">เครื่องนี้ยังรับแจ้งเตือนไม่ได้ — iPhone ต้องติดตั้งแอปลงหน้าจอโฮมก่อน (แชร์ → เพิ่มไปยังหน้าจอโฮม, iOS 16.4 ขึ้นไป) แล้วเปิดจากไอคอน</div>`
+      :typeof Notification!=='undefined'&&Notification.permission==='denied'?`<div class="warn" style="margin:0 0 12px">ปิดการแจ้งเตือนของแอปนี้ไว้ — เปิดได้ที่ การตั้งค่าเครื่อง › การแจ้งเตือน</div>`
+      :`<button class="btn primary block" id="askNoti" style="margin-bottom:6px">✦ เปิดแจ้งเตือนบนมือถือเครื่องนี้</button>
+      <div class="note" style="margin:0 0 12px">รู้ทันทีเมื่อมีคำขอรออนุมัติ อนุมัติแล้ว ได้รับคิว หรือคิวถูกยกเลิก แม้ไม่ได้เปิดแอป · ตัวเลขจะขึ้นที่ไอคอนแอปด้วย</div>`}
     <div class="filterbar">
       <button class="fchip all" data-nf="all" aria-pressed="${f==='all'}" style="--c:var(--brand-soft);--ci:var(--brand-deep)">ทั้งหมด (${all.length})</button>
       <button class="fchip all" data-nf="pending" aria-pressed="${f==='pending'}" style="--c:var(--warn-soft);--ci:#8A6C1B">◷ รออนุมัติ (${n('pending')})</button>
@@ -5763,11 +5802,11 @@ function renderFeed(){
   $('recTable').onclick=()=>tableSheet('Record · ตารางคำขอทั้งหมด',scope,REC_COLS,
     recTableRows(state.requests.filter(r=>canSeeRecord(r)&&recHit(r,q))),'training-record.csv');
   const an=$('askNoti');if(an)an.onclick=async()=>{
+    an.disabled=true;
     try{
-      const p=await Notification.requestPermission();
-      toast(p==='granted'?'เปิดแล้ว — ตัวเลขจะขึ้นที่ไอคอนแอปตอนมีงานใหม่'
+      toast(await push.sub(true)?'เปิดแจ้งเตือนแล้ว — เครื่องนี้จะได้รับแจ้งเตือนของคุณ'
         :'ยังไม่ได้อนุญาต — เปิดได้ที่ตั้งค่าแจ้งเตือนของเครื่อง');
-    }catch(e){toast('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับป้ายบนไอคอนแอป');}
+    }catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ — ลองใหม่อีกครั้ง');}
     render();};
   const rq=$('recQ');
   if(rq){
@@ -5850,6 +5889,40 @@ let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>
 const SUPA_URL='https://hxiswcnoxboegudstyng.supabase.co';
 const SUPA_KEY='sb_publishable_rDKTTwBvD6GE4DoUeM0O6w_IPPZiVHr';   // publishable key — เปิดเผยได้ ความปลอดภัยจริงอยู่ที่ RLS
 const SB=(SUPA_URL&&window.supabase)?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
+
+/* ===== แจ้งเตือนบนมือถือ (Web Push) — Edge Function "push" ส่งเมื่อคำขอเปลี่ยนสถานะ (supabase/push.sql) =====
+   เครื่องนี้ลงทะเบียน "tag" ของคนที่ล็อกอิน แล้วฟังก์ชันเลือกส่งตาม tag · iPhone ต้องเปิดจากไอคอนหน้าจอโฮม (iOS 16.4+) */
+const VAPID_PUBLIC='BF3bRbXdxTqWMMeUTOz3REJnaPKBscH8dmJ0lQVvRmQy_nrHwl0A1fZUOtlirovvnfnLCbkFGd65SBrCTDMgUhc';   // คู่กับ VAPID_PRIVATE_KEY ใน secret ของ Edge Function
+const pushTags=()=>state.role==='sales'?['sale:'+state.salesId]
+  :state.role==='sm'?(SM_TEAMS[state.sm]||{areas:[]}).areas.map(a=>'sm:'+a)
+  :state.role==='cts'?['cts:'+state.me,...(LEAD_IDS.includes(state.me)?['lead']:[]),...(state.me===MGR_ID?['mgr']:[])]
+  :[];   // Admin ไม่มีขั้นอนุมัติ — ไม่รับแจ้งเตือน
+const pushOk=()=>!!SB&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const b64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const push={
+  async sub(ask){   // ask = กดปุ่มเอง · ไม่ ask = ตอนเข้าแอป ลงทะเบียนซ้ำเงียบๆ (อัปเดต tag ตามคนที่ล็อกอิน)
+    if(!pushOk()||!pushTags().length||(!ask&&Notification.permission!=='granted'))return false;
+    if(ask&&await Notification.requestPermission()!=='granted')return false;
+    const reg=await navigator.serviceWorker.ready;
+    const j=((await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)})).toJSON();
+    const {error}=await SB.rpc('save_push_sub',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_tags:pushTags()});
+    if(error)throw error;
+    return state.pushOn=true;
+  },
+  async drop(){   // ออกจากระบบ: เครื่องนี้เลิกรับแจ้งเตือนของคนเดิม
+    state.pushOn=false;
+    if(!pushOk())return;
+    const reg=await navigator.serviceWorker.getRegistration(),s=reg&&await reg.pushManager.getSubscription();
+    if(s)await SB.rpc('drop_push_sub',{p_endpoint:s.endpoint});
+  }
+};
+/* แตะแจ้งเตือน -> เปิดรายละเอียดคำขอใน Record (แอปเปิดอยู่: sw ส่ง message · ยังไม่เปิด: เปิดด้วย #r=<id>) */
+function goReq(id){
+  if(!state.authed||!id)return;
+  state.tab='feed';render();
+  if(state.feed.some(f=>f.r.id===id))openRecord(id);
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.nav)goReq(e.data.nav);});
 
 /* บันทึกคำขอ (เฟส 1) + ปฏิทินงาน (เฟส 2) + skills/holidays/events (เฟส 3)
    feed สร้างใหม่จาก requests ทุกครั้งที่โหลด · evSeq/seSeq คำนวณจาก id สูงสุดตอนโหลด จึงไม่ต้องเก็บ */
