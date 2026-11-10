@@ -1141,6 +1141,11 @@ svg.gi{width:1.05em;height:1.05em;vertical-align:-.16em;flex:none;stroke:current
 .login-card{transition:transform .22s ease,opacity .22s ease,filter .22s}
 .login-card.out{transform:scale(.94);opacity:0;filter:blur(4px)}
 .entered .shell{animation:zoomIn .5s cubic-bezier(.2,.8,.2,1)}
+/* ปุ่มเปิดแจ้งเตือนหน้าล็อกอิน */
+.lpushbtn{margin-top:10px;border-color:#D6CBF6;color:#5F4FB0;font-weight:700}
+.lpush{margin-top:10px;font-size:12.5px;text-align:center}
+.lpush.ok{color:var(--ok);font-weight:700}
+.lpush.warn{margin-top:10px}
 /* เครดิตผู้พัฒนา: ป๊อปอัปกลางจอ */
 @keyframes ovIn{from{opacity:0}}
 @keyframes cardIn{0%{opacity:0;transform:translateY(24px) scale(.86)}60%{opacity:1;transform:translateY(-4px) scale(1.02)}100%{transform:none}}
@@ -1885,11 +1890,13 @@ function renderLogin(){
     ${ready&&!needPw(r)?`<div class="note err" id="lErr" style="display:none"></div>`:''}
 
     <button class="lgo" id="lGo" ${ready?'':'disabled'}>เข้าสู่ระบบ</button>
+    <div id="lPush">${loginPushHTML()}</div>
     <div class="lhint">ขอรหัสผ่านได้ที่ผู้ดูแลระบบ</div>
     <button class="lcredit" id="lDev">ผู้พัฒนา</button>
   </div></div>`);
 
   $('lDev').onclick=openCredit;
+  bindLoginPush();
   root.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{state.loginRole=b.dataset.r;renderLogin();});
   const la=$('lArea');if(la)la.onchange=e=>{state.loginArea=e.target.value;state.loginCode=null;renderLogin();};
   root.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>{state.loginCode=b.dataset.code;renderLogin();});
@@ -6049,6 +6056,29 @@ const push={
     if(s)await SB.rpc('drop_push_sub',{p_endpoint:s.endpoint});
   }
 };
+/* ปุ่มเปิดแจ้งเตือนหน้าล็อกอิน (ใต้ "เข้าสู่ระบบ") — ยังไม่รู้ว่าเป็นใคร จึงแค่ขอสิทธิ์ + ผูกเครื่องกับ push service
+   พอเข้าสู่ระบบ enter() เรียก push.sub(false) ลงทะเบียน tag ของคนนั้นให้เอง */
+function loginPushHTML(){
+  if(!pushOk())return `<div class="lpush note pl">iPhone: กด แชร์ → เพิ่มไปยังหน้าจอโฮม แล้วเปิดแอปจากไอคอน ถึงจะเปิดแจ้งเตือนได้ (iOS 16.4 ขึ้นไป)</div>`;
+  if(Notification.permission==='granted')return `<div class="lpush ok">✓ เครื่องนี้เปิดแจ้งเตือนแล้ว</div>`;
+  if(Notification.permission==='denied')return `<div class="lpush warn">ปิดการแจ้งเตือนของแอปนี้ไว้ — เปิดได้ที่ การตั้งค่าเครื่อง › การแจ้งเตือน</div>`;
+  return `<button class="btn block lpushbtn" id="lPushBtn">✦ เปิดแจ้งเตือนบนมือถือเครื่องนี้</button>`;
+}
+function bindLoginPush(){
+  const b=$('lPushBtn');if(!b)return;
+  b.onclick=async()=>{
+    b.disabled=true;
+    try{
+      if(await Notification.requestPermission()==='granted'){
+        const reg=await navigator.serviceWorker.ready;
+        if(!await reg.pushManager.getSubscription())await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
+        if(state.authed)await push.sub(false);
+        toast('เปิดแจ้งเตือนแล้ว — เข้าสู่ระบบแล้วเครื่องนี้จะได้รับแจ้งเตือนของคุณ');
+      }
+    }catch(e){toast('เปิดแจ้งเตือนไม่สำเร็จ — ลองใหม่อีกครั้ง');}
+    const w=$('lPush');if(w){w.innerHTML=loginPushHTML();bindLoginPush();}
+  };
+}
 /* แตะแจ้งเตือน -> เปิดรายละเอียดคำขอใน Record (แอปเปิดอยู่: sw ส่ง message · ยังไม่เปิด: เปิดด้วย #r=<id>) */
 function goReq(id){
   if(!state.authed||!id)return;
