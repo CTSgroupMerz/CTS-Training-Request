@@ -1045,7 +1045,56 @@ body{background:#F4F1FB}
 .calshell{border-color:transparent}
 .botnav{border-radius:22px 22px 0 0;border-top:0;box-shadow:0 -10px 30px rgba(95,79,176,.14)}
 .botnav button[aria-selected="true"] .ic{transform:translateY(-3px) scale(1.08)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---- Aurora+ (11 พ.ย.) ---- */
+::selection{background:#D9CEFA;color:#2B2A3D}
+*{scrollbar-width:thin;scrollbar-color:#CFC4F2 transparent}
+/* ไอคอนเส้น SVG (แทนสัญลักษณ์ตัวอักษร — ดู ICON_SVG ท้ายไฟล์) */
+svg.gi{width:1.05em;height:1.05em;vertical-align:-.16em;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.okmk svg.gi,.evchip svg.gi{stroke-width:3}
+.empty .big svg.gi{width:42px;height:42px;stroke-width:1.5;color:#A99BE6}
+/* login: แสงออโรร่าเคลื่อนช้าๆ หลังการ์ดกระจก */
+.login{position:relative;overflow:hidden;isolation:isolate}
+.login::before,.login::after{content:'';position:absolute;z-index:-1;width:60vmax;height:60vmax;border-radius:50%;filter:blur(70px);opacity:.55;
+  animation:aur 18s ease-in-out infinite alternate}
+.login::before{background:#C7B6F7;top:-25vmax;left:-15vmax}
+.login::after{background:#A9D8F2;bottom:-25vmax;right:-15vmax;animation-delay:-9s}
+@keyframes aur{to{transform:translate(12vmax,8vmax) scale(1.15)}}
+.login-card{background:rgba(255,255,255,.72);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);
+  box-shadow:0 1px 0 #fff inset,0 30px 70px rgba(95,79,176,.18)}
+.login h1,h1.pt{background:linear-gradient(100deg,#3E3470 10%,#7A62D6 55%,#4E8FD8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.rolebtn{transition:transform .18s,box-shadow .18s,border-color .18s}
+.rolebtn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(95,79,176,.12)}
+.rolebtn .ric{box-shadow:0 6px 14px rgba(43,42,61,.10)}
+.rolebtn .ric svg.gi{width:20px;height:20px}
+.rolebtn[aria-pressed="true"]{border-color:transparent;background:linear-gradient(#F6F2FF,#F6F2FF) padding-box,linear-gradient(120deg,#8B7BD8,#6A9BE6) border-box;
+  border:1.5px solid transparent;box-shadow:0 10px 26px rgba(106,155,230,.22)}
+/* แถบเมนู: ไอคอนอยู่ในกล่องมน · แท็บที่เลือกกล่องเป็นสีประจำแท็บ */
+.navitem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#F3F0FB;font-size:17px}
+.navitem[aria-selected="true"] .ic{background:var(--tci,#5F4FB0);color:#fff;box-shadow:0 6px 14px color-mix(in srgb,var(--tci,#5F4FB0) 35%,transparent)}
+.navitem[aria-selected="true"]{background:linear-gradient(120deg,var(--tc,#EFEAFB),rgba(255,255,255,.6))}
+.uchip{transition:background .18s}
+.uchip .uic svg.gi{width:18px;height:18px}
+.iconbtn{transition:transform .15s,box-shadow .2s}
+.iconbtn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(95,79,176,.14)}
+.topbar{background:rgba(255,255,255,.7);border-bottom-color:transparent;box-shadow:0 6px 20px rgba(95,79,176,.08)}
+.botnav button[aria-selected="true"] .ic{background:var(--tci,#5F4FB0);color:#fff}
+/* การ์ด: ขอบไล่สีบางๆ */
+.card,.dcard{background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#E6DDFB,#DCE9FB 50%,#D8F1E6) border-box;border:1px solid transparent}
+.dcard{border-left:5px solid var(--c,#E6DDFB)}
+/* ปุ่มหลัก: แสงวิ่งผ่านตอนชี้ */
+.btn.primary,.lgo:not(:disabled){background-size:200% 100%;background-image:linear-gradient(120deg,#8B7BD8,#6A9BE6,#8B7BD8);
+  transition:background-position .5s,transform .12s,box-shadow .2s}
+.btn.primary:hover,.lgo:not(:disabled):hover{background-position:100% 0;box-shadow:0 14px 30px rgba(106,155,230,.42)}
+.btn:not(.primary):not(.ghost):hover{box-shadow:0 6px 14px rgba(95,79,176,.10)}
+/* ปฏิทิน */
+.dow{background:linear-gradient(90deg,#F6F2FF,#F0F6FF,#F1FAF5)}
+.evchip,.spanbar{transition:transform .12s,box-shadow .15s}
+.evchip:hover,.spanbar:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(43,42,61,.14)}
+.mcell.today{background:linear-gradient(180deg,#F5F1FF,#fff 70%)}
+/* หน้าต่างซ้อน + toast */
+.sheet-head{background:linear-gradient(180deg,#F3EEFF,var(--paper))}
+.toast{background:linear-gradient(120deg,#3E3470,#2E4F86);box-shadow:0 14px 34px rgba(46,37,87,.35)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 </style>
 </head>
@@ -6366,6 +6415,63 @@ setInterval(()=>{
 },30000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});   // ไม่ทำงานตอนเปิดไฟล์ตรงๆ (file://) — ปกติ
+
+/* ===== ไอคอนเส้น SVG แทนสัญลักษณ์ตัวอักษร (◷ ✎ ✦ ▤ ⟳ …) =====
+   ponytail: ไม่ไล่แก้ template ทีละร้อยจุด — คอยดู DOM แล้วสลับสัญลักษณ์ในข้อความเป็น <svg> ตอนแสดงผล
+   โค้ด/CSV/อีเมล/เทส ยังเห็นตัวอักษรเดิม · ข้ามช่องกรอก, dropdown และกล่องข้อความอีเมล
+   เพิ่มไอคอนใหม่ = เติมใน ICON_SVG (path แบบ Lucide 24×24) */
+const ICON_SVG={
+  '✓':'<path d="M20 6 9 17l-5-5"/>',
+  '✕':'<path d="M18 6 6 18M6 6l12 12"/>',
+  '◷':'<circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/>',
+  '✎':'<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/><path d="m14 6 3 3"/>',
+  '✦':'<path d="M12 3.5 13.8 9 19.5 11l-5.7 1.9L12 18.5l-1.8-5.6L4.5 11l5.7-2Z"/><path d="M19 3v3.5M17.2 4.8h3.6"/>',
+  '▤':'<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5V20"/>',
+  '↪':'<path d="M9 20.5H5.5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2H9"/><path d="m16 16.5 4.5-4.5L16 7.5M20.5 12H9"/>',
+  '⟳':'<path d="M20.5 12a8.5 8.5 0 1 1-2.5-6l2.5 2.5"/><path d="M20.5 3.5v5h-5"/>',
+  '◆':'<circle cx="12" cy="9" r="5.5"/><path d="m8.6 13.4-1.6 7.1 5-2.6 5 2.6-1.6-7.1"/>',
+  '⊖':'<path d="M4 6.5h16M9.5 6.5V4.5h5v2M6.5 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-13M10 11v6M14 11v6"/>',
+  '◍':'<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+  '⚙':'<path d="M12 21.5s7.5-3.6 7.5-9.5V5.6L12 2.5 4.5 5.6V12c0 5.9 7.5 9.5 7.5 9.5Z"/><path d="m9 12 2.2 2.2L15.5 10"/>',
+  '↗':'<path d="m21.5 7-8 8-5-5-6 6"/><path d="M15.5 7h6v6"/>',
+  '◈':'<rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4"/><path d="M12 13v3.5"/><circle cx="12" cy="13" r=".4"/>',
+  '🔒':'<rect x="4.5" y="10.5" width="15" height="10.5" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  '⇄':'<path d="m16 3.5 4 4-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/>',
+  '▲':'<path d="M10.3 4 2 18.2a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>',
+  '⚠':'<path d="M10.3 4 2 18.2a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>',
+  '⧉':'<rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
+  '★':'<path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3L12 17.3l-5.7 3 1.1-6.3L2.8 9.5l6.4-.9Z"/>',
+  '▦':'<rect x="3.5" y="4.5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 2.5v4M16 2.5v4M8 13.5h.01M12 13.5h.01M16 13.5h.01M8 17h.01M12 17h.01"/>',
+  '↺':'<path d="M3.5 7.5v5h5"/><path d="M5.2 15.5A8.5 8.5 0 1 0 6 6.5l-2.5 6"/>',
+  '⊘':'<circle cx="12" cy="12" r="9.5"/><path d="m5.3 5.3 13.4 13.4"/>',
+  '⤓':'<path d="M20.5 14.5v4a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-4M7.5 10l4.5 4.5 4.5-4.5M12 14.5V3.5"/>',
+  '✚':'<path d="M16 20.5v-1.5a4 4 0 0 0-4-4H6.5a4 4 0 0 0-4 4v1.5"/><circle cx="9.2" cy="7.5" r="4"/><path d="M21.5 20.5v-1.5a4 4 0 0 0-3-3.9M15.5 3.6a4 4 0 0 1 0 7.8"/>',
+};
+const ICON_RE=new RegExp('('+Object.keys(ICON_SVG).join('|')+')','u');
+const ICON_SKIP=/^(TEXTAREA|INPUT|SELECT|OPTION|SCRIPT|STYLE|svg|title)$/;
+function iconize(root){
+  if(!root||root.nodeType!==1&&root.nodeType!==3)return;
+  const nodes=[];
+  if(root.nodeType===3)nodes.push(root);
+  else{const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode()))nodes.push(n);}
+  for(const t of nodes){
+    if(!ICON_RE.test(t.nodeValue))continue;
+    const p=t.parentElement;
+    if(!p||ICON_SKIP.test(p.nodeName)||p.closest('.copybox,select,textarea,svg'))continue;
+    const f=document.createDocumentFragment();
+    for(const part of t.nodeValue.split(ICON_RE)){
+      if(ICON_SVG[part]){const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        s.setAttribute('viewBox','0 0 24 24');s.setAttribute('class','gi');s.setAttribute('aria-hidden','true');
+        s.innerHTML=ICON_SVG[part];f.appendChild(s);}
+      else if(part)f.appendChild(document.createTextNode(part));
+    }
+    t.replaceWith(f);
+  }
+}
+if(typeof MutationObserver!=='undefined'&&document.body&&document.body.nodeType){
+  iconize(document.body);
+  new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(iconize))).observe(document.body,{childList:true,subtree:true});
+}
 
 restoreLogin();   // จำการล็อกอินครั้งก่อนไว้ ไม่ต้องกรอกรหัสใหม่ทุกครั้งที่เปิดแอป
 </script>
