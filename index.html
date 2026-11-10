@@ -1094,6 +1094,57 @@ svg.gi{width:1.05em;height:1.05em;vertical-align:-.16em;flex:none;stroke:current
 /* หน้าต่างซ้อน + toast */
 .sheet-head{background:linear-gradient(180deg,#F3EEFF,var(--paper))}
 .toast{background:linear-gradient(120deg,#3E3470,#2E4F86);box-shadow:0 14px 34px rgba(46,37,87,.35)}
+/* ---- Animation (11 พ.ย.) — ดู animOn() ท้ายไฟล์ ----
+   .anim = ผู้ใช้เพิ่งกด (อยู่ 900ms) · .tabchg = เพิ่งเปลี่ยนแท็บ · data-dir = ทิศเลื่อนปฏิทิน/วัน
+   ไม่มีคลาสพวกนี้ตอนโหลดอัตโนมัติทุก 30 วิ หน้าจอจึงไม่เล่นซ้ำ/กระพริบ */
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes slideL{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes slideR{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(200,105,122,.55)}70%,100%{box-shadow:0 0 0 7px rgba(200,105,122,0)}}
+@keyframes zoomIn{from{opacity:0;transform:scale(.97);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+/* หน้าต่างรายละเอียด: สปริง + พื้นหลังเบลอ */
+.scrim{backdrop-filter:blur(0);-webkit-backdrop-filter:blur(0);transition:opacity .25s,backdrop-filter .3s}
+.scrim.on{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.sheet{transition:transform .42s cubic-bezier(.22,1.2,.36,1)}
+@media(min-width:940px){.sheet{transition:opacity .22s ease,transform .4s cubic-bezier(.22,1.3,.36,1)}}
+/* toast: ไถลขึ้นแล้วเด้ง */
+.toast{transform:translateX(-50%) translateY(18px) scale(.94);transition:opacity .22s,transform .42s cubic-bezier(.22,1.4,.36,1)}
+.toast.on{transform:translateX(-50%) translateY(0) scale(1)}
+/* ระลอกคลื่นตอนกด */
+:where(.btn,.chip,.fchip,.navitem,.botnav button,.iconbtn,.rolebtn,.codebtn,.lgo,.seg button,.navbtns button){position:relative;overflow:hidden}
+.rip{position:absolute;border-radius:50%;background:currentColor;opacity:.2;transform:scale(0);pointer-events:none;animation:rip .55s ease-out forwards}
+/* ชิปที่เพิ่งเลือก: จุดสีเด้ง */
+.chip.just::before,.fchip.just .dot,.fchip.just img{animation:pop .4s ease}
+.chip.just{animation:pop .3s ease}
+/* รีเฟรช / กำลังบันทึก: ไอคอนหมุน */
+.busy #tSync svg.gi,.busy #sideSync svg.gi,.syncchip.saving svg.gi{animation:spin .9s linear infinite}
+/* ป้ายตัวเลขแจ้งเตือน: วงแหวนกระเพื่อม */
+.navitem .cnt,.botnav .cnt{animation:ring 2.4s ease-out infinite}
+/* สถานะที่ยังรออยู่: จุดกะพริบช้าๆ */
+.status.pending::before,.status.sm::before,.status.mgr::before,.status.tbc::before{content:'';display:inline-block;width:6px;height:6px;
+  border-radius:50%;background:currentColor;margin-right:5px;vertical-align:1px;animation:blink 1.6s ease-in-out infinite}
+/* เปลี่ยนแท็บ: เนื้อหาลอยขึ้น · การ์ดทยอยโผล่ · ไอคอนแท็บเด้ง */
+.tabchg #view>*{animation:rise .42s cubic-bezier(.2,.8,.2,1) both}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>*{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(2){animation-delay:45ms}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(3){animation-delay:90ms}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(4){animation-delay:135ms}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(5){animation-delay:180ms}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(6){animation-delay:225ms}
+.tabchg :is(.reqgrid,.nfeed,.tiles,.kpi-grid,.dgrid)>:nth-child(n+7){animation-delay:270ms}
+.tabchg :is(.navitem,.botnav button)[aria-selected="true"] .ic{animation:pop .45s ease}
+/* เลื่อนเดือน/สัปดาห์ ‹ › และเปลี่ยนวันในหน้ารายวัน: ไถลตามทิศ */
+.anim[data-dir=l] :is(.calshell,#sheetBody>*){animation:slideL .32s cubic-bezier(.2,.8,.2,1)}
+.anim[data-dir=r] :is(.calshell,#sheetBody>*){animation:slideR .32s cubic-bezier(.2,.8,.2,1)}
+.anim[data-dir=f] .calshell{animation:rise .32s cubic-bezier(.2,.8,.2,1)}
+/* ล็อกอินสำเร็จ: การ์ดย่อจาง แล้วหน้าหลักขยายเข้ามา */
+.login-card{transition:transform .22s ease,opacity .22s ease,filter .22s}
+.login-card.out{transform:scale(.94);opacity:0;filter:blur(4px)}
+.entered .shell{animation:zoomIn .5s cubic-bezier(.2,.8,.2,1)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 </style>
@@ -1720,7 +1771,7 @@ const dayShift=(k,n)=>{const d=parse(k);d.setDate(d.getDate()+n);return key(d);}
 const dayNav=()=>`<div class="row" style="margin-top:6px"><button class="btn sm" data-dnav="-1">‹ วันก่อน</button>
   <span class="grow"></span><button class="btn sm" data-dnav="1">วันถัดไป ›</button></div>`;
 function bindDayNav(k,fn){
-  sheetSwipe=n=>fn(dayShift(k,n));
+  sheetSwipe=n=>{animOn(n>0?'l':'r');fn(dayShift(k,n));};
   $('sheetHead').querySelectorAll('[data-dnav]').forEach(b=>b.onclick=()=>sheetSwipe(+b.dataset.dnav));
 }
 (()=>{const s=$('sheet');if(!s.addEventListener)return;let x0=null,y0=0;
@@ -1820,6 +1871,7 @@ function renderLogin(){
     if(!ok){btn.disabled=false;btn.textContent='เข้าสู่ระบบ';
       err.textContent=authErr||(needPw(r)?'รหัสผ่านไม่ถูกต้อง หรือเชื่อมต่อเซิร์ฟเวอร์ไม่ได้':'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ลองใหม่อีกครั้ง');
       err.style.display='';if(pw)pw.focus();return;}
+    await loginOut();
     enter();
   };
 }
@@ -6310,7 +6362,9 @@ async function refresh(){
   if(saving||loading)return toast('กำลังซิงก์ข้อมูลอยู่ — รอสักครู่แล้วกดใหม่');
   if(dirty()){await save();if(dirty())return toast('ยังบันทึกของที่แก้ไว้ไม่สำเร็จ — รอสักครู่แล้วกดใหม่');}
   toast('กำลังโหลดข้อมูลล่าสุด…');
-  if(await load()){render();toast('อัปเดตข้อมูลล่าสุดแล้ว');}
+  const h=HTML();if(h)h.classList.add('busy');   // ไอคอนรีเฟรชหมุนระหว่างโหลด
+  const ok=await load().finally(()=>{if(h)h.classList.remove('busy');});
+  if(ok){render();toast('อัปเดตข้อมูลล่าสุดแล้ว');}
   else toast('ยังไม่ได้อัปเดต — มีของที่เพิ่งแก้รออยู่ กดใหม่อีกครั้ง');
 }
 
@@ -6471,6 +6525,52 @@ function iconize(root){
 if(typeof MutationObserver!=='undefined'&&document.body&&document.body.nodeType){
   iconize(document.body);
   new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(iconize))).observe(document.body,{childList:true,subtree:true});
+}
+
+/* ===== Animation — เล่นเฉพาะหลังผู้ใช้กด (CSS อยู่ในบล็อก "Animation" ของ Aurora) =====
+   แอปวาดหน้าใหม่ทั้งหน้าทุก 30 วิ ถ้าใส่ animation ตรงๆ จะเล่นซ้ำจนกระพริบ
+   -> ใส่คลาส .anim/.tabchg บน <html> ตอนผู้ใช้กด แล้วถอดออกใน 900ms (animation ทุกตัวจบก่อนนั้น) */
+const RM=typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const HTML=()=>typeof document!=='undefined'&&document.documentElement&&document.documentElement.classList?document.documentElement:null;
+let animT=0,justSel=null;
+function animOn(dir,tab){
+  const h=HTML();if(!h||RM)return;
+  h.classList.add('anim');h.classList.toggle('tabchg',!!tab);
+  if(dir)h.dataset.dir=dir;else delete h.dataset.dir;
+  clearTimeout(animT);animT=setTimeout(()=>{h.classList.remove('anim','tabchg');delete h.dataset.dir;},900);
+}
+function countUp(){   // ตัวเลขสรุปไล่นับจาก 0 — เฉพาะตอนเพิ่งเปลี่ยนแท็บ
+  document.querySelectorAll('.tile .tn,.kpi-value,.dtot b').forEach(el=>{
+    const t=el.textContent.trim();if(!/^\d[\d,]*$/.test(t))return;
+    const v=+t.replace(/,/g,''),t0=performance.now();if(!v)return;
+    const f=n=>{const p=Math.min(1,(n-t0)/650);el.textContent=Math.round(v*(1-Math.pow(1-p,3))).toLocaleString();
+      if(p<1&&el.isConnected)requestAnimationFrame(f);};
+    requestAnimationFrame(f);});
+}
+if(HTML()&&document.addEventListener){
+  document.addEventListener('pointerdown',e=>{
+    const b=e.target.closest&&e.target.closest('button,.chip,.fchip');if(!b||b.disabled)return;
+    const nav=b.closest('.navbtns'),tab=b.matches('.navitem,.botnav button')&&b.getAttribute('aria-selected')!=='true';
+    animOn(nav?(b.id==='pv'?'r':b.id==='nx'?'l':'f'):b.closest('.seg')?'f':'',tab);
+    if(RM)return;
+    if(b.matches('.chip,.fchip')){   // จำชิปที่กด -> หลังวาดใหม่ให้เด้งเฉพาะตัวนั้น
+      const a=[...b.attributes].find(x=>x.name.startsWith('data-'));
+      justSel=a?'['+a.name+'="'+CSS.escape(a.value)+'"]':null;}
+    const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height)*2.2,s=document.createElement('span');
+    s.className='rip';s.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
+    b.appendChild(s);setTimeout(()=>s.remove(),600);
+  },{passive:true});
+  document.addEventListener('click',()=>{   // วิ่งหลัง onclick ของปุ่ม = หน้าวาดใหม่เสร็จแล้ว
+    if(justSel){const el=document.querySelector(justSel+'[aria-pressed="true"]');justSel=null;
+      if(el){el.classList.add('just');setTimeout(()=>el.classList.remove('just'),450);}}
+    if(document.documentElement.classList.contains('tabchg'))countUp();
+  });
+}
+/* ล็อกอินสำเร็จ: การ์ดย่อจางก่อน แล้วหน้าหลักขยายเข้ามา */
+function loginOut(){
+  const h=HTML(),c=h&&document.querySelector('.login-card');if(!c||RM)return Promise.resolve();
+  c.classList.add('out');h.classList.add('entered');setTimeout(()=>h.classList.remove('entered'),900);
+  return new Promise(r=>setTimeout(r,230));
 }
 
 restoreLogin();   // จำการล็อกอินครั้งก่อนไว้ ไม่ต้องกรอกรหัสใหม่ทุกครั้งที่เปิดแอป
