@@ -755,9 +755,10 @@ table.rawtb td.xp{background:#FDECEC;color:#C62828;font-weight:800;outline:2px s
 .tp .tag{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;
   background:rgba(201,168,76,.15);color:var(--tp-gold)}
 .tp .tp-ytd{display:flex;gap:18px;flex-wrap:wrap}
-.tp .tp-ytd div{display:flex;flex-direction:column}
-.tp .tp-ytd span{font-size:10.5px;color:var(--tp-soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700}
-.tp .tp-ytd b{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}
+.tp .tp-ytd div{display:flex;flex-direction:column;padding:6px 13px;border-radius:12px;
+  background:color-mix(in srgb,var(--yc) 13%,transparent);border:1.5px solid color-mix(in srgb,var(--yc) 45%,transparent)}
+.tp .tp-ytd span{font-size:12px;color:var(--yc);text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.tp .tp-ytd b{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px;color:var(--yc)}
 .tp .view-toggle{display:flex;gap:5px;flex-wrap:wrap}
 .tp canvas{max-width:100%}
 /* กล่องกราฟสูงคงที่ — เดิมความสูงผูกกับความกว้าง พอเป็นมือถือกราฟเส้น/แท่งเตี้ยเหลือ ~60px */
@@ -1590,17 +1591,22 @@ const fmtT=t=>`${t.start}–${t.end}`;
 const timeLabel=(j,t)=>(j&&j.allDay)?'ทั้งวัน':fmtT(t);
 /* ใครกำลังใช้งานอยู่ — ใช้บันทึกว่าคิวนี้ถูกแก้ล่าสุดโดยใคร */
 const whoAmI=()=>state.role==='cts'?byId(state.me).nick:state.role==='admin'?'Admin':state.role==='sm'?'SM '+state.sm:(state.salesId||'Sales');
-const stampNow=o=>{o.upBy=whoAmI();o.upAt=new Date().toISOString();return o;};
+/* crBy/crAt = คนสร้างครั้งแรก ตั้งครั้งเดียวไม่ทับ (เริ่มเก็บ 11 พ.ย. 69 — คิวเก่าไม่รู้ผู้สร้าง) */
+const stampNow=o=>{o.upBy=whoAmI();o.upAt=new Date().toISOString();if(!o.crBy){o.crBy=o.upBy;o.crAt=o.upAt;}return o;};
 /* id ใหม่ — เลขวิ่งไว้ให้เรียงและอ่านง่ายเหมือนเดิม ตัวอักษร 2 ตัวท้ายไว้กันชน
    จำเป็นเพราะแต่ละเครื่องเดินเลขของตัวเองไปก่อน กว่าจะรู้ว่าอีกเครื่องใช้เลขไหนก็ตอนบันทึกแล้ว
    ถ้าใช้เลขเปล่า สองคนที่เปิดแอปค้างไว้จะได้ TR ซ้ำกัน แล้วตอน merge จะเหลือใบเดียว = คำขอหาย */
 const newId=(pre,n)=>pre+'-'+n+String.fromCharCode(65+(Math.random()*26|0))+String.fromCharCode(65+(Math.random()*26|0));
-const upLabel=j=>{
-  if(!j||!j.upBy||!j.upAt)return '';
-  const d=new Date(j.upAt);if(isNaN(d))return '';
+const stampTx=(by,at)=>{
+  if(!by||!at)return '';
+  const d=new Date(at);if(isNaN(d))return '';
   const t=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-  return `แก้ล่าสุดโดย ${j.upBy} · ${d.getDate()} ${THMON[d.getMonth()]} ${t}`;
+  return `${by} · ${d.getDate()} ${THMON[d.getMonth()]} ${t}`;
 };
+const upLabel=j=>{const u=j&&stampTx(j.upBy,j.upAt);return u?'แก้ล่าสุดโดย '+u:'';};
+const crLabel=j=>{const c=j&&stampTx(j.crBy,j.crAt);return c?'Create โดย '+c:'';};
+/* ผู้สร้างคิวจากคำขอ = คนกดส่งคำขอ (trail แรก) + เวลาส่ง */
+const reqCr=r=>({crBy:((r.trail||[])[0]||{}).by||r.requester||'',crAt:r.created});
 /* ✓ หน้าคิว = Admin ยืนยันแล้วว่าอีเมลอนุมัติออกไปแล้ว
    ใช้ได้ทั้งคิวที่มาจากคำขอ (R) และคิวที่ CTS ลงเอง (S)
    Admin แตะที่ ✓ ในปฏิทินได้เลย ไม่ต้องเปิดคิวขึ้นมาก่อน */
@@ -1772,16 +1778,33 @@ const maSlot=(k,sl)=>BOOKABLE_IDS.every(id=>eventFor(k,id,sl));
         เช่น TwS ว่าง 4 คน แต่หัวหน้าว่าง 2 -> นับเป็นคิวว่าง 2 */
 function freeIds(k,slot,prodsIn){
   const pool=state.role==='sales'?bookablePool():visibleCTS().filter(c=>isBookable(c.id));
-  const free=pool.filter(c=>slotStatus(k,c.id,slot)==='free');
+  /* เสาร์–อาทิตย์/วันหยุด นับเฉพาะคนที่ MILK/PAM เปิดให้แล้ว (openFor) */
+  const freeOk=id=>slotStatus(k,id,slot)==='free'&&(!offDay(k)||openFor(k,id,slot));
+  const free=pool.filter(c=>freeOk(c.id));
   const prods=prodsIn||askedProducts();
   if(!prodsIn&&!prodGateOn())return free.map(c=>c.id);   // CTS/Admin ดูตารางตัวเอง ไม่ต้องกรอง
   if(!prods.length)return [];                          // ยังไม่เลือก Product -> ยังไม่โชว์คิวว่าง
   const able=free.filter(c=>canTrain(c.id,prods));
-  const srFree=LEAD_IDS.filter(id=>slotStatus(k,id,slot)==='free').length;
+  const srFree=LEAD_IDS.filter(freeOk).length;
   const own=able.filter(c=>!needsSenior(c.id,prods));
   const withSr=able.filter(c=>needsSenior(c.id,prods));
   return own.map(c=>c.id).concat(withSr.slice(0,srFree).map(c=>c.id));
 }
+/* จัด CTS ชั่วคราวให้คำขอที่ Sale กดจากคิวว่าง (หัวหน้าเปลี่ยนตัวได้ทีหลัง)
+   เดิมเอาคนแรกในรายชื่อเสมอ -> คิวไปตกที่คนเดิมๆ
+   ใหม่: 1) CTS ทีมเดียวกับ Sale ที่ขอ (A/B) ก่อน — ทีมนั้นไม่มีใครว่างค่อยใช้ทุกคนที่ว่าง
+         2) ในกลุ่มนั้นเลือกคนที่ KPI Training ปีงบนี้ ของตระกูล product ที่ขอน้อยที่สุด (นับแบบ Dashboard) เท่ากัน = ตามลำดับรายชื่อ */
+function kpiLoad(prods){
+  const fy=tpFYKeys(),fams=prodList(prods).map(prodFamily),n={};
+  // ponytail: tpAllRows ไล่ทั้งปีทุกครั้งที่ส่งคำขอ — ส่งไม่บ่อย ไม่ cache
+  tpAllRows().forEach(r=>{if(fy.includes(r.date.slice(0,7)))n[r.cid]=(n[r.cid]||0)+r.products.filter(p=>fams.includes(p)).length;});
+  return n;
+}
+function pickCts(ids,team,load){
+  const same=ids.filter(id=>(byId(id)||{}).team===team);
+  return (same.length?same:ids).slice().sort((a,b)=>(load[a]||0)-(load[b]||0))[0]||null;
+}
+const areaOfCode=c=>AREA_LIST.find(a=>AREA_CFG[a].codes.includes(c)||a===c)||'';
 /* หัวหน้าที่ว่างในช่วงนั้น — ใช้บอกเหตุผลตอนคิวถูกจำกัด */
 const seniorsFree=(k,slot)=>LEAD_IDS.filter(id=>slotStatus(k,id,slot)==='free');
 
@@ -2434,9 +2457,8 @@ function monthHTML(){
             <span class="lb">${lab(sl)}</span><span class="nb">${f}</span></span>`;
         };
         /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
-        inner=(wknd||hol||isUrgent(k))
-          ? `<div class="wkndnote">${hol?esc(hol.name):!wknd?URGENT_TX:(freeIds(k,'am').length+freeIds(k,'pm').length)
-              ?'เสาร์–อาทิตย์':'ไม่มีคิวว่าง'}</div>`
+        inner=quietDay(k)
+          ? `<div class="wkndnote">${quietTx(k)}</div>`
           : `<div class="blks">${blk('am')}${blk('pm')}</div>`;
       }
     }
@@ -2687,12 +2709,12 @@ function weekHTML(){
       const f=freeIds(k,sl).length;
       const picked=state.picks.some(p=>p.date===k&&p.slot===sl);
       /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
-      const quiet=isWeekend(d)||hol||isUrgent(k);
+      const quiet=quietDay(k);
       return `<div class="scell${isWeekend(d)?' wkndcell':''}${hol?' wcell holc2':''}">
-        ${quiet?`<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:${hol?'var(--hol-ink)':'var(--ink3)'};font-size:12px">${hol?esc(hol.name):isWeekend(d)?'เสาร์–อาทิตย์':URGENT_TX}</span>`
+        ${quiet?`<span class="sdot" style="background:var(--line)"></span><span class="sbig" style="color:${hol?'var(--hol-ink)':'var(--ink3)'};font-size:12px">${quietTx(k)}</span>`
           :`<span class="sdot" style="background:${bl?'var(--ma)':rampColor(f,total)}"></span>
             <span class="sbig" style="color:${f&&!bl?'var(--ok)':'var(--ink3)'}">${bl?'MA':gateBlocked()?'?':f}<small>${bl?'งานกลาง':gateBlocked()?'เลือก Product':'ว่าง / '+total}</small></span>`}
-        <button class="btn sm ${picked?'ok':''}" ${(!f||bl)?'disabled':''} data-book="${k}" data-slot="${sl}">
+        <button class="btn sm ${picked?'ok':''}" ${(!f||bl||(quiet&&!picked))?'disabled':''} data-book="${k}" data-slot="${sl}">
           ${picked?'✓':'จอง'}</button></div>`;}).join('')}</div>`).join('');
   return `<div class="wscroll"><div class="swrap">${head}${rows}</div></div>${legend()}`;
 }
@@ -2724,7 +2746,21 @@ const leadDays=()=>isUPC()?LEAD_DAYS.upc:LEAD_DAYS.normal;
 const leadFrom=()=>{const d=new Date(TODAY);d.setDate(d.getDate()+leadDays());return key(d);};
 /* ช่วงกันคิวด่วน — ปฏิทิน Sale ไม่โชว์จำนวนคิวว่าง แต่ยังกดขอได้ถ้าตกลงกับ CTS (เหมือนเสาร์–อาทิตย์/วันหยุด) */
 const isUrgent=k=>k<leadFrom();
-const URGENT_TX='ด่วน — ตกลงกับ CTS';
+const URGENT_TX='ด่วน — ติดต่อ MILK/PAM';
+/* คิวด่วนขอได้เฉพาะ MILK/PAM จากแท็บ "ปฏิทิน Sale" แล้วเข้าขั้น SM อนุมัติเหมือน Sale ขอเอง */
+const canUrgent=()=>salesView()&&isLead();
+/* เสาร์–อาทิตย์/วันหยุด ปิดรับคำขอของ Sale — MILK/PAM เปิดรายวันได้จากหน้ารายวันในแท็บ "ปฏิทิน Sale"
+   ponytail: "เปิด" = เวลาว่างที่ตั้งเอง (state.avail ที่ไม่ปิด) ของทุกคน — ใช้ตาราง avail เดิม ไม่ต้องแก้ Supabase */
+const offDay=k=>isWeekend(parse(k))||!!holidayOf(k);
+const openFor=(k,cid,sl)=>{const a=availOf(k,cid,sl);return !!a&&!a.closed;};
+const OPEN_IDS=()=>BOOKABLE_IDS.concat(LEAD_IDS);
+const dayOpen=k=>OPEN_IDS().some(id=>openFor(k,id,'am')||openFor(k,id,'pm'));
+const quietDay=k=>(offDay(k)&&!dayOpen(k))||(isUrgent(k)&&!canUrgent());
+const quietTx=k=>offDay(k)&&!dayOpen(k)?(holidayOf(k)?esc(holidayOf(k).name):'เสาร์–อาทิตย์')+' · ปิด':URGENT_TX;
+function setDayOpen(k,on){OPEN_IDS().forEach(id=>['am','pm'].forEach(sl=>{
+  const a=availOf(k,id,sl);
+  if(on&&!a)setAvail(k,id,sl,{start:SLOT_DEF[sl].start,end:SLOT_DEF[sl].end});
+  if(!on&&a&&!a.closed)setAvail(k,id,sl,null);}));}
 function togglePick(k,slot,ctsId){
   const i=state.picks.findIndex(p=>p.date===k&&p.slot===slot&&(ctsId?p.ctsId===ctsId:true));
   if(i>=0){state.picks.splice(i,1);return true;}   /* เอาออกได้เสมอ ไม่ติดกติกาล่วงหน้า */
@@ -2732,8 +2768,11 @@ function togglePick(k,slot,ctsId){
      UPC ยังล็อก 14 วันตามเดิม เพราะต้องวางแผนเดินทางต่างจังหวัด */
   if((state.role==='sales'||salesView())&&k<leadFrom()){
     if(isUPC())return toast('ขอคิวล่วงหน้าอย่างน้อย '+leadDays()+' วัน — เลือกได้ตั้งแต่ '+fmtDate(leadFrom())),false;
-    toast('คิวด่วน — ปกติขอล่วงหน้า '+leadDays()+' วัน ต้องตกลงกับ CTS ก่อน');
+    if(!canUrgent())return toast('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM — ติดต่อ CTS'),false;
+    toast('คิวด่วน — เลือกรหัส Sale เจ้าของคำขอในฟอร์ม แล้วจะส่งให้ SM อนุมัติ');
   }
+  if((state.role==='sales'||salesView())&&!ctsId&&offDay(k)&&!dayOpen(k))
+    return toast('เสาร์–อาทิตย์/วันหยุด ปิดรับคำขอ — ต้องให้ MILK / PAM เปิดก่อน'),false;
   if(state.picks.some(p=>p.date===k&&p.slot===slot))return toast('ช่วงเวลานี้เลือกไปแล้วในคำขอนี้'),false;
   if(state.picks.length>=needSlots())return toast(state.tbcMode?'ล็อกได้สูงสุด 10 วันต่อคำขอ':`คำขอนี้ใช้ ${needSlots()} slot — ลบอันเก่าก่อน`),false;
   const w=ctsId?slotTime(k,ctsId,slot):SLOT_DEF[slot];
@@ -2769,7 +2808,9 @@ const upcWho=(r,k)=>{const sn=(r.sessions||[]).find(s=>s.date===k);
 function upcChip(o){
   const items=o.day.items||[];
   const first=items[0]||{};
-  const pr=first.product;
+  /* product ของ item เป็น array แล้ว — PRODHEX[array] ได้ค่าเฉพาะตอนมีตัวเดียว
+     2 ตัวขึ้นไป (11 ธ.ค. 69 UPC1 Seren Clinic Belotero Intense+Volume) ได้ undefined ชิปไม่มีสี */
+  const pr=prodMain(first.product);
   const who=o.r.status==='approved'?upcWho(o.r,o.day.date):'';
   return `<button class="evchip two" data-upc="${o.day.date}"
     style="--c:${pr?PRODHEX[pr]:'#E4E0F3'};--ci:${pr?pink(pr):'var(--brand-deep)'}">
@@ -2791,8 +2832,10 @@ const upcFree=(k,cid)=>{
   if(!(isBookable(cid)||LEAD_IDS.includes(cid))||!canTrain(cid,state.upcProd))return false;
   const sr=needsSenior(cid,state.upcProd);
   if(!['am','pm'].every(sl=>slotStatus(k,cid,sl)==='free'&&(!sr||seniorsFree(k,sl).length>0)))return false;
-  /* ภายใน 14 วัน = เหมือนเสาร์–อาทิตย์/วันหยุด: ไม่โชว์ว่าง แต่ขอได้ถ้าคุยกับ CTS แล้ว */
-  return (isWeekend(d)||!isWorkday(d)||k<leadFrom())?'special':'free';
+  /* เสาร์–อาทิตย์/วันหยุด ปิด — ขอได้เมื่อ MILK/PAM เปิดวันนั้นให้แล้ว */
+  if(offDay(k)&&!(openFor(k,cid,'am')||openFor(k,cid,'pm')))return false;
+  /* ภายใน 14 วัน: ไม่โชว์ว่าง แต่ขอได้ถ้าคุยกับ CTS แล้ว */
+  return k<leadFrom()?'special':'free';
 };
 const upcFreeBtn=(k,picked)=>{const f=state.upcCts&&upcFree(k,state.upcCts);
   return f?`<button class="upcfree${picked?' on':''}${f==='special'?' sp':''}" data-upcpick="${k}">${
@@ -3392,7 +3435,7 @@ function openJob(k,ekey){
       <button class="btn block" data-edit="${r.id}" style="margin-top:11px">✎ แก้ไข / เพิ่มข้อมูล</button>
       ${r.status==='approved'?'<div class="note" style="margin-top:9px">หัวข้อ เวลา และคนที่ไปด้วยของ<b>คิวในปฏิทิน</b> แก้ที่ปุ่มด้านบน · ตรงนี้แก้รายละเอียดของคำขอ เช่น product คลินิก แพทย์</div>':''}
     </div>`
-    :j.selfId?`<div class="card"><div class="muted">คิวงานที่ CTS ลงเอง — แก้ไขหัวข้อ เวลา และผู้ร่วมงานได้ที่ปุ่มด้านบน</div></div>`
+    :j.selfId?selfDetail(state.selfEvents.find(x=>x.id===j.selfId))
     :`<div class="card"><div class="muted">คิวนี้บันทึกไว้ในตารางโดยตรง ไม่ได้มาจากคำขอในระบบ</div></div>`;
 
   openSheet(`<div class="eyebrow">${stHTML} · ${TEAMS[c.team].label}${
@@ -3404,7 +3447,7 @@ function openJob(k,ekey){
       ${prodTags(j.product)}</div>
     <div class="note pl" style="display:flex;align-items:center;gap:10px">
       <b style="font-size:16px">${timeLabel(j,t)}</b><span>${j.allDay?'ไม่ระบุเวลา':'ตามเวลาจริง'}</span></div>
-    ${j.detail?`<div class="note" style="margin-top:9px;white-space:pre-wrap">${esc(j.detail)}</div>`:''}
+    ${j.detail&&!j.selfId?`<div class="note" style="margin-top:9px;white-space:pre-wrap">${esc(j.detail)}</div>`:''}
     ${(j.topics||[]).length?`<div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">${j.topics.map(t=>`<span class="pill n">${esc(t)}</span>`).join('')}</div>`:''}
     ${e.who.length>1?`<div class="row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
       <span class="muted" style="font-size:12px">ไปด้วยกัน:</span>
@@ -3418,7 +3461,7 @@ function openJob(k,ekey){
       ?`<button class="btn block" data-reqsess="${r.id}|${j.sIdx}" style="margin-top:11px">✎ แก้ไขคิวงานนี้ (หัวข้อ · เวลา · ผู้ร่วมงาน)</button>`:''}
     ${canSeeNames()&&canEditAvail()?`<button class="btn block" data-time="${k}|${cid}" style="margin-top:9px">◷ แก้เวลา / เวลาที่ว่าง</button>`:''}
     ${canSeeNames()&&r&&r.status==='approved'?`<button class="btn bad block" data-cancelreq="${r.id}" style="margin-top:9px">✕ คิวยกเลิก — ลบออกจากปฏิทิน</button>`:''}
-    ${upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc(upLabel(j))}</div>`:''}
+    ${crLabel(j)||upLabel(j)?`<div class="muted" style="margin-top:10px;font-size:11.5px">${esc([crLabel(j),upLabel(j)].filter(Boolean).join(' - '))}</div>`:''}
   </div>${detail}
   <button class="btn block" onclick="document.getElementById('scrim').click()">ปิด</button>`);
   bindCards($('sheetBody'));
@@ -3434,6 +3477,24 @@ function openJob(k,ekey){
 }
 
 /* CTS และ Admin แก้เวลาว่าง / เวลาคิวของคนในทีมได้ */
+/* รายละเอียดคิวที่ CTS ลงเอง — แบบเดียวกับ "รายละเอียดจากคำขอ" โชว์เฉพาะช่องที่กรอกไว้ */
+function selfDetail(sv){
+  if(!sv)return '';
+  const kv=[['รายละเอียดคิวงาน',sv.detail?`<span style="white-space:pre-wrap">${esc(sv.detail)}</span>`:''],
+    ['Module Training',sv.module?esc(sv.module):''],
+    ['ระดับเนื้อหา',sv.level?esc(sv.level):''],
+    ['Product',esc(prodList(sv.product).join(', '))],
+    ['หัวข้อ',sv.topic?esc(sv.topic):''],
+    ['คลินิก',sv.clinic?esc(sv.clinic):''],
+    ['ประเภทคลินิก',sv.clinicType?esc(sv.clinicType):''],
+    ['แพทย์',+sv.doctors>0?sv.doctors+' ท่าน'+(sv.exp?' · '+esc(sv.exp.split('—')[0]):''):''],
+    ['Hands-on',sv.handsOn?`${esc(sv.hoProduct||'—')} · ${esc(sv.hoCases||'?')} เคส`:''],
+    ['สถานที่',sv.map?`<a href="${esc(sv.map)}" target="_blank" rel="noopener">เปิด Google Map</a>`:''],
+    ['PS Area',sv.psArea?esc(sv.psArea)+(psTeam(sv.psArea)?' · '+psTeam(sv.psArea):''):'']].filter(x=>x[1]);
+  return `<div class="card"><h3>รายละเอียดคิวงาน (CTS ลงเอง)</h3>
+    ${kv.length?`<dl class="kv">${kv.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>`:'<div class="muted">ยังไม่ได้กรอกรายละเอียดเพิ่ม</div>'}
+    <div class="muted" style="margin-top:8px">แก้ไขหัวข้อ เวลา ผู้ร่วมงาน และรายละเอียดได้ที่ปุ่ม "แก้ไขคิวงานนี้" ด้านบน</div></div>`;
+}
 function openAvail(k,cid){
   if(!canEditAvail())return toast('แก้เวลาว่าง / ปิดรับคิว ได้เฉพาะ MILK · PAM · BELLE · Admin');
   const c=byId(cid);
@@ -3514,7 +3575,7 @@ function dayEntries(k,pool){
   state.selfEvents.forEach(ev=>{
     if(!dateRange(ev.date,ev.dateEnd||ev.date).includes(k))return;
     put('se-'+ev.id,{kind:'busy',title:ev.title,detail:ev.detail||'',product:ev.product||null,topics:ev.topics||[],
-      selfId:ev.id,code:ev.psArea||'',emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:kpiList(ev.kpi),upBy:ev.upBy,upAt:ev.upAt,
+      selfId:ev.id,code:ev.psArea||'',emailOk:!!ev.emailOk,allDay:!!ev.allDay,attendees:ev.attendees.slice(),owner:ev.owner,kpi:kpiList(ev.kpi),upBy:ev.upBy,upAt:ev.upAt,crBy:ev.crBy,crAt:ev.crAt,
       start:ev.allDay?SLOT_DEF.am.start:ev.start,end:ev.allDay?SLOT_DEF.pm.end:ev.end},ev.attendees);
   });
   state.requests.forEach(r=>{
@@ -3541,7 +3602,7 @@ function dayEntries(k,pool){
             title:(a.clinic||'ยังไม่ระบุคลินิก')+(list.length>1?' +'+(list.length-1):''),trip:upcTrip(r),online:!!r.online,
             detail:list.map(x=>x.topic).filter(Boolean).join(' · '),
             product:pickProds(null,r.product,[...new Set(list.flatMap(x=>prodList(x.product)))]),
-            topics:reqTopics(r,s),reqId:r.id,sIdx:i,items:ixs,cts:cid,kpi:cid===exHost?[cid].concat(s.co||[]):[cid],code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,
+            topics:reqTopics(r,s),reqId:r.id,sIdx:i,items:ixs,cts:cid,kpi:cid===exHost?[cid].concat(s.co||[]):[cid],code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:false,upBy:s.upBy,upAt:s.upAt,...reqCr(r),
             start:a.start||SLOT_DEF.am.start,end:b.end||SLOT_DEF.pm.end},
             [cid].concat(cid===exHost?(s.co||[]).concat(s.extra||[]).filter(x=>x!==cid):[]));});
         return;
@@ -3553,7 +3614,7 @@ function dayEntries(k,pool){
         /* UPC วันเดียวเทรนได้หลายคลินิกหลาย product — รวมทั้งวัน ไม่งั้น Dashboard นับ KPI ให้แค่คลินิกแรก */
         detail:s.sTopic||(day?its.map(x=>x.topic).filter(Boolean).join(' · '):r.topic)||'',
         product:pickProds(s.sProduct,r.product,day?dayProds(day):it.product),
-        topics:reqTopics(r,s),reqId:r.id,sIdx:i,kpi:mainsOf(s),pmain:s.pmain,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,
+        topics:reqTopics(r,s),reqId:r.id,sIdx:i,kpi:mainsOf(s),pmain:s.pmain,code:saleCode(r),area:r.area,emailOk:!!s.emailOk,allDay:full,upBy:s.upBy,upAt:s.upAt,...reqCr(r),
         start:s.start||it.start||SLOT_DEF[full?'am':s.slot].start,
         end:s.end||last.end||SLOT_DEF[full?'pm':s.slot].end},reqWho(s));
     });
@@ -3659,7 +3720,10 @@ function openDay(k){
     +(canSeeNames()
       ? `<div class="row" style="margin-bottom:10px"><span class="muted grow">${visibleCTS().length} คนในมุมมองนี้</span>
           <button class="btn sm" id="dnAdd">＋ เพิ่มคิวงาน</button></div>`+timelineHTML(k)
-      : evHtml+dayAnon(k)
+      : evHtml
+        +(salesView()&&isLead()&&offDay(k)?`<button class="btn block ${dayOpen(k)?'bad':'ok'}" id="dnOpen" style="margin-bottom:10px">${
+          dayOpen(k)?'⊘ ปิดรับคำขอ Sale วันนี้':'↺ เปิดให้ Sale ขอคิววันนี้ (เสาร์–อาทิตย์/วันหยุด)'}</button>`:'')
+        +dayAnon(k)
         /* ในแท็บ "ปฏิทิน Sale" ของ CTS/Admin ต่อท้ายด้วยตารางรายคน เพื่อแก้เวลาว่าง/ปิดคิวได้ตรงนี้เลย */
         +(salesView()?`<div class="note pl" style="margin-top:12px">ด้านล่างคือคิวรายคน — กด ◷ เพื่อแก้เวลาที่ว่าง หรือปิดคิวช่วงนั้น</div>
           <div style="margin-top:8px">${dayNamed(k)}</div>`:''))
@@ -3667,6 +3731,8 @@ function openDay(k){
   bindDayNav(k,openDay);
   const B=$('sheetBody');
   const add=$('dnAdd');if(add)add.onclick=()=>openSelfEntry(k);
+  const op=$('dnOpen');if(op)op.onclick=()=>{const on=!dayOpen(k);setDayOpen(k,on);render();openDay(k);
+    toast(on?'เปิดให้ Sale ขอคิว '+fmtDate(k)+' แล้ว':'ปิดรับคำขอ '+fmtDate(k)+' แล้ว');};
   B.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>{
     const [kk,ek]=b.dataset.job.split('|');openJob(kk,ek);});
   B.querySelectorAll('[data-ev]').forEach(b=>b.onclick=()=>openEventDetail(b.dataset.ev));
@@ -3689,7 +3755,7 @@ function dayAnon(k){
     const blocked=maSlot(k,slot);
     const free=freeIds(k,slot).length,picked=state.picks.some(p=>p.date===k&&p.slot===slot);
     /* วันหยุดใช้รูปแบบเดียวกับเสาร์–อาทิตย์: ขอคิวได้ แต่ไม่โชว์จำนวนคิวว่าง */
-    const wknd=isWeekend(parse(k))||!!hol||isUrgent(k);
+    const wknd=quietDay(k);
     return `<div class="qcard" ${picked?'style="box-shadow:inset 0 0 0 3px var(--ok)"':''}>
       <div class="qtop"><div><span class="qlbl">${slot==='am'?'MORNING':'AFTERNOON'}</span>
         <span class="qtime">${(w=>`${w.start} – ${w.end}`)(slotWindow(k,slot))}</span>
@@ -3697,11 +3763,12 @@ function dayAnon(k){
             .map(c=>fmtT(slotTime(k,c.id,slot)));
           return w.length?`<span class="muted" style="display:block;font-size:11.5px">บางคิวว่างเฉพาะ ${[...new Set(w)].join(', ')}</span>`:'';})()}</div>
         <div class="qcount ${free?'':'zero'}">${wknd
-          ?`<b style="font-size:13px">${hol?esc(hol.name):isWeekend(parse(k))?'เสาร์–อาทิตย์':URGENT_TX}</b>`
+          ?`<b style="font-size:13px">${quietTx(k)}</b>`
           :`<b>${blocked?'—':free}</b><small>${blocked?'MA EVENT':'คิวว่าง / '+total}</small>`}</div></div>
       ${wknd?'':`<div class="qbar"><i style="width:${blocked?0:Math.round(free/total*100)}%"></i></div>`}
-      <button class="btn ${picked?'ok':'primary'} block" ${(!free||blocked)?'disabled':''} data-anon="${slot}">
-        ${blocked?'ติดงานกลาง MA':gateBlocked()?'เลือก Product ก่อน':!free?'คิวเต็ม':picked?'✓ เลือกแล้ว — แตะเพื่อยกเลิก':'จองช่วงนี้'}</button></div>`;
+      <button class="btn ${picked?'ok':'primary'} block" ${(!free||blocked||(wknd&&!picked))?'disabled':''} data-anon="${slot}">
+        ${picked?'✓ เลือกแล้ว — แตะเพื่อยกเลิก':blocked?'ติดงานกลาง MA':wknd?(offDay(k)&&!dayOpen(k)?'ปิดรับคำขอ — ให้ MILK/PAM เปิดก่อน':'คิวด่วน — ติดต่อ MILK/PAM')
+          :gateBlocked()?'เลือก Product ก่อน':!free?'คิวเต็ม':'จองช่วงนี้'}</button></div>`;
   }).join('');
 }
 function dayNamed(k){
@@ -3920,6 +3987,7 @@ function openForm(){
     </div>`:''}</div>`).join('');
   const leads=leadsOf(activeTeam());
   if(state.role==='sales'&&!d.requester)d.requester=state.salesId;
+  const urg=canUrgent()&&state.picks.some(p=>isUrgent(p.date));
 
   openSheet(`<div class="eyebrow">คำขอใหม่ · ${state.role==='sales'?state.area:TEAMS[activeTeam()].label}</div><h2>รายละเอียดการเทรน</h2>`,
   `<div class="card"><h3>1 · Module Training</h3><div class="chips">${modChips}</div>${sessBox}
@@ -3967,6 +4035,9 @@ function openForm(){
 
   <div class="card"><h3>5 · ผู้ขอ</h3>
     <label class="f">ชื่อผู้ขอ <b class="req-star">*</b></label><input class="in" id="fReq" value="${esc(d.requester)}" placeholder="ชื่อ–สกุล">
+    ${canUrgent()?`<label class="f">รหัส Sale เจ้าของคำขอ ${urg?'<b class="req-star">*</b>':''}<span>· เลือกแล้วคำขอจะเข้า SM อนุมัติ และขึ้นในปฏิทินของ Sale คนนั้น${urg?' (คิวด่วนต้องเลือก)':''}</span></label>
+    <select class="in" id="fSale"><option value="">— ไม่ระบุ (คำขอของ CTS) —</option>
+      ${SM_LIST.map(t=>`<optgroup label="${t}">${smCodes(t).map(cd=>`<option ${d.saleCode===cd?'selected':''}>${cd}</option>`).join('')}</optgroup>`).join('')}</select>`:''}
     <div class="row" style="margin-top:12px;background:var(--warn-soft);border:1px solid var(--warn-edge);border-radius:13px;padding:10px 11px">
       <span class="row" style="gap:4px">${leads.map(l=>face(l.id,'s')).join('')}</span>
       <span style="font-size:12.5px;color:#7E6317">ส่งแล้วจะแจ้งเตือนไปที่ <b>${leads.map(l=>l.nick).join(' และ ')}</b> เพื่ออนุมัติ${state.role==='sales'?' และจัด CTS ผู้เทรน':''}${activeTeam()==='BOTH'?' (UPC อนุมัติได้ทั้งสองคน)':''}</span></div>
@@ -3987,6 +4058,7 @@ function openForm(){
              (d.topicNote||'').trim()].filter(Boolean).join(' — ');
     d.clinic=v('fClinic');d.clinicType=v('fCType');d.map=v('fMap');d.doctors=v('fDoc');d.level=v('fLevel');
     d.exp=v('fExp');d.requester=v('fReq');d.online=!!($('fOnline')&&$('fOnline').checked);
+    if($('fSale'))d.saleCode=v('fSale');
     if(d.handsOn){d.ho=hoGrab('fHO_');d.hoProduct=hoSum(d.ho);d.hoCases=hoTotal(d.ho)||'';}
     state.picks.forEach((p,i)=>{const a=$('pt'+i+'s'),b2=$('pt'+i+'e'),tp=$('sp'+i+'t');
       if(a&&a.value)p.start=a.value; if(b2&&b2.value)p.end=b2.value;
@@ -4345,7 +4417,7 @@ function submitTBC(){
   missingRequired(d).forEach(x=>e.push('กรอก '+x));
   const box=$('errBox');
   if(e.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+e.join(' · ');box.scrollIntoView({block:'center'});return;}
-  const team=activeTeam();
+  const team=activeTeam(),load=kpiLoad(d.product);
   const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
     status:'tbc',tbc:true,tbcAt:new Date().toISOString(),created:new Date(),
     sessions:state.picks.map(p=>({...p})),
@@ -4357,7 +4429,7 @@ function submitTBC(){
   const gone=req.sessions.filter(sn=>sn.ctsId?slotStatus(sn.date,sn.ctsId,sn.slot)!=='free':!freeIds(sn.date,sn.slot).length);
   if(gone.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+gone.map(sn=>fmtDate(sn.date)).join(', ')+' ไม่ว่างแล้ว — เลือกช่วงใหม่';return;}
   req.sessions.forEach(sn=>{
-    if(!sn.ctsId){const f=bookablePool().find(c=>freeIds(sn.date,sn.slot).includes(c.id));if(f)sn.ctsId=f.id;}
+    if(!sn.ctsId){const f=pickCts(freeIds(sn.date,sn.slot),team,load);if(f)sn.ctsId=f;}
     if(sn.ctsId)setJob(sn.date,sn.ctsId,sn.slot,stampNow({kind:'tbc',title:'TBC · '+(req.clinic||req.id),
       product:prodMain(req.product),reqId:req.id,
       start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end}));
@@ -4384,22 +4456,27 @@ function submit(){
       if(w.auto&&toMin(p.start)<toMin(w.start))
         e.push(`S${i+1}: เริ่มได้ไม่ก่อน ${w.start} น. (เผื่อพัก+เดินทางจากคิวก่อนหน้า ${AUTO_RULE.bufferMin/60} ชม.)`);}
   });
+  const urg=(state.role==='sales'||salesView())&&state.picks.some(p=>isUrgent(p.date));
+  if(urg&&!canUrgent())e.push('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM');
+  else if(urg&&!d.saleCode)e.push('เลือกรหัส Sale เจ้าของคิวด่วน');
   const box=$('errBox');
   if(e.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+e.join(' · ');box.scrollIntoView({block:'center'});return;}
 
-  const team=activeTeam();
-  const req={id:newId('TR',state.seq++),team,area:state.role==='sales'?state.area:TEAMS[team].areas[0],
-    status:state.role==='sales'?'sm':'pending',   /* Sale ส่ง -> SM พิจารณาก่อน · CTS/Admin สร้างเอง -> เข้าหัวหน้าตามเดิม */
+  /* MILK/PAM ขอแทน Sale (แท็บ "ปฏิทิน Sale") -> เดินเส้นทางเดียวกับ Sale ขอเอง: SM อนุมัติก่อน + ขึ้นปฏิทินของ Sale คนนั้น */
+  const sc=canUrgent()&&d.saleCode?d.saleCode:'',scArea=sc?areaOfCode(sc):'';
+  const team=sc?teamOfArea(scArea):activeTeam(),load=kpiLoad(d.product);
+  const req={id:newId('TR',state.seq++),team,area:sc?scArea:state.role==='sales'?state.area:TEAMS[team].areas[0],
+    status:(state.role==='sales'||sc)?'sm':'pending',   /* Sale ส่ง -> SM พิจารณาก่อน · CTS/Admin สร้างเอง -> เข้าหัวหน้าตามเดิม */
     created:new Date(),sessions:state.picks.map(p=>({...p})),
     module:d.module,level:d.level,product:d.product,topic:d.topic,ptopic:d.ptopic,topicNote:d.topicNote,
     clinic:d.clinic,clinicType:d.clinicType,map:d.map,online:!!d.online,
     doctors:d.doctors,exp:d.exp,handsOn:d.handsOn,ho:d.ho,hoProduct:d.hoProduct,hoCases:d.hoCases,photos:d.photos,
-    requester:d.requester,requesterId:state.role==='sales'?state.salesId:(state.me||'admin'),byRole:state.role};
+    requester:d.requester,requesterId:sc||(state.role==='sales'?state.salesId:(state.me||'admin')),byRole:state.role};
   // anonymous picks (Sales) get a tentative CTS so the slot is truly held; the Leader can change it
   req.sessions.forEach(s=>{
     /* จัดคนชั่วคราวให้คิวถูกล็อกจริง — ต้องผ่าน freeIds() เพื่อไม่ให้ไปโดน Senior Leader
        หรือคนที่ยังไม่เปิด Skills ของ product ที่ขอ (หัวหน้าเปลี่ยนตัวได้ทีหลัง) */
-    if(!s.ctsId){const f=freeIds(s.date,s.slot)[0];if(f)s.ctsId=f;}
+    if(!s.ctsId){const f=pickCts(freeIds(s.date,s.slot),team,load);if(f)s.ctsId=f;}
     if(s.ctsId)setJob(s.date,s.ctsId,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
       start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
   });
@@ -5259,9 +5336,9 @@ function renderDash(){
         <h2>Total Cumulative Training YTD</h2>
         <div class="sub">Monthly cumulative training — ปีงบ ก.ค.–มิ.ย.</div></div>
       <div class="tp-ytd">
-        <div><span>Training</span><b>${tot.toLocaleString()}</b></div>
-        <div><span>Clinic</span><b>${new Set(rows.map(function(r){return r.clinic;})).size}</b></div>
-        <div><span>Doctor</span><b>${rows.reduce(function(s,r){return s+r.doctors;},0)}</b></div></div></div>
+        <div style="--yc:#7B5CE0"><span>Training</span><b>${tot.toLocaleString()}</b></div>
+        <div style="--yc:#0E9F8E"><span>Clinic</span><b>${new Set(rows.map(function(r){return r.clinic;})).size}</b></div>
+        <div style="--yc:#E0527A"><span>Doctor</span><b>${rows.reduce(function(s,r){return s+r.doctors;},0)}</b></div></div></div>
       <div class="tp-ch"><canvas id="tpCumul"></canvas></div></div>
 
     <div class="panel"><div class="panel-head"><div>
