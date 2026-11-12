@@ -3,3 +3,4 @@ _serve.mjs
 bug/
 backup-*.html
 supabase/.push-*
+supabase/.msl-*
