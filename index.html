@@ -1800,6 +1800,17 @@ function kpiLoad(prods){
   tpAllRows().forEach(r=>{if(fy.includes(r.date.slice(0,7)))n[r.cid]=(n[r.cid]||0)+r.products.filter(p=>fams.includes(p)).length;});
   return n;
 }
+/* CTS ที่ต้อง Train with Senior -> จัด PAM/MILK ที่ว่างลง "คนที่ไปด้วย" (s.extra) ทันทีตอนส่งคำขอ
+   หัวหน้าถูกล็อกช่องนั้นตั้งแต่ยัง Pending -> Sale คนถัดไปไม่เห็นคิว TwS ที่ไม่มีหัวหน้าว่างแล้ว (12 พ.ย. 69)
+   เลือกหัวหน้าทีมเดียวกับน้องก่อน ไม่ว่างค่อยข้ามทีม */
+function pickSenior(k,slot,cid){
+  const f=LEAD_IDS.filter(id=>slotStatus(k,id,slot)==='free'&&(!offDay(k)||openFor(k,id,slot)));
+  return f.find(id=>byId(id).team===(byId(cid)||{}).team)||f[0]||null;
+}
+function addSenior(s,prods){
+  if(!s.ctsId||!needsSenior(s.ctsId,prods)||LEAD_IDS.some(id=>reqWho(s).includes(id)))return;
+  const sr=pickSenior(s.date,s.slot,s.ctsId);if(sr)s.extra=(s.extra||[]).concat(sr);
+}
 function pickCts(ids,team,load){
   const same=ids.filter(id=>(byId(id)||{}).team===team);
   return (same.length?same:ids).slice().sort((a,b)=>(load[a]||0)-(load[b]||0))[0]||null;
@@ -2746,9 +2757,9 @@ const leadDays=()=>isUPC()?LEAD_DAYS.upc:LEAD_DAYS.normal;
 const leadFrom=()=>{const d=new Date(TODAY);d.setDate(d.getDate()+leadDays());return key(d);};
 /* ช่วงกันคิวด่วน — ปฏิทิน Sale ไม่โชว์จำนวนคิวว่าง แต่ยังกดขอได้ถ้าตกลงกับ CTS (เหมือนเสาร์–อาทิตย์/วันหยุด) */
 const isUrgent=k=>k<leadFrom();
-const URGENT_TX='ด่วน — ติดต่อ MILK/PAM';
-/* คิวด่วนขอได้เฉพาะ MILK/PAM จากแท็บ "ปฏิทิน Sale" แล้วเข้าขั้น SM อนุมัติเหมือน Sale ขอเอง */
-const canUrgent=()=>salesView()&&isLead();
+const URGENT_TX='ด่วน — ติดต่อ MILK/PAM/BELLE';
+/* คิวด่วนขอได้เฉพาะ MILK/PAM/BELLE จากแท็บ "ปฏิทิน Sale" แล้วเข้าขั้น SM อนุมัติเหมือน Sale ขอเอง */
+const canUrgent=()=>salesView()&&(isLead()||isMgr());
 /* เสาร์–อาทิตย์/วันหยุด ปิดรับคำขอของ Sale — MILK/PAM เปิดรายวันได้จากหน้ารายวันในแท็บ "ปฏิทิน Sale"
    ponytail: "เปิด" = เวลาว่างที่ตั้งเอง (state.avail ที่ไม่ปิด) ของทุกคน — ใช้ตาราง avail เดิม ไม่ต้องแก้ Supabase */
 const offDay=k=>isWeekend(parse(k))||!!holidayOf(k);
@@ -2768,7 +2779,7 @@ function togglePick(k,slot,ctsId){
      UPC ยังล็อก 14 วันตามเดิม เพราะต้องวางแผนเดินทางต่างจังหวัด */
   if((state.role==='sales'||salesView())&&k<leadFrom()){
     if(isUPC())return toast('ขอคิวล่วงหน้าอย่างน้อย '+leadDays()+' วัน — เลือกได้ตั้งแต่ '+fmtDate(leadFrom())),false;
-    if(!canUrgent())return toast('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM — ติดต่อ CTS'),false;
+    if(!canUrgent())return toast('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM / BELLE — ติดต่อ CTS'),false;
     toast('คิวด่วน — เลือกรหัส Sale เจ้าของคำขอในฟอร์ม แล้วจะส่งให้ SM อนุมัติ');
   }
   if((state.role==='sales'||salesView())&&!ctsId&&offDay(k)&&!dayOpen(k))
@@ -3761,13 +3772,13 @@ function dayAnon(k){
         <span class="qtime">${(w=>`${w.start} – ${w.end}`)(slotWindow(k,slot))}</span>
         ${(()=>{const w=teamPool().filter(c=>slotStatus(k,c.id,slot)==='free'&&isCustom(k,c.id,slot))
             .map(c=>fmtT(slotTime(k,c.id,slot)));
-          return w.length?`<span class="muted" style="display:block;font-size:11.5px">บางคิวว่างเฉพาะ ${[...new Set(w)].join(', ')}</span>`:'';})()}</div>
+          return w.length?`<span style="display:block;font-size:12.5px;font-weight:700;color:#D32F2F">บางคิวว่างเฉพาะ ${[...new Set(w)].join(', ')} — ไม่ตรงกับเวลาในตาราง</span>`:'';})()}</div>
         <div class="qcount ${free?'':'zero'}">${wknd
           ?`<b style="font-size:13px">${quietTx(k)}</b>`
           :`<b>${blocked?'—':free}</b><small>${blocked?'MA EVENT':'คิวว่าง / '+total}</small>`}</div></div>
       ${wknd?'':`<div class="qbar"><i style="width:${blocked?0:Math.round(free/total*100)}%"></i></div>`}
       <button class="btn ${picked?'ok':'primary'} block" ${(!free||blocked||(wknd&&!picked))?'disabled':''} data-anon="${slot}">
-        ${picked?'✓ เลือกแล้ว — แตะเพื่อยกเลิก':blocked?'ติดงานกลาง MA':wknd?(offDay(k)&&!dayOpen(k)?'ปิดรับคำขอ — ให้ MILK/PAM เปิดก่อน':'คิวด่วน — ติดต่อ MILK/PAM')
+        ${picked?'✓ เลือกแล้ว — แตะเพื่อยกเลิก':blocked?'ติดงานกลาง MA':wknd?(offDay(k)&&!dayOpen(k)?'ปิดรับคำขอ — ให้ MILK/PAM เปิดก่อน':'คิวด่วน — ติดต่อ MILK/PAM/BELLE')
           :gateBlocked()?'เลือก Product ก่อน':!free?'คิวเต็ม':'จองช่วงนี้'}</button></div>`;
   }).join('');
 }
@@ -4430,9 +4441,10 @@ function submitTBC(){
   if(gone.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+gone.map(sn=>fmtDate(sn.date)).join(', ')+' ไม่ว่างแล้ว — เลือกช่วงใหม่';return;}
   req.sessions.forEach(sn=>{
     if(!sn.ctsId){const f=pickCts(freeIds(sn.date,sn.slot),team,load);if(f)sn.ctsId=f;}
-    if(sn.ctsId)setJob(sn.date,sn.ctsId,sn.slot,stampNow({kind:'tbc',title:'TBC · '+(req.clinic||req.id),
+    addSenior(sn,prodList(req.product));
+    if(sn.ctsId)reqWho(sn).forEach(cid=>setJob(sn.date,cid,sn.slot,stampNow({kind:'tbc',title:'TBC · '+(req.clinic||req.id),
       product:prodMain(req.product),reqId:req.id,
-      start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end}));
+      start:sn.start||SLOT_DEF[sn.slot].start,end:sn.end||SLOT_DEF[sn.slot].end})));
   });
   commitReq(req,'btnTbc',()=>{
   state.requests.unshift(req);notify(req,'pending');
@@ -4457,7 +4469,7 @@ function submit(){
         e.push(`S${i+1}: เริ่มได้ไม่ก่อน ${w.start} น. (เผื่อพัก+เดินทางจากคิวก่อนหน้า ${AUTO_RULE.bufferMin/60} ชม.)`);}
   });
   const urg=(state.role==='sales'||salesView())&&state.picks.some(p=>isUrgent(p.date));
-  if(urg&&!canUrgent())e.push('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM');
+  if(urg&&!canUrgent())e.push('คิวด่วน (ภายใน '+leadDays()+' วัน) ขอได้เฉพาะ MILK / PAM / BELLE');
   else if(urg&&!d.saleCode)e.push('เลือกรหัส Sale เจ้าของคิวด่วน');
   const box=$('errBox');
   if(e.length){box.hidden=false;box.textContent='ยังส่งไม่ได้: '+e.join(' · ');box.scrollIntoView({block:'center'});return;}
@@ -4477,8 +4489,9 @@ function submit(){
     /* จัดคนชั่วคราวให้คิวถูกล็อกจริง — ต้องผ่าน freeIds() เพื่อไม่ให้ไปโดน Senior Leader
        หรือคนที่ยังไม่เปิด Skills ของ product ที่ขอ (หัวหน้าเปลี่ยนตัวได้ทีหลัง) */
     if(!s.ctsId){const f=pickCts(freeIds(s.date,s.slot),team,load);if(f)s.ctsId=f;}
-    if(s.ctsId)setJob(s.date,s.ctsId,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
-      start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end});
+    addSenior(s,prodList(req.product));
+    if(s.ctsId)reqWho(s).forEach(cid=>setJob(s.date,cid,s.slot,{kind:'pend',title:req.clinic||'คำขอใหม่',product:s.sProduct||req.product,reqId:req.id,
+      start:s.start||SLOT_DEF[s.slot].start,end:s.end||SLOT_DEF[s.slot].end}));
   });
   commitReq(req,'btnSend',()=>{
     logTrail(req,'request');

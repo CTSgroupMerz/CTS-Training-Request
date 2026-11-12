@@ -1785,4 +1785,52 @@ assert.ok(/Create โดย PAM · 8 .* - แก้ล่าสุดโดย M
 ['รายละเอียดทดสอบ','MAX-Entry','Standard','Ultherapy: PRIME','คลินิกทดสอบ','2 ท่าน','C01'].forEach(t=>
   assert.ok(s.includes(t),'รายละเอียดคิวที่ CTS ลงเองต้องมี '+t));}
 
-console.log('✓ ผ่านทั้ง 107 ข้อ');
+/* 108. เคสจริง 12 พ.ย. 69: TwS ว่าง 2 คน หัวหน้าว่างแค่ MILK -> Sale คนแรกขอ 1 คิว (ยัง sm/Pending)
+   MILK ต้องถูกจัดลงคิวนั้นทันที -> Sale คนที่ 2 ต้องไม่เห็นคิวว่างแล้ว
+   + หัวหน้าว่างทั้งคู่ -> เลือกคนทีมเดียวกับน้องก่อน */
+{clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.authed=true;X.state.tab='cal';
+const two=X.BOOKABLE_CTS().slice(0,2).map(c=>c.id);
+two.forEach(id=>X.setSkill(id,'Ultherapy','senior'));
+const dr=()=>({module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],
+  topic:'ก',ptopic:{Ultherapy:'ก'},clinicType:'Single',clinic:'ข',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'});
+/* หัวหน้าว่างทั้งคู่ -> คนทีมเดียวกับน้อง */
+X.state.draft=dr();X.state.picks=[{date:WD,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
+X.submit();
+let r=X.state.requests[0],sn=r.sessions[0];
+const sr=(sn.extra||[]).find(i=>X.LEAD_IDS.includes(i));
+assert.ok(sr,'น้อง TwS ต้องได้หัวหน้าไปด้วยทันทีตอนส่งคำขอ');
+assert.strictEqual(X.CTS.find(c=>c.id===sr).team,X.CTS.find(c=>c.id===sn.ctsId).team,'หัวหน้าว่างทั้งคู่ต้องเลือกทีมเดียวกับน้องก่อน');
+assert.strictEqual(X.slotStatus(WD,sr,'am')==='free',false,'หัวหน้าต้องถูกล็อกช่องนั้นตั้งแต่ยัง Pending');
+/* หัวหน้าเหลือ 1 (อีกคนติดงาน) -> คนแรกจองแล้ว คนที่ 2 ต้องไม่เห็นคิว */
+clean();
+X.state.role='sales';X.state.area='Champion';X.state.salesId='C01';X.state.authed=true;X.state.tab='cal';
+two.forEach(id=>X.setSkill(id,'Ultherapy','senior'));
+const bz={id:'SE-SR2',date:WD,dateEnd:'',allDay:true,title:'ประชุม',detail:'',product:'',topics:[],
+  attendees:['parichat'],owner:'parichat',start:'09:00',end:'16:30'};
+X.state.selfEvents.push(bz);X.syncSelf(bz);
+X.state.draft=dr();
+assert.strictEqual(X.freeIds(WD,'am').length,1,'ก่อนจอง: TwS 2 คน หัวหน้าว่าง 1 -> คิวว่าง 1');
+X.state.picks=[{date:WD,slot:'am',ctsId:null,start:'09:00',end:'12:00'}];
+X.submit();
+r=X.state.requests[0];
+assert.strictEqual(r.status,'sm','คำขอยังไม่อนุมัติ');
+assert.ok((r.sessions[0].extra||[]).includes('kanwara'),'ต้องจัด MILK (หัวหน้าที่ว่างคนเดียว) ข้ามทีมได้');
+X.state.draft=dr();
+assert.strictEqual(X.freeIds(WD,'am').length,0,'Sale คนที่ 2 ต้องไม่เห็นคิวว่าง เพราะ MILK ไปกับคิวแรกแล้ว');}
+
+/* 109. คิวด่วน BELLE ขอได้เหมือน MILK/PAM -> เข้า SM + เป็นคำขอของ Sale ที่เลือก */
+{clean();
+const nr=(()=>{const t=new Date();t.setDate(t.getDate()+2);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');})();
+X.state.role='cts';X.state.me='belle';X.state.tab='sale';X.state.authed=true;
+assert.ok(X.canUrgent(),'BELLE ต้องขอคิวด่วนได้');
+X.BOOKABLE_CTS().forEach(c=>X.setSkill(c.id,'Ultherapy','self'));
+X.state.draft={module:'MAX-Entry',slots:1,sessions:1,level:'',product:['Ultherapy'],saleCode:'W02',
+  topic:'ก',ptopic:{Ultherapy:'ก'},clinicType:'Single',clinic:'ด่วน',map:'',doctors:1,exp:'',handsOn:false,hoProduct:'',hoCases:'',photos:[],requester:'ค'};
+X.state.picks=[{date:nr,slot:'am',ctsId:'onkamol',start:'09:00',end:'12:00'}];
+ctx.window.__grab=null;X.submit();
+const u=X.state.requests[0];
+assert.ok(u&&u.status==='sm'&&u.requesterId==='W02','คิวด่วนของ BELLE ต้องเข้า SM และเป็นของ Sale W02');
+X.state.tab='cal';X.state.me=ME;}
+
+console.log('✓ ผ่านทั้ง 109 ข้อ');
